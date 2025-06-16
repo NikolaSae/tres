@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
     const data = await request.formData();
     const file: File | null = data.get("file") as unknown as File;
     const userEmail = data.get("userEmail") as string;
-    const providerId = data.get("providerId") as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
     const allowedTypes = [
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -40,23 +38,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create filename with timestamp to avoid conflicts
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const timestamp = Date.now();
     const fileName = `${timestamp}_${sanitizedFileName}`;
     
-    // Ensure the scripts/input directory exists
     const inputDir = path.join(process.cwd(), "scripts", "input");
     const filePath = path.join(inputDir, fileName);
 
-    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Write file to disk
     await writeFile(filePath, buffer);
 
-    // Return file information including the path for the import process
     return NextResponse.json({
       success: true,
       message: "Fajl je uspešno uploadovan",
@@ -68,7 +61,6 @@ export async function POST(request: NextRequest) {
         type: file.type,
         uploadedBy: userEmail,
         uploadedAt: new Date().toISOString(),
-        providerId: providerId || null
       }
     });
 

@@ -1,5 +1,4 @@
 // Path: components/services/ProviderProcessorForm.tsx
-
 "use client";
 
 import { useState, useRef } from "react";
@@ -103,18 +102,22 @@ export function ProviderProcessorForm() {
       const result = await importRes.json();
 
       if (importRes.ok && result.success) {
+        // Split output into log lines
         const outputLines = result.output?.split("\n").filter(Boolean) || [];
         outputLines.forEach(line => {
           updateFileStatus(file.name, 'processing', '🔄 Obrada...', line);
         });
 
-        updateFileStatus(file.name, 'completed', '✅ Uspešno importovano', '✅ Import uspešno završen!', result.fileInfo?.lastReportPath);
+        updateFileStatus(
+          file.name, 
+          'completed', 
+          '✅ Uspešno importovano', 
+          '✅ Import uspešno završen!', 
+          result.reportPath  // Use the new reportPath
+        );
       } else {
+        // Error handling
         const errorLog = result.error || "Nepoznata greška";
-        const outputLines = result.output?.split("\n").filter(Boolean) || [];
-        outputLines.forEach(line => {
-          updateFileStatus(file.name, 'processing', '🔄 Obrada...', line);
-        });
         updateFileStatus(file.name, 'error', `❌ Greška: ${errorLog}`, `❌ Greška tokom importa: ${errorLog}`);
       }
     } catch (error: any) {

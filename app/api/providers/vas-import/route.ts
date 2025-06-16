@@ -1,10 +1,14 @@
 // app/api/providers/vas-import/route.ts
 import { NextResponse } from "next/server";
-import { spawn } from "child_process";
-import path from "path";
-import fs from "fs/promises";
+import { promises as fs } from 'fs';
+import path from 'path';
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { VasImportService } from "@/scripts/vas-import/VasImportService";
+
+const PROJECT_ROOT = process.cwd();
+const SCRIPTS_DIR = path.join(PROJECT_ROOT, 'scripts');
+const ERROR_FOLDER = path.join(SCRIPTS_DIR, 'errors');
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -21,7 +25,6 @@ export async function POST(req: Request) {
     const userEmail = body.userEmail || session.user.email;
     const uploadedFilePath = body.uploadedFilePath;
 
-    // Look up user
     const user = await db.user.findUnique({
       where: { email: userEmail },
       select: { id: true }
@@ -34,37 +37,31 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get file info
-    let fileInfo = null;
-    if (uploadedFilePath) {
-      try {
-        const stats = await fs.stat(uploadedFilePath);
-        fileInfo = {
-          filePath: uploadedFilePath,
-          fileName: path.basename(uploadedFilePath),
-          fileSize: stats.size,
-          mimeType: uploadedFilePath.endsWith('.xlsx') 
-            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            : 'application/vnd.ms-excel'
-        };
-      } catch (error) {
-        console.warn("Could not get file info:", error);
-      }
+    if (!uploadedFilePath) {
+      return NextResponse.json(
+        { error: "Nije pronađena putanja fajla" },
+        { status: 400 }
+      );
     }
 
-    const scriptPath = path.join(process.cwd(), "scripts", "vas_provider_processor.py");
-
-    // Verify script exists
+    let fileInfo = null;
     try {
-      await fs.access(scriptPath);
+      const stats = await fs.stat(uploadedFilePath);
+      fileInfo = {
+        filePath: uploadedFilePath,
+        fileName: path.basename(uploadedFilePath),
+        fileSize: stats.size,
+        mimeType: uploadedFilePath.endsWith('.xlsx') 
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/vnd.ms-excel'
+      };
     } catch (error) {
       return NextResponse.json(
-        { error: `Python skripta nije pronađena na lokaciji: ${scriptPath}` },
+        { error: `Fajl nije pronađen: ${uploadedFilePath}` },
         { status: 404 }
       );
     }
 
-    // Update import status if provider ID provided
     if (body.providerId) {
       await db.provider.update({
         where: { id: body.providerId },
@@ -72,85 +69,77 @@ export async function POST(req: Request) {
           importStatus: 'in_progress',
           lastImportDate: new Date(),
           importedBy: user.id,
-          ...(fileInfo && {
-            originalFileName: fileInfo.fileName,
-            originalFilePath: fileInfo.filePath,
-            fileSize: fileInfo.fileSize,
-            mimeType: fileInfo.mimeType,
-          })
+          originalFileName: fileInfo.fileName,
+          originalFilePath: fileInfo.filePath,
+          fileSize: fileInfo.fileSize,
+          mimeType: fileInfo.mimeType,
         }
       });
     }
 
-    return new Promise((resolve) => {
-      // Use explicit Python path from environment variable or default to system Python
-      const pythonPath = path.join(process.cwd(), ".venv", "Scripts", "python.exe");
+    const vasImporter = new VasImportService(user.id);
+    await vasImporter.ensureDirectories();
+    
+    let output = '';
+    let errorOutput = '';
+    let reportPath: string | null = null;
+
+    try {
+      const result = await vasImporter.processExcelFile(uploadedFilePath);
       
-      const pythonProcess = spawn(pythonPath, [scriptPath, user.id], {
-  env: {
-    ...process.env,
-    PYTHONPATH: path.join(process.cwd(), "scripts"),
-    PATH: `${path.join(process.cwd(), ".venv", "Scripts")};${process.env.PATH}`
-  }
-});
+      if (result.records.length > 0) {
+        const importResult = await vasImporter.importRecordsToDatabase(result.records);
+        output = `Processed ${result.records.length} records. Inserted: ${importResult.inserted}, Updated: ${importResult.updated}, Errors: ${importResult.errors}`;
+      output = importResult.logs.join('\n');
+    output += `\nProcessed ${result.records.length} records. `;
+    output += `Inserted: ${importResult.inserted}, `;
+    output += `Updated: ${importResult.updated}, `;
+    output += `Errors: ${importResult.errors}`;
+      } else {
+        output = "No valid records found in file";
+      }
 
-      let combinedOutput = "";
-      let errorOutput = "";
-
-      pythonProcess.stdout.on("data", (data) => {
-        combinedOutput += data.toString();
-      });
-
-      pythonProcess.stderr.on("data", (data) => {
-        const errorMessage = data.toString();
-        console.error("Python Error:", errorMessage);
-        
-        // Handle specific module errors
-        if (errorMessage.includes("ModuleNotFoundError")) {
-          errorOutput = `Python moduli nisu instalirani. Pokrenite: ${pythonPath} -m pip install pandas psycopg2-binary openpyxl python-dotenv`;
-        } else {
-          errorOutput += errorMessage;
+      const movedPath = await vasImporter.moveFileToProviderDirectory(
+        uploadedFilePath,
+        result.providerId,
+        result.providerName,
+        path.basename(uploadedFilePath)
+      );
+      
+      if (movedPath) {
+        const publicIndex = movedPath.indexOf('public');
+        if (publicIndex !== -1) {
+          reportPath = movedPath.substring(publicIndex + 6);
         }
-        combinedOutput += errorMessage;
-      });
+        output += `\nFile moved to: ${movedPath}`;
+      }
+    } catch (error: any) {
+      errorOutput = error.message || "Error processing file";
+      console.error("Processing error:", error);
+      
+      try {
+        const errorFile = path.join(ERROR_FOLDER, path.basename(uploadedFilePath));
+        await fs.rename(uploadedFilePath, errorFile);
+        output += `\nFile moved to error folder: ${errorFile}`;
+      } catch (moveError) {
+        console.error("Failed to move file to error folder:", moveError);
+        output += `\nFailed to move file: ${(moveError as Error).message}`;
+      }
+    }
 
-      pythonProcess.on("close", async (code) => {
-        const isSuccess = code === 0;
-        
-        // Update import status if provider ID provided
-        if (body.providerId) {
-          try {
-            await db.provider.update({
-              where: { id: body.providerId },
-              data: {
-                importStatus: isSuccess ? 'completed' : 'failed',
-                lastImportDate: new Date(),
-              }
-            });
-          } catch (dbError) {
-            console.error("Failed to update import status:", dbError);
-          }
-        }
-
-        resolve(
-          NextResponse.json({
-            success: isSuccess,
-            output: combinedOutput,
-            error: errorOutput,
-            exitCode: code,
-            userId: user.id,
-            userEmail,
-            fileInfo,
-            pythonPathUsed: pythonPath
-          })
-        );
-      });
+    return NextResponse.json({
+      success: !errorOutput,
+      output,
+      error: errorOutput,
+      reportPath,
+      userId: user.id,
+      userEmail,
+      fileInfo
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in VAS import:", error);
     
-    // Update status if provider ID provided
     const body = await req.json().catch(() => ({}));
     if (body.providerId) {
       try {
@@ -167,7 +156,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { error: "Greška prilikom importa VAS podataka" },
+      { error: "Greška prilikom importa VAS podataka: " + error.message },
       { status: 500 }
     );
   } finally {
