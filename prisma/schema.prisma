@@ -149,7 +149,7 @@ model Provider {
   vasServices VasService[]
   bulkServices BulkService[]
   complaints  Complaint[]
-  transactions ParkingTransaction[]
+  transactions VasTransaction[]
 
   // Added the inverse relation to LogEntry
   logEntries  LogEntry[]
@@ -179,6 +179,29 @@ model HumanitarianOrg {
   @@index([name])
 }
 
+model VasTransaction {
+  id               String   @id @default(cuid())
+  providerId       String
+  provider         Provider @relation(fields: [providerId], references: [id])
+  serviceId        String
+  service          Service  @relation(fields: [serviceId], references: [id])
+  date             DateTime
+  group            String   // "prepaid" ili "postpaid"
+  serviceName      String   // Originalno ime servisa
+  serviceCode      String   // Ekstraktovani 4-digit kod
+  price            Float    // Jedinična cena
+  quantity         Float    // Broj transakcija
+  amount           Float    // Ukupan iznos
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@unique([providerId, date, serviceName, group])
+  @@index([providerId, date])
+  @@index([serviceId])
+  @@index([serviceCode])
+  @@index([group])
+}
+
 model ParkingTransaction {
   id               String         @id @default(cuid())
   parkingServiceId String
@@ -190,8 +213,6 @@ model ParkingTransaction {
   amount           Float
   createdAt        DateTime       @default(now())
   serviceId        String
-  providerId       String
-  provider         Provider       @relation(fields: [providerId], references: [id])
 
   parkingService   ParkingService @relation(fields: [parkingServiceId], references: [id])
   service          Service        @relation(fields: [serviceId], references: [id])  // Add relation to Service
