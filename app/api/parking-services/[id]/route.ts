@@ -1,45 +1,51 @@
-//app/api/parking-services/[id]/route.ts
+// app/api/parking-services/[id]/route.ts
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
 
-import { Metadata } from "next";
-import BulkServiceList from "@/components/bulk-services/BulkServiceList";
-import { Heading } from "@/components/ui/heading";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import Link from "next/link";
-import BulkServiceFilters from "@/components/bulk-services/BulkServiceFilters";
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const service = await prisma.parkingService.findUnique({
+      where: { id: params.id },
+      include: {
+        // Dodajte relacije koje vam trebaju
+      }
+    });
 
-export const metadata: Metadata = {
-  title: "Bulk Services",
-  description: "Manage bulk services and SMS agreements",
-};
+    if (!service) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    }
 
-export default async function BulkServicesPage() {
-  return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <Heading
-          title="Bulk Services"
-          description="Manage your bulk SMS services and agreements"
-        />
-        <div className="flex space-x-2">
-          <Button asChild>
-            <Link href="/bulk-services/import">
-              <Plus className="mr-2 h-4 w-4" />
-              Import CSV
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/bulk-services/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add New
-            </Link>
-          </Button>
-        </div>
-      </div>
-      <Separator />
-      <BulkServiceFilters />
-      <BulkServiceList />
-    </div>
-  );
+    return NextResponse.json(service);
+  } catch (error) {
+    console.error('[PARKING_SERVICE_GET]', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const body = await request.json();
+    
+    const updatedService = await prisma.parkingService.update({
+      where: { id: params.id },
+      data: body
+    });
+
+    return NextResponse.json(updatedService);
+  } catch (error) {
+    console.error('[PARKING_SERVICE_PATCH]', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }

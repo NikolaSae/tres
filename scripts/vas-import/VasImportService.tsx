@@ -63,33 +63,35 @@ class VasImportService {
   }
 
   extractProviderName(filename: string): string {
-  // Remove timestamp prefix if present (e.g., "1750069812361_")
-  const baseName = path.basename(filename).replace(/^\d+_/, '');
+  const baseName = path.basename(filename);
   
+  // Poboljšani regex za SDP fajlove
+  const sdpPattern = /Servis_?_{1,3}SDP_?_{1,3}([A-Za-z0-9]+)_/i;
+  const sdpMatch = baseName.match(sdpPattern);
+  
+  if (sdpMatch && sdpMatch[1]) {
+    // Uzimamo prva 3 slova BEZ konverzije u velika slova
+    return sdpMatch[1].substring(0, 3); 
+  }
+
+  // Postojeća logika za ostale formate (takođe bez toUpperCase())
   const patterns = [
-    /Servis__MicropaymentMerchantReport_([A-Z]+)_Apps_\d+__\d+_\d+/,
-    /_mParking_([A-Za-z0-9]+)_\d+__\d+_/,
-    /Parking_([A-Za-z0-9]+)_\d{8}/,
-    /Servis__MicropaymentMerchantReport_([A-Z]+)_Standard_\d+__\d+_\d+/,
-    /Servis__MicropaymentMerchantReport_([A-Z]+)_Media_\d+__\d+_\d+/
+    /Servis__MicropaymentMerchantReport_([A-Za-z0-9]+)_Apps_\d+__\d+_\d+/i,
+    /Servis__MicropaymentMerchantReport_([A-Za-z0-9]+)_Standard_\d+__\d+_\d+/i,
+    /Servis__MicropaymentMerchantReport_([A-Za-z0-9]+)_Media_\d+__\d+_\d+/i
   ];
   
   for (const pattern of patterns) {
     const match = baseName.match(pattern);
     if (match && match[1]) {
-      return match[1];
+      return match[1].substring(0, 3); // Uzimamo prva 3 karaktera
     }
   }
   
-  // Try to extract any 3-5 uppercase letter code from filename
-  const codeMatch = baseName.match(/[A-Z]{3,5}/);
-  if (codeMatch) {
-    return codeMatch[0];
+  // Fallback logika
+  const codeMatch = baseName.match(/[A-Za-z0-9]{3,5}/);
+  return codeMatch ? codeMatch[0].substring(0, 3) : `Unk_${baseName.slice(0, 3)}`;
   }
-  
-  // Fallback: use first 10 characters of filename without timestamp
-  return `Unknown_${baseName.slice(0, 10).replace(/\W/g, '')}`;
-}
 
   convertToFloat(val: any): number {
     if (typeof val === 'string') {
@@ -132,15 +134,80 @@ class VasImportService {
     return new Date().getFullYear().toString();
   }
 
+  private mergeRecords(records: VasRecord[]): VasRecord[] {
+  const mergedMap = new Map<string, VasRecord>();
+
+  for (const record of records) {
+    const key = `${record.date}_${record.serviceName}_${record.group}`;
+    
+    if (!mergedMap.has(key)) {
+      // Prvi unos za ovaj datum
+      mergedMap.set(key, { ...record });
+      
+      // Ako je količina 0 ali ima vrednost (retki slučajevi)
+      if (record.quantity === 0 && record.amount !== 0) {
+        mergedMap.get(key)!.quantity = record.amount > 0 ? 1 : -1;
+      }
+    } else {
+      const existing = mergedMap.get(key)!;
+      
+      // Pravilo 1: Ako postoji +500 i dodajemo -500
+      if (existing.price > 0 && record.price < 0) {
+        existing.quantity = Math.max(0, existing.quantity - Math.abs(record.quantity));
+        existing.amount += record.amount; // automatski smanjuje jer je record.amount negativan
+        
+        // Ako smo potrošili sve pozitivne količine, prebacujemo u negativ
+        if (existing.quantity === 0 && existing.amount < 0) {
+          existing.price = record.price; // postavi negativnu cenu
+          existing.quantity = Math.abs(record.quantity);
+        }
+      }
+      // Pravilo 2: Ako oba unosa su negativna
+      else if (existing.price < 0 && record.price < 0) {
+        existing.quantity += record.quantity;
+        existing.amount += record.amount;
+      }
+      // Pravilo 3: Ako postoji -500 i dodajemo +500 (ne očekuje se)
+      else if (existing.price < 0 && record.price > 0) {
+        existing.quantity = Math.max(0, Math.abs(existing.quantity) - record.quantity);
+        existing.amount += record.amount;
+        
+        // Ako smo potrošili sve negativne količine, prebacujemo u pozitiv
+        if (existing.quantity === 0 && existing.amount > 0) {
+          existing.price = record.price; // postavi pozitivnu cenu
+          existing.quantity = record.quantity;
+        }
+      }
+    }
+  }
+
+  // Post-procesiranje za konzistentnost
+  for (const [_, record] of mergedMap) {
+    // Osiguraj da negativne vrednosti imaju negativne količine
+    if (record.amount < 0 && record.quantity > 0) {
+      record.quantity = -record.quantity;
+    }
+    // Osiguraj da pozitivne vrednosti imaju pozitivne količine
+    else if (record.amount > 0 && record.quantity < 0) {
+      record.quantity = Math.abs(record.quantity);
+    }
+  }
+
+  return Array.from(mergedMap.values());
+}
+
   async importRecordsToDatabase(
   records: VasRecord[]
 ): Promise<{ logs: string[]; inserted: number; updated: number; errors: number }> {
+  // Merge records before processing
+  const mergedRecords = this.mergeRecords(records);
+  
   let inserted = 0;
   let updated = 0;
   let errors = 0;
-  const logs: string[] = [`Starting import of ${records.length} records...`];
+  const logs: string[] = [`Starting import of ${mergedRecords.length} merged records...`];
 
-  for (const [index, record] of records.entries()) {
+  for (const [index, record] of mergedRecords.entries()) {
     try {
       const dateObj = this.convertDateFormat(record.date);
       if (!dateObj) {
@@ -193,11 +260,6 @@ class VasImportService {
       errors++;
       logs.push(`❌ Record ${index+1}: Failed to process ${record.serviceName} - ${error.message || 'Unknown error'}`);
     }
-
-    // Log progress every 10 records
-    if ((index + 1) % 10 === 0) {
-      logs.push(`📊 Processed ${index+1}/${records.length} records...`);
-    }
   }
 
   logs.push(
@@ -205,7 +267,7 @@ class VasImportService {
     `✅ ${inserted} records inserted`,
     `🔄 ${updated} records updated`,
     `❌ ${errors} records failed`,
-    `Total processed: ${inserted + updated + errors}/${records.length}`
+    `Total processed: ${inserted + updated + errors}/${mergedRecords.length}`
   );
 
   return { logs, inserted, updated, errors };
@@ -307,35 +369,93 @@ class VasImportService {
     return { service };
   }
 
-  async getOrCreateContract(providerId: string, contractType: ContractType = 'PROVIDER') {
-    let contract = await prisma.contract.findFirst({
-      where: { 
-        providerId,
-        type: contractType,
-        status: 'ACTIVE'
-      }
-    });
-
-    if (!contract) {
-      const contractNumber = `AUTO-VAS-${providerId.slice(0, 8)}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
-      
-      contract = await prisma.contract.create({
-        data: {
-          name: 'Auto-generated VAS contract',
-          contractNumber,
-          type: contractType,
-          status: 'ACTIVE' as ContractStatus,
-          startDate: new Date(),
-          endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-          revenuePercentage: 10.0,
-          providerId,
-          createdById: this.currentUserId
-        }
-      });
-    }
-
-    return { contract };
+  private extractContractName(filename: string): string {
+  // 1. Pronađi prvu grupu od 3+ slova nakon Servis/SDP
+  const prefixMatch = filename.match(/(Servis|SDP)[^a-zA-Z]*([A-Z]{3,})/i);
+  
+  if (!prefixMatch || !prefixMatch[2]) {
+    throw new Error(`Ne mogu pronaći prefix u nazivu fajla: ${filename}`);
   }
+
+  const firstThree = prefixMatch[2].substring(0, 3).toUpperCase();
+  const remaining = prefixMatch[2].substring(3);
+
+  // 2. Pronađi sledeću ključnu reč nakon prefixa
+  const suffixMatch = filename.match(new RegExp(`${prefixMatch[2]}[^a-zA-Z]*([A-Za-z]+)`));
+  
+  if (!suffixMatch || !suffixMatch[1]) {
+    throw new Error(`Ne mogu pronaći suffix u nazivu fajla: ${filename}`);
+  }
+
+  const suffix = suffixMatch[1].toUpperCase();
+
+  // 3. Formiraj naziv ugovora
+  return `${firstThree}_${suffix}`;
+}
+
+private extractContractDetails(filename: string): { contractType: string; contractName: string } {
+  // 1. DCB Apps format
+  if (filename.includes('NTHDCB_Apps')) {
+    return {
+      contractType: 'DCB_APPS',
+      contractName: 'NTHDCB_APPS'
+    };
+  }
+
+  // 2. Media format
+  if (filename.includes('NTHmedia')) {
+    return {
+      contractType: 'MEDIA',
+      contractName: 'NTHmedia'
+    };
+  }
+
+  // 3. Standard format
+  if (filename.includes('NTH_Standard')) {
+    return {
+      contractType: 'STANDARD',
+      contractName: 'NTH_STANDARD'
+    };
+  }
+
+  throw new Error(`Nepoznat format ugovora: ${filename}`);
+}
+
+private async getOrCreateContract(
+  providerId: string,
+  filename: string
+): Promise<{ contract: Contract }> {
+  const { contractType, contractName } = this.extractContractDetails(filename);
+  const contractNumberPrefix = `VAS-${contractType}-`;
+
+  const existingContract = await prisma.contract.findFirst({
+    where: {
+      providerId,
+      contractNumber: { startsWith: contractNumberPrefix },
+      status: 'ACTIVE'
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (existingContract) return { contract: existingContract };
+
+  const newContract = await prisma.contract.create({
+    data: {
+      name: contractName,
+      contractNumber: `${contractNumberPrefix}${Date.now().toString().slice(-6)}`,
+      type: 'PROVIDER', // Fiksni tip ugovora
+      status: 'ACTIVE',
+      startDate: new Date(),
+      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+      providerId,
+      createdById: this.currentUserId,
+      revenuePercentage: 0,
+      description: `Automatski kreiran ugovor za ${contractName} servise`
+    }
+  });
+
+  return { contract: newContract };
+}
 
   async getOrCreateServiceContract(serviceId: string, contractId: string) {
     let serviceContract = await prisma.serviceContract.findFirst({
@@ -377,12 +497,17 @@ class VasImportService {
     const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
     const allSheetsData: VasRecord[] = [];
     
-    const providerName = this.extractProviderName(path.basename(inputFile));
+    const filename = path.basename(inputFile);
+    const providerName = this.extractProviderName(filename);
     const provider = await this.getOrCreateProvider(providerName);
-    const { contract } = await this.getOrCreateContract(provider.id, 'PROVIDER');
+    
+    // Detektuj tip ugovora iz naziva fajla
+    const contractType = this.detectContractType(filename);
+    const { contract } = await this.getOrCreateContract(provider.id, filename);
 
     const serviceNamesInFile = new Set<string>();
     const serviceIdMapping: { [key: string]: string } = {};
+    const newServices: {name: string, code?: string, type: string}[] = [];
 
     const sheetNames = workbook.SheetNames;
 
@@ -454,11 +579,10 @@ class VasImportService {
             const quantity = this.convertToFloat(quantityValues[j] || 0);
             const amount = this.convertToFloat(amountValues[j] || 0);
             
-            // Handle all non-zero quantities including negative (storno)
             if (quantity !== 0 && currentGroup === 'prepaid') {
               sheetRecords.push({
                 providerId: provider.id,
-                serviceId: '', // Will be filled later
+                serviceId: '',
                 group: currentGroup,
                 serviceName,
                 serviceCode: this.extractServiceCode(serviceName) || '',
@@ -478,14 +602,26 @@ class VasImportService {
       allSheetsData.push(...sheetRecords);
     }
 
-    // Create services using service names
+    // Create services and track new ones
     for (const serviceName of serviceNamesInFile) {
       const serviceCode = this.extractServiceCode(serviceName);
+      const existingService = await prisma.service.findFirst({
+        where: { name: serviceName }
+      });
+
+      if (!existingService) {
+        newServices.push({
+          name: serviceName,
+          code: serviceCode,
+          type: contractType
+        });
+      }
+
       const { service } = await this.getOrCreateService(
-        serviceName, // Use full name as identifier
+        serviceName,
         'VAS',
         'PREPAID',
-        serviceCode // Optional extracted code
+        serviceCode
       );
       
       serviceIdMapping[serviceName] = service.id;
@@ -507,12 +643,26 @@ class VasImportService {
       }
     }
 
+    // Prepare logs with new services info
+    const logs: string[] = [
+      `ℹ️ Using contract: ${contract.contractNumber} (${contractType})`,
+      `ℹ️ Provider: ${providerName}`
+    ];
+
+    if (newServices.length > 0) {
+      logs.push('\n⚠️ NEW SERVICES DETECTED:');
+      newServices.forEach(service => {
+        logs.push(`• ${service.name} (${service.code || 'no code'}) - ${service.type}`);
+      });
+    }
+
     return {
       records: allSheetsData,
       providerId: provider.id,
       providerName,
-      filename: path.basename(inputFile),
-      userId: this.currentUserId
+      filename,
+      userId: this.currentUserId,
+      importLogs: logs
     };
     
   } catch (error) {
@@ -527,6 +677,15 @@ class VasImportService {
     throw error;
   }
 }
+
+private detectContractType(filename: string): string {
+  if (filename.includes('_Apps_')) return 'APPS';
+  if (filename.includes('_Standard_')) return 'STANDARD';
+  if (filename.includes('_Media_')) return 'MEDIA';
+  return 'GENERAL';
+}
+
+
 
   private sanitizeTransactionRecord(row: any): VasRecord | null {
     try {

@@ -1,7 +1,7 @@
 // Path: /app/(protected)/services/import/page.tsx
 import { Metadata } from "next";
 import { ImportForm } from "@/components/services/ImportForm";
-import { ParkingServiceProcessorForm } from "@/components/services/ParkingServiceProcessorForm"; // Nova komponenta
+import { NewParkingProcessorForm  } from "@/components/services/ParkingServiceProcessorForm"; // Nova komponenta
 import { ProviderProcessorForm } from "@/components/services/ProviderProcessorForm";
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default function ImportServicesPage() {
         </div>
       </div>
 
-      <ProviderProcessorForm />
+      <NewParkingProcessorForm />
       {/* Novi kontejner za parking_service_processor */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t pt-6">
         <div>
