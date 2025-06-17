@@ -1,10 +1,10 @@
 // app/api/parking-services/typescript-import/route.ts
 import { NextResponse } from 'next/server';
 import { ParkingServiceProcessor } from '@/scripts/vas-import/ParkingServiceProcessor';
-import { auth } from '@/auth';
+import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import path from 'path';
-import { promises as fs } from 'fs'; // Koristite promises API
+import { promises as fs } from 'fs';
 
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
@@ -19,12 +19,22 @@ export async function POST(req: Request) {
     );
   }
 
+  let processor: ParkingServiceProcessor | null = null;
+
   try {
     const body = await req.json();
     const { filePath, parkingServiceId } = body;
 
-    // Provera postojanja fajla sa promises API
-    let fileExists;
+    // Validacija file path
+    if (!filePath) {
+      return NextResponse.json(
+        { error: "File path is required" },
+        { status: 400 }
+      );
+    }
+
+    // Provera postojanja fajla
+    let fileExists = false;
     try {
       await fs.access(filePath);
       fileExists = true;
@@ -39,6 +49,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // Pronalaženje korisnika
     const user = await db.user.findUnique({
       where: { email: session.user.email },
       select: { id: true }
@@ -51,29 +62,40 @@ export async function POST(req: Request) {
       );
     }
 
-    const processor = new ParkingServiceProcessor(user.id);
-    const result = await processor.processExcelFile(filePath);
+    // Kreiranje processor instance
+    processor = new ParkingServiceProcessor(user.id);
 
-    if (parkingServiceId) {
-      const stats = await fs.stat(filePath);
-      await processor.updateParkingServiceFileInfo(
-        parkingServiceId,
-        path.basename(filePath),
-        filePath,
-        stats.size,
-        'completed'
-      );
-    }
+    // Kreiranje potrebnih direktorijuma
+    await processor.ensureDirectories();
+
+    // GLAVNA FUNKCIJA - processFileWithImport umesto processExcelFile
+    const result = await processor.processFileWithImport(filePath);
+
+    // Disconnect na kraju
+    await processor.disconnect();
 
     return NextResponse.json({
       success: true,
-      recordsProcessed: result.records.length,
-      parkingServiceId: result.parkingServiceId,
-      output: result.records
+      recordsProcessed: result.recordsProcessed,
+      imported: result.imported,
+      updated: result.updated,
+      errors: result.errors,
+      warnings: result.warnings,
+      message: `Successfully processed ${result.recordsProcessed} records. Imported: ${result.imported}, Updated: ${result.updated}`
     });
 
   } catch (error: any) {
     console.error("Import error:", error);
+
+    // Cleanup u slučaju greške
+    if (processor) {
+      try {
+        await processor.disconnect();
+      } catch (disconnectError) {
+        console.error("Error disconnecting processor:", disconnectError);
+      }
+    }
+
     return NextResponse.json(
       { 
         error: "Processing failed",

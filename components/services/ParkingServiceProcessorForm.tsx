@@ -1,5 +1,5 @@
 // Path: components/services/ParkingServiceProcessorForm.tsx
-// PROBLEM: Form ne prima poruke iz procesora jer nema callback mehanizam
+
 
 "use client";
 import { useState, useRef } from "react";
@@ -108,105 +108,37 @@ export function NewParkingProcessorForm() {
   updateFileProgress(file.name, { progress: 20 });
   
   try {
-      // 1. Upload file
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userEmail', session.user.email);
+    // 1. Upload file
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('userEmail', session.user.email);
 
-      const uploadRes = await fetch('/api/parking-services/upload', {
-        method: 'POST',
-        body: formData
-      });
+    const uploadRes = await fetch('/api/parking-services/upload', {
+      method: 'POST',
+      body: formData
+    });
 
-      if (!uploadRes.ok) throw new Error('Upload neuspešan');
-      
-      const uploadData = await uploadRes.json();
-      addLog(`Fajl uploadovan na ${uploadData.fileInfo.filePath}`, 'success', file.name);
-      updateFileProgress(file.name, { status: 'processing', progress: 50 });
+    if (!uploadRes.ok) throw new Error('Upload neuspešan');
+    
+    const uploadData = await uploadRes.json();
+    addLog(`Fajl uploadovan na ${uploadData.fileInfo.filePath}`, 'success', file.name);
+    updateFileProgress(file.name, { status: 'processing', progress: 50 });
 
-      // 2. Process with streaming logs
-      addLog('Započinje TypeScript procesor', 'info', file.name);
-      
-      // ISPRAVKA: Dodaj Server-Sent Events za realtime logove
+    // 2. Process with streaming logs
+    addLog('Započinje TypeScript procesor', 'info', file.name);
+    
+    // Create a promise to handle the EventSource
+    await new Promise<void>((resolve, reject) => {
       const eventSource = new EventSource(`/api/parking-services/typescript-import-stream?filePath=${encodeURIComponent(uploadData.fileInfo.filePath)}&userEmail=${encodeURIComponent(session.user.email)}`);
       let lastProgress = 50;
-    let processingComplete = false;
-      const onError = (event: Event) => {
-      if (processingComplete) return;
-      
-      
-      // Capture meaningful error info
-      const errorInfo = event instanceof ErrorEvent 
-        ? event.message 
-        : `Type: ${event.type}`;
-      
-      addLog(`Greška u streaming: ${errorInfo}`, 'error', file.name);
-      eventSource.close();
-      reject(new Error('Streaming greška'));
-    };
-    
-    eventSource.onerror = onError;
-    
-    // Message handler
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'log') {
-          addLog(data.message, data.logType || 'info', file.name);
-        } else if (data.type === 'progress') {
-          updateFileProgress(file.name, { progress: Math.max(lastProgress, data.progress) });
-          lastProgress = data.progress;
-        } else if (data.type === 'status') {
-          updateFileProgress(file.name, { status: data.status });
-        } else if (data.type === 'complete') {
-          addLog(`Obrađeno ${data.recordsProcessed} zapisa`, 'success', file.name);
-          addLog(`Parking service ID: ${data.parkingServiceId}`, 'info', file.name);
-          updateFileProgress(file.name, { 
-            recordsProcessed: data.recordsProcessed,
-            parkingServiceId: data.parkingServiceId,
-            progress: 100
-          });
-          processingComplete = true;
-          eventSource.close();
-          resolve();
-        } else if (data.type === 'error') {
-          addLog(`Greška obrade: ${data.error}`, 'error', file.name);
-          processingComplete = true;
-          eventSource.close();
-          reject(new Error(data.error || 'Obrađivanje neuspešno'));
-        }
-      } catch (parseError) {
-        addLog(`Greška u parsiranju log poruke: ${parseError}`, 'error', file.name);
-      }
-    };
-    
-    // Timeout handler
-    const timeoutId = setTimeout(() => {
-      if (!processingComplete) {
-        addLog('Vreme za obradu isteklo', 'error', file.name);
+      let processingComplete = false;
+
+      const cleanup = () => {
         eventSource.close();
-        reject(new Error('Timeout'));
-      }
-    }, 300000); // 5 minuta timeout
+        clearTimeout(timeoutId);
+      };
 
-    // Cleanup when done
-    eventSource.addEventListener('complete', () => {
-      clearTimeout(timeoutId);
-      resolve();
-    });
-    
-    eventSource.addEventListener('error', () => {
-      clearTimeout(timeoutId);
-      reject();
-    });
-
-  } catch (error: any) {
-    addLog(`Greška: ${error.message}`, 'error', file.name);
-    throw error;
-  }
-};
-      eventSource.onmessage = (event) => {
+      const onMessage = (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
           
@@ -225,36 +157,51 @@ export function NewParkingProcessorForm() {
               parkingServiceId: data.parkingServiceId,
               progress: 100
             });
-            eventSource.close();
+            processingComplete = true;
+            cleanup();
+            resolve();
           } else if (data.type === 'error') {
-            throw new Error(data.error || 'Obrađivanje neuspešno');
+            addLog(`Greška obrade: ${data.error}`, 'error', file.name);
+            processingComplete = true;
+            cleanup();
+            reject(new Error(data.error || 'Obrađivanje neuspešno'));
           }
         } catch (parseError) {
           addLog(`Greška u parsiranju log poruke: ${parseError}`, 'error', file.name);
         }
       };
-      
-      eventSource.onerror = (error) => {
-        addLog(`Greška u streaming: ${error}`, 'error', file.name);
-        eventSource.close();
-        throw new Error('Streaming greška');
-      };
-      
-      // Čekaj da se završi
-      await new Promise((resolve, reject) => {
-        eventSource.addEventListener('complete', resolve);
-        eventSource.addEventListener('error', reject);
-        setTimeout(() => {
-          eventSource.close();
-          reject(new Error('Timeout'));
-        }, 300000); // 5 minuta timeout
-      });
 
-    } catch (error: any) {
-      addLog(`Greška: ${error.message}`, 'error', file.name);
-      throw error;
-    }
-  };
+      const onError = (event: Event) => {
+        if (processingComplete) return;
+        
+        const errorInfo = event instanceof ErrorEvent 
+          ? event.message 
+          : `Type: ${event.type}`;
+        
+        addLog(`Greška u streaming: ${errorInfo}`, 'error', file.name);
+        cleanup();
+        reject(new Error('Streaming greška'));
+      };
+
+      // 5 minute timeout
+      const timeoutId = setTimeout(() => {
+        if (!processingComplete) {
+          addLog('Vreme za obradu isteklo', 'error', file.name);
+          cleanup();
+          reject(new Error('Timeout'));
+        }
+      }, 300000);
+
+      eventSource.onmessage = onMessage;
+      eventSource.onerror = onError;
+    });
+
+  } catch (error: any) {
+    addLog(`Greška: ${error.message}`, 'error', file.name);
+    throw error;
+  }
+};
+ 
 
   const clearAll = () => {
     setFiles([]);

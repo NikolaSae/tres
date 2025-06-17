@@ -125,6 +125,7 @@ model User {
   createdRenewals         ContractRenewal[]           @relation("ContractRenewalCreator")
   modifiedRenewals        ContractRenewal[]           @relation("ContractRenewalModifier")
   uploadedRenewalFiles    ContractRenewalAttachment[] @relation("RenewalAttachmentUploader")
+  createdParkingServices  ParkingService[]
 
   // Added the inverse relation to LogEntry, using the relation name
   logEntries              LogEntry[]             @relation("LogCreator")
@@ -211,11 +212,12 @@ model ParkingTransaction {
   price            Float
   quantity         Float
   amount           Float
-  createdAt        DateTime       @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   serviceId        String
 
   parkingService   ParkingService @relation(fields: [parkingServiceId], references: [id])
-  service          Service        @relation(fields: [serviceId], references: [id])  // Add relation to Service
+  service          Service        @relation(fields: [serviceId], references: [id])
 
   @@index([parkingServiceId, date, serviceName])
   @@unique([parkingServiceId, date, serviceName, group])
@@ -243,7 +245,8 @@ model ParkingService {
   lastImportDate    DateTime? // Kada je poslednji put importovan
   importedBy        String?   // Ko je importovao
   importStatus      String?   // "success", "failed", "in_progress"
-  
+  createdBy         User?     @relation(fields: [createdById], references: [id])
+  createdById       String?
   transactions ParkingTransaction[]
   // Relations
   contracts   Contract[]
