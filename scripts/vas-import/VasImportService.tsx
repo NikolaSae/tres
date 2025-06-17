@@ -62,36 +62,78 @@ class VasImportService {
     return match ? match[1] : null;
   }
 
+
+  private normalizeProviderName(rawName: string): string {
+  // Uklanjanje suvišnih razmaka i specijalnih karaktera
+  const cleanedName = rawName
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .toUpperCase();
+
+  // Mapa za normalizaciju naziva provajdera
+  const providerMap: Record<string, string> = {
+    'NTHMEDIA': 'NTH',
+    'NTH MEDIA': 'NTH',
+    'NTHMEDI': 'NTH',
+    'NTH STANDARD': 'NTH',
+    'NTH APPS': 'NTH',
+    'NTH SAVETOVANJE': 'NTH',
+    // Dodajte ostale varijacije po potrebi
+  };
+
+  // Provera da li je u mapi
+  if (providerMap[cleanedName]) {
+    return providerMap[cleanedName];
+  }
+
+  // Provera za NTH varijante
+  if (cleanedName.includes('NTH')) {
+    return 'NTH';
+  }
+
+  return cleanedName;
+}
+
+
   extractProviderName(filename: string): string {
-  const baseName = path.basename(filename);
+  // Uklonimo prefiks sa datumom ako postoji
+  const cleanFilename = filename.replace(/^\d+_/, '');
   
-  // Poboljšani regex za SDP fajlove
-  const sdpPattern = /Servis_?_{1,3}SDP_?_{1,3}([A-Za-z0-9]+)_/i;
+  // Poboljšani regex
+  const pattern = /Servis__SDP_([A-Za-z0-9\s]+)_[a-z]+_\d{8}\.xls$/i;
+  const match = cleanFilename.match(pattern);
+  
+  if (match && match[1]) {
+    const rawName = match[1].trim();
+    return this.normalizeProviderName(rawName);
+  }
+  
+  // Fallback za stare formate
+  const baseName = path.basename(filename);
+  const sdpPattern = /Servis_?_{1,3}SDP_?_{1,3}([A-Za-z0-9\s]+)_/i;
   const sdpMatch = baseName.match(sdpPattern);
   
   if (sdpMatch && sdpMatch[1]) {
-    // Uzimamo prva 3 slova BEZ konverzije u velika slova
-    return sdpMatch[1].substring(0, 3); 
+    return this.normalizeProviderName(sdpMatch[1].trim());
   }
 
-  // Postojeća logika za ostale formate (takođe bez toUpperCase())
   const patterns = [
-    /Servis__MicropaymentMerchantReport_([A-Za-z0-9]+)_Apps_\d+__\d+_\d+/i,
-    /Servis__MicropaymentMerchantReport_([A-Za-z0-9]+)_Standard_\d+__\d+_\d+/i,
-    /Servis__MicropaymentMerchantReport_([A-Za-z0-9]+)_Media_\d+__\d+_\d+/i
+    /Servis__MicropaymentMerchantReport_([A-Za-z0-9\s]+)_Apps_\d+__\d+_\d+/i,
+    /Servis__MicropaymentMerchantReport_([A-Za-z0-9\s]+)_Standard_\d+__\d+_\d+/i,
+    /Servis__MicropaymentMerchantReport_([A-Za-z0-9\s]+)_Media_\d+__\d+_\d+/i
   ];
   
   for (const pattern of patterns) {
     const match = baseName.match(pattern);
     if (match && match[1]) {
-      return match[1].substring(0, 3); // Uzimamo prva 3 karaktera
+      return this.normalizeProviderName(match[1].trim());
     }
   }
   
-  // Fallback logika
   const codeMatch = baseName.match(/[A-Za-z0-9]{3,5}/);
-  return codeMatch ? codeMatch[0].substring(0, 3) : `Unk_${baseName.slice(0, 3)}`;
-  }
+  return codeMatch ? this.normalizeProviderName(codeMatch[0]) : 'UNK';
+}
 
   convertToFloat(val: any): number {
     if (typeof val === 'string') {
@@ -319,28 +361,36 @@ class VasImportService {
   }
 
   async getOrCreateProvider(name: string) {
-    let provider = await prisma.provider.findFirst({
-      where: { name }
-    });
-
-    if (!provider) {
-      provider = await prisma.provider.create({
-        data: {
-          name,
-          isActive: true
-        }
-      });
-      
-      await this.logActivity(
-        'Provider',
-        provider.id,
-        'CREATE',
-        `Created provider ${name}`
-      );
+  // Normalizujemo naziv pre traženja u bazi
+  const normalizedName = this.normalizeProviderName(name);
+  
+  let provider = await prisma.provider.findFirst({
+    where: { 
+      name: {
+        equals: normalizedName,
+        mode: 'insensitive' // Case-insensitive search
+      }
     }
+  });
 
-    return provider;
+  if (!provider) {
+    provider = await prisma.provider.create({
+      data: {
+        name: normalizedName,
+        isActive: true
+      }
+    });
+    
+    await this.logActivity(
+      'Provider',
+      provider.id,
+      'CREATE',
+      `Created provider ${normalizedName}`
+    );
   }
+
+  return provider;
+}
 
   async getOrCreateService(serviceCode: string, serviceType: ServiceType = 'VAS', billingType: BillingType = 'PREPAID') {
     let service = await prisma.service.findFirst({
@@ -394,30 +444,43 @@ class VasImportService {
 }
 
 private extractContractDetails(filename: string): { contractType: string; contractName: string } {
-  // 1. DCB Apps format
-  if (filename.includes('NTHDCB_Apps')) {
+  // Uklonimo prefiks sa datumom ako postoji
+  const cleanFilename = filename.replace(/^\d+_/, '');
+  
+  // Poboljšani regex koji toleriše razmake i dodatne donje crte
+  const pattern = /Servis__SDP_([A-Za-z0-9\s]+)_([a-z]+)_\d{8}\.xls$/i;
+  const match = cleanFilename.match(pattern);
+  
+  if (match && match[1] && match[2]) {
+    const providerName = match[1].trim().replace(/\s+/g, ' '); // Normalizacija razmaka
+    const contractType = match[2].trim().toUpperCase();
+    
     return {
-      contractType: 'DCB_APPS',
-      contractName: 'NTHDCB_APPS'
+      contractType,
+      contractName: `${providerName.replace(/\s/g, '_')}_${contractType}`
     };
   }
-
-  // 2. Media format
-  if (filename.includes('NTHmedia')) {
-    return {
-      contractType: 'MEDIA',
-      contractName: 'NTHmedia'
-    };
+  
+  // Fallback za ostale formate
+  if (cleanFilename.includes('_Apps_')) return { contractType: 'APPS', contractName: 'APPS' };
+  if (cleanFilename.includes('_Media_')) return { contractType: 'MEDIA', contractName: 'MEDIA' };
+  if (cleanFilename.includes('_Standard_')) return { contractType: 'STANDARD', contractName: 'STANDARD' };
+  if (cleanFilename.includes('_Commerce_')) return { contractType: 'COMMERCE', contractName: 'COMMERCE' };
+  
+  // Još jedan fallback pokušaj
+  const parts = cleanFilename.split('_');
+  if (parts.length >= 5) {
+    const providerName = parts[2]?.trim();
+    const contractType = parts[3]?.trim().toUpperCase();
+    
+    if (providerName && contractType) {
+      return {
+        contractType,
+        contractName: `${providerName.replace(/\s/g, '_')}_${contractType}`
+      };
+    }
   }
-
-  // 3. Standard format
-  if (filename.includes('NTH_Standard')) {
-    return {
-      contractType: 'STANDARD',
-      contractName: 'NTH_STANDARD'
-    };
-  }
-
+  
   throw new Error(`Nepoznat format ugovora: ${filename}`);
 }
 
@@ -426,24 +489,23 @@ private async getOrCreateContract(
   filename: string
 ): Promise<{ contract: Contract }> {
   const { contractType, contractName } = this.extractContractDetails(filename);
-  const contractNumberPrefix = `VAS-${contractType}-`;
-
+  
+  // Proverimo da li ugovor već postoji za ovog provajdera
   const existingContract = await prisma.contract.findFirst({
     where: {
       providerId,
-      contractNumber: { startsWith: contractNumberPrefix },
-      status: 'ACTIVE'
-    },
-    orderBy: { createdAt: 'desc' }
+      name: contractName
+    }
   });
 
   if (existingContract) return { contract: existingContract };
 
+  // Kreiraj novi ugovor
   const newContract = await prisma.contract.create({
     data: {
       name: contractName,
-      contractNumber: `${contractNumberPrefix}${Date.now().toString().slice(-6)}`,
-      type: 'PROVIDER', // Fiksni tip ugovora
+      contractNumber: `VAS-${contractType}-${Date.now().toString().slice(-6)}`,
+      type: 'PROVIDER',
       status: 'ACTIVE',
       startDate: new Date(),
       endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
@@ -456,6 +518,35 @@ private async getOrCreateContract(
 
   return { contract: newContract };
 }
+
+private async migrateExistingProviders() {
+  try {
+    // Pronađi sve provajdere koji sadrže "NTH" u nazivu
+    const nthProviders = await prisma.provider.findMany({
+      where: {
+        name: {
+          contains: 'NTH',
+          mode: 'insensitive'
+        }
+      }
+    });
+
+    // Ažuriraj ih na normalizovani naziv "NTH"
+    for (const provider of nthProviders) {
+      if (provider.name.toUpperCase() !== 'NTH') {
+        await prisma.provider.update({
+          where: { id: provider.id },
+          data: { name: 'NTH' }
+        });
+        console.log(`Migrated provider ${provider.name} to NTH`);
+      }
+    }
+  } catch (error) {
+    console.error('Error migrating providers:', error);
+  }
+}
+
+// Pozovite u konstruktoru ili pre procesiranja
 
   async getOrCreateServiceContract(serviceId: string, contractId: string) {
     let serviceContract = await prisma.serviceContract.findFirst({
@@ -679,9 +770,35 @@ private async getOrCreateContract(
 }
 
 private detectContractType(filename: string): string {
-  if (filename.includes('_Apps_')) return 'APPS';
-  if (filename.includes('_Standard_')) return 'STANDARD';
-  if (filename.includes('_Media_')) return 'MEDIA';
+  // Uklonimo prefiks sa datumom ako postoji
+  const cleanFilename = filename.replace(/^\d+_/, '');
+  
+  // Poboljšani regex koji toleriše razmake
+  const pattern = /Servis__SDP_[A-Za-z0-9\s]+_([a-z]+)_\d{8}\.xls$/i;
+  const match = cleanFilename.match(pattern);
+  
+  if (match && match[1]) {
+    return match[1].trim().toUpperCase();
+  }
+  
+  // Fallback za stare formate
+  const lowerFilename = cleanFilename.toLowerCase();
+  
+  if (lowerFilename.includes('_apps_') || lowerFilename.includes('app')) return 'APPS';
+  if (lowerFilename.includes('_standard_') || lowerFilename.includes('standard')) return 'STANDARD';
+  if (lowerFilename.includes('_media_') || lowerFilename.includes('media')) return 'MEDIA';
+  if (lowerFilename.includes('_commerce_') || lowerFilename.includes('commerce')) return 'COMMERCE';
+  
+  // Detekcija po delovima
+  const parts = cleanFilename.split('_');
+  for (const part of parts) {
+    const lowerPart = part.toLowerCase();
+    if (lowerPart === 'standard') return 'STANDARD';
+    if (lowerPart === 'commerce') return 'COMMERCE';
+    if (lowerPart === 'media') return 'MEDIA';
+    if (lowerPart === 'apps') return 'APPS';
+  }
+  
   return 'GENERAL';
 }
 
