@@ -27,14 +27,10 @@ export function ProviderList() {
   const [logRefreshKey, setLogRefreshKey] = useState(0);
   
   // Debounce filter changes
-  const debouncedFilters = useDebounce(filters, 300);
+  
   
   // Sync debounced filters with hook
-  useEffect(() => {
-    if (JSON.stringify(filters) !== JSON.stringify(debouncedFilters)) {
-      setFilters(debouncedFilters);
-    }
-  }, [debouncedFilters, filters, setFilters]);
+
 
   const handlePageChange = useCallback((newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
@@ -111,6 +107,7 @@ export function ProviderList() {
       <ProviderFilters
         initialFilters={filters}
         onFilterChange={handleFilterChange}
+        loading={loading || actionLoading}
       />
 
       {providers.length === 0 ? (

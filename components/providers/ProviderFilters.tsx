@@ -26,27 +26,29 @@ interface FilterOptions {
 interface ProviderFiltersProps {
   initialFilters: FilterOptions;
   onFilterChange: (filters: FilterOptions) => void;
+  loading?: boolean;
 }
 
 export function ProviderFilters({
   initialFilters,
   onFilterChange,
+  loading = false
 }: ProviderFiltersProps) {
-  const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  const [filters, setFilters] = useState<FilterOptions>({
+  ...initialFilters,
+  hasContracts: initialFilters.hasContracts || false,
+  hasComplaints: initialFilters.hasComplaints || false,
+});
   const [searchQuery, setSearchQuery] = useState(initialFilters.search || "");
   
   // Одложено претраживање
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== filters.search) {
-        const newFilters = { ...filters, search: searchQuery || undefined };
-        setFilters(newFilters);
-        onFilterChange(newFilters);
-      }
-    }, 500);
+  const timer = setTimeout(() => {
+    handleFilterChange('search', searchQuery || undefined);
+  }, 500);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  return () => clearTimeout(timer);
+}, [searchQuery]);
 
   const handleFilterChange = (key: keyof FilterOptions, value: any) => {
     const newFilters = { ...filters, [key]: value };
@@ -112,6 +114,7 @@ export function ProviderFilters({
             handleFilterChange("sortBy", sortBy);
             handleFilterChange("sortDirection", sortDirection);
           }}
+          disabled={loading}
         >
           <SelectTrigger>
             <SelectValue placeholder="Sort by" />
