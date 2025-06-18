@@ -1,6 +1,6 @@
 // /app/api/contracts/[id]/renewal/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/auth'; // Updated import path
 import { db } from '@/lib/db';
 import { ContractRenewalSubStatus } from '@prisma/client';
 
@@ -65,6 +65,13 @@ export async function POST(
       proposedEndDate,
       proposedRevenue,
       comments,
+      internalNotes,
+      documentsReceived = false,
+      legalApproved = false,
+      financialApproved = false,
+      technicalApproved = false,
+      managementApproved = false,
+      signatureReceived = false,
       subStatus = ContractRenewalSubStatus.DOCUMENT_COLLECTION
     } = body;
 
@@ -76,6 +83,16 @@ export async function POST(
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
 
+    // Check if renewal already exists
+    const existingRenewal = await db.contractRenewal.findFirst({
+      where: { contractId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (existingRenewal) {
+      return NextResponse.json({ error: 'Renewal already exists for this contract' }, { status: 409 });
+    }
+
     const renewal = await db.contractRenewal.create({
       data: {
         contractId,
@@ -84,16 +101,30 @@ export async function POST(
         proposedEndDate: new Date(proposedEndDate),
         proposedRevenue,
         comments,
+        internalNotes,
+        documentsReceived,
+        legalApproved,
+        financialApproved,
+        technicalApproved,
+        managementApproved,
+        signatureReceived,
         createdById: session.user.id
       },
       include: {
-        attachments: true,
+        attachments: {
+          include: {
+            uploadedBy: {
+              select: { name: true, email: true }
+            }
+          }
+        },
         createdBy: {
           select: { name: true, email: true }
         }
       }
     });
 
+    // Update contract status
     await db.contract.update({
       where: { id: contractId },
       data: {
@@ -127,6 +158,9 @@ export async function PUT(
     
     const {
       subStatus,
+      proposedStartDate,
+      proposedEndDate,
+      proposedRevenue,
       comments,
       internalNotes,
       documentsReceived,
@@ -134,8 +168,7 @@ export async function PUT(
       financialApproved,
       technicalApproved,
       managementApproved,
-      signatureReceived,
-      proposedRevenue
+      signatureReceived
     } = body;
 
     const existingRenewal = await db.contractRenewal.findFirst({
@@ -147,28 +180,35 @@ export async function PUT(
       return NextResponse.json({ error: 'Renewal not found' }, { status: 404 });
     }
 
+    // Prepare update data
+    const updateData: any = {
+      lastModifiedById: session.user.id
+    };
+
+    if (subStatus !== undefined) updateData.subStatus = subStatus;
+    if (proposedStartDate !== undefined) updateData.proposedStartDate = new Date(proposedStartDate);
+    if (proposedEndDate !== undefined) updateData.proposedEndDate = new Date(proposedEndDate);
+    if (proposedRevenue !== undefined) updateData.proposedRevenue = proposedRevenue;
+    if (comments !== undefined) updateData.comments = comments;
+    if (internalNotes !== undefined) updateData.internalNotes = internalNotes;
+    if (documentsReceived !== undefined) updateData.documentsReceived = documentsReceived;
+    if (legalApproved !== undefined) updateData.legalApproved = legalApproved;
+    if (financialApproved !== undefined) updateData.financialApproved = financialApproved;
+    if (technicalApproved !== undefined) updateData.technicalApproved = technicalApproved;
+    if (managementApproved !== undefined) updateData.managementApproved = managementApproved;
+    if (signatureReceived !== undefined) updateData.signatureReceived = signatureReceived;
+
     const updatedRenewal = await db.contractRenewal.update({
       where: { id: existingRenewal.id },
-      data: {
-        subStatus,
-        comments,
-        internalNotes,
-        documentsReceived,
-        legalApproved,
-        financialApproved,
-        technicalApproved,
-        managementApproved,
-        signatureReceived,
-        proposedRevenue,
-        lastModifiedById: session.user.id
-      },
+      data: updateData,
       include: {
         attachments: {
           include: {
             uploadedBy: {
               select: { name: true, email: true }
             }
-          }
+          },
+          orderBy: { uploadedAt: 'desc' }
         },
         createdBy: {
           select: { name: true, email: true }

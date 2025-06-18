@@ -57,7 +57,15 @@ interface SalesChartProps {
 }
 
 export function SalesChart({ filters }: SalesChartProps) {
-  const router = useRouter();
+  // Safely handle missing filters
+  const safeFilters = filters || {
+    period: 'monthly',
+    dateRange: { from: null, to: null },
+    providerIds: [],
+    serviceTypes: [],
+    productIds: [],
+    searchQuery: ''
+  };
 
   // Add check for filters being undefined
   if (!filters) {
@@ -65,20 +73,16 @@ export function SalesChart({ filters }: SalesChartProps) {
       return <div>Error loading sales chart data.</div>;
   }
 
-  const period = (filters.period || "monthly") as SalesPeriod;
+  const period = safeFilters.period || "monthly" as SalesPeriod;
 
-  const {
-      salesData,
-      metrics,
-      isLoading,
-      error
-    } = useSalesData(
-      period,
-      filters.dateRange?.from,
-      filters.dateRange?.to,
-      filters.serviceTypes && filters.serviceTypes.length > 0 ? filters.serviceTypes[0] : undefined, // Safely access first element
-      filters.providerIds && filters.providerIds.length > 0 ? filters.providerIds[0] : undefined // Safely access first element
-    );
+  // Use safeFilters in the hook
+  const { salesData, metrics, isLoading, error } = useSalesData(
+    period,
+    safeFilters.dateRange?.from,
+    safeFilters.dateRange?.to,
+    safeFilters.serviceTypes?.[0],
+    safeFilters.providerIds?.[0]
+  );
 
   if (isLoading) {
     return (

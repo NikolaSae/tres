@@ -34,7 +34,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Upload, FileText, X, Download, Calendar } from "lucide-react";
+import { Upload, FileText, X, Download, Calendar, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ContractRenewalSubStatus } from "@/lib/types/contract-types";
 
@@ -51,6 +51,13 @@ const renewalSchema = z.object({
   technicalApproved: z.boolean().default(false),
   managementApproved: z.boolean().default(false),
   signatureReceived: z.boolean().default(false),
+}).refine((data) => {
+  const startDate = new Date(data.proposedStartDate);
+  const endDate = new Date(data.proposedEndDate);
+  return startDate < endDate;
+}, {
+  message: "End date must be after start date",
+  path: ["proposedEndDate"],
 });
 
 type RenewalFormData = z.infer<typeof renewalSchema>;
@@ -108,6 +115,7 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<RenewalFormData>({
     resolver: zodResolver(renewalSchema),
@@ -132,6 +140,7 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
     } else if (!open) {
       form.reset();
       setRenewalData(null);
+      setError(null);
     }
   }, [open, contractId, form]);
 
@@ -163,18 +172,21 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
 
   const loadRenewalData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/contracts/${contractId}/renewal`);
+      const data = await response.json();
+      
       if (response.ok) {
-        const data = await response.json();
         setRenewalData(data.renewal);
       } else if (response.status === 404) {
         setRenewalData(null);
       } else {
-        throw new Error('Failed to load renewal data');
+        throw new Error(data.error || 'Failed to load renewal data');
       }
     } catch (error) {
       console.error('Error loading renewal data:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load renewal data');
       toast.error('Failed to load renewal data');
     } finally {
       setIsLoading(false);
@@ -188,6 +200,8 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
     }
 
     setIsSubmitting(true);
+    setError(null);
+    
     try {
       const url = `/api/contracts/${contractId}/renewal`;
       const method = renewalData?.id ? 'PUT' : 'POST';
@@ -207,11 +221,13 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
         onSuccess?.();
         onClose();
       } else {
-        toast.error(result.message || 'Failed to save renewal');
+        throw new Error(result.error || 'Failed to save renewal');
       }
     } catch (error) {
       console.error('Error saving renewal:', error);
-      toast.error('Failed to save renewal');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save renewal';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -268,7 +284,8 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
         toast.success('Attachment deleted successfully');
         await loadRenewalData();
       } else {
-        toast.error('Failed to delete attachment');
+        const error = await response.json();
+        toast.error(error.message || 'Failed to delete attachment');
       }
     } catch (error) {
       console.error('Error deleting attachment:', error);
@@ -289,6 +306,14 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
     return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -298,6 +323,13 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
             {renewalData?.id ? 'Manage Contract Renewal' : 'Start Contract Renewal'}
           </DialogTitle>
         </DialogHeader>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <span className="text-sm text-red-700">{error}</span>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -387,12 +419,14 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
                         <FormLabel>Proposed Revenue Percentage</FormLabel>
                         <FormControl>
                           <Input 
-                            type="number" 
-                            min="0" 
-                            max="100" 
+                            type="number"
+                            min="0"
+                            max="100"
                             step="0.01"
+                            placeholder="Enter percentage (0-100)"
                             {...field}
                             onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -402,247 +436,279 @@ export function RenewalDialog({ contractId, open, onClose, onSuccess }: RenewalD
                 </div>
 
                 <div className="space-y-4">
-                  <div className="space-y-3">
-                    <Label>Approval Status</Label>
-                    
-                    <div className="grid grid-cols-1 gap-2">
-                      <FormField
-                        control={form.control}
-                        name="documentsReceived"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange} 
-                              />
-                            </FormControl>
+                  <FormField
+                    control={form.control}
+                    name="comments"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Comments</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Enter any comments about the renewal..."
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="internalNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Internal Notes</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Enter internal notes (not visible to client)..."
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Approval Checkboxes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Approval Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="documentsReceived"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
                             <FormLabel className="text-sm font-normal">
                               Documents Received
                             </FormLabel>
-                          </FormItem>
-                        )}
-                      />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={form.control}
-                        name="legalApproved"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange} 
-                              />
-                            </FormControl>
+                    <FormField
+                      control={form.control}
+                      name="legalApproved"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
                             <FormLabel className="text-sm font-normal">
                               Legal Approved
                             </FormLabel>
-                          </FormItem>
-                        )}
-                      />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={form.control}
-                        name="financialApproved"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange} 
-                              />
-                            </FormControl>
+                    <FormField
+                      control={form.control}
+                      name="financialApproved"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
                             <FormLabel className="text-sm font-normal">
                               Financial Approved
                             </FormLabel>
-                          </FormItem>
-                        )}
-                      />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={form.control}
-                        name="technicalApproved"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange} 
-                              />
-                            </FormControl>
+                    <FormField
+                      control={form.control}
+                      name="technicalApproved"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
                             <FormLabel className="text-sm font-normal">
                               Technical Approved
                             </FormLabel>
-                          </FormItem>
-                        )}
-                      />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={form.control}
-                        name="managementApproved"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange} 
-                              />
-                            </FormControl>
+                    <FormField
+                      control={form.control}
+                      name="managementApproved"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
                             <FormLabel className="text-sm font-normal">
                               Management Approved
                             </FormLabel>
-                          </FormItem>
-                        )}
-                      />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={form.control}
-                        name="signatureReceived"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange} 
-                              />
-                            </FormControl>
+                    <FormField
+                      control={form.control}
+                      name="signatureReceived"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
                             <FormLabel className="text-sm font-normal">
                               Signature Received
                             </FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="comments"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Comments (Visible to Partners)</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Add comments visible to partners..."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="internalNotes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Internal Notes</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Add internal notes..."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label>Attachments</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="file"
-                      accept=".pdf,.docx"
-                      multiple
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => document.getElementById('file-upload')?.click()}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Files
-                    </Button>
-                  </div>
-                </div>
-
-                {uploadingFiles.length > 0 && (
-                  <div className="space-y-2">
-                    {uploadingFiles.map((uploadId) => (
-                      <div key={uploadId} className="flex items-center space-x-2 p-2 bg-blue-50 rounded">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                        <span className="text-sm text-blue-600">Uploading...</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {renewalData?.attachments && renewalData.attachments.length > 0 && (
-                  <div className="space-y-2">
-                    {renewalData.attachments.map((attachment) => (
-                      <div key={attachment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium text-sm">{attachment.fileName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {(attachment.fileSize / 1024 / 1024).toFixed(2)} MB • 
-                              Uploaded by {attachment.uploadedBy.name} • 
-                              {new Date(attachment.uploadedAt).toLocaleDateString()}
-                            </p>
-                            {attachment.description && (
-                              <p className="text-xs text-muted-foreground mt-1">{attachment.description}</p>
-                            )}
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(attachment.filePath, '_blank')}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteAttachment(attachment.id)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                )}
-              </div>
+                </CardContent>
+              </Card>
+
+              <Separator />
+
+              {/* File Attachments */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Document Attachments
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* File Upload */}
+                    <div className="flex items-center gap-4">
+                      <Label htmlFor="file-upload" className="cursor-pointer">
+                        <div className="flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 rounded-md hover:border-gray-400 transition-colors">
+                          <Upload className="h-4 w-4" />
+                          <span className="text-sm">Upload Documents</span>
+                        </div>
+                      </Label>
+                      <Input
+                        id="file-upload"
+                        type="file"
+                        multiple
+                        accept=".pdf,.docx"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        PDF and DOCX files only
+                      </span>
+                    </div>
+
+                    {/* Upload Progress */}
+                    {uploadingFiles.length > 0 && (
+                      <div className="space-y-2">
+                        {uploadingFiles.map((uploadId) => (
+                          <div key={uploadId} className="flex items-center gap-2 text-sm text-blue-600">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                            <span>Uploading {uploadId.split('-')[0]}...</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Existing Attachments */}
+                    {renewalData?.attachments && renewalData.attachments.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Uploaded Documents</h4>
+                        {renewalData.attachments.map((attachment) => (
+                          <div key={attachment.id} className="flex items-center justify-between p-3 border rounded-md">
+                            <div className="flex items-center gap-3">
+                              <FileText className="h-4 w-4 text-gray-500" />
+                              <div>
+                                <p className="text-sm font-medium">{attachment.fileName}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFileSize(attachment.fileSize)} • 
+                                  Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()} by {attachment.uploadedBy.name}
+                                </p>
+                                {attachment.description && (
+                                  <p className="text-xs text-muted-foreground mt-1">{attachment.description}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(`/api/contracts/${contractId}/renewal/attachments/${attachment.id}/download`, '_blank')}
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteAttachment(attachment.id)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : renewalData?.id ? 'Update Renewal' : 'Start Renewal'}
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {renewalData?.id ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    renewalData?.id ? 'Update Renewal' : 'Create Renewal'
+                  )}
                 </Button>
               </DialogFooter>
             </form>

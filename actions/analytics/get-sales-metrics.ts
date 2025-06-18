@@ -47,20 +47,11 @@ export async function getSalesMetrics({
   serviceType,
   providerId,
 }: SalesMetricsParams = {}): Promise<SalesMetrics> {
-  // Authentication check removed here, should be handled by canViewSalesData or page-level access control
-  // const user = await currentUser();
-  // if (!user) {
-  //   throw new Error("Authentication required");
-  // }
 
-  // Check if the user has permission to view sales data
-  const hasPermission = await canViewSalesData(/* user.id */); // Pass user ID if needed
+  const hasPermission = await canViewSalesData;
   if (!hasPermission) {
-    // Throw an error if permission is denied, this will be caught by the parent Suspense/Error boundary
     throw new Error("You don't have permission to access sales data");
   }
-
-  // Set default date range to last 12 months if not provided
   const defaultEndDate = new Date();
   const defaultStartDate = new Date();
   defaultStartDate.setFullYear(defaultStartDate.getFullYear() - 1);
@@ -68,12 +59,9 @@ export async function getSalesMetrics({
   const effectiveStartDate = startDate || defaultStartDate;
   const effectiveEndDate = endDate || defaultEndDate;
 
-   // Ensure dates are treated as start/end of day for comparisons if needed
    effectiveStartDate.setHours(0, 0, 0, 0);
    effectiveEndDate.setHours(23, 59, 59, 999);
 
-
-  // Calculate comparison period for growth metrics
   const periodLengthMs = effectiveEndDate.getTime() - effectiveStartDate.getTime();
   const comparisonStartDate = new Date(effectiveStartDate.getTime() - periodLengthMs);
   const comparisonEndDate = new Date(effectiveStartDate.getTime() - 1); // Just before current period
@@ -81,8 +69,6 @@ export async function getSalesMetrics({
    comparisonStartDate.setHours(0, 0, 0, 0);
    comparisonEndDate.setHours(23, 59, 59, 999);
 
-
-  // Query current period VAS service data
   const vasData = await db.vasService.findMany({
     where: {
       mesec_pruzanja_usluge: {

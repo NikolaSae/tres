@@ -1,5 +1,4 @@
-///app/(protected)/analytics/page.tsx
-
+// app/(protected)/analytics/page.tsx
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { getFinancialData } from "@/actions/analytics/get-financial-data";
@@ -7,32 +6,32 @@ import { getSalesMetrics } from "@/actions/analytics/get-sales-metrics";
 import { getComplaintStats } from "@/actions/analytics/get-complaint-stats";
 import KpiDashboard from "@/components/analytics/KpiDashboard";
 import FinancialOverview from "@/components/analytics/FinancialOverview";
-// FIX: Import SalesChart as a named export
 import { SalesChart } from "@/components/analytics/SalesChart";
 import ComplaintAnalytics from "@/components/analytics/ComplaintAnalytics";
-// FIX: Import DataFilters as a named export
 import { DataFilters } from "@/components/analytics/DataFilters";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Optional: Import permission checker helper for page access
 import { canAccessAnalyticsPage } from "@/lib/security/permission-checker";
 import { redirect } from "next/navigation";
-
 
 export const metadata: Metadata = {
     title: "Analytics Dashboard",
     description: "Overview of key performance indicators and metrics",
 };
 
-// Add types for initial data if available, helps with KpiDashboard props
-// interface AnalyticsPageProps {
-//     // Define types for initial data
-// }
+    export const dynamic = 'force-dynamic';
+
+interface AnalyticsDashboardProps {
+  searchParams?: {
+    [key: string]: string | string[] | undefined;
+  };
+}
 
 
-export default async function AnalyticsDashboard(/* props: AnalyticsPageProps */) {
+
+
+export default async function AnalyticsDashboard({ searchParams }: AnalyticsDashboardProps) {
 
     // Optional: Check if the user has permission to access the page
     const canAccess = await canAccessAnalyticsPage();
@@ -41,6 +40,22 @@ export default async function AnalyticsDashboard(/* props: AnalyticsPageProps */
          redirect('/'); // Or '/access-denied'
     }
 
+    function getFirstValue(value: string | string[] | undefined): string | undefined {
+        return Array.isArray(value) ? value[0] : value;
+    }
+
+    // Build filters from searchParams
+    const filters = {
+        period: getFirstValue(searchParams?.period) || 'monthly',
+        dateRange: {
+            from: getFirstValue(searchParams?.dateFrom) ? new Date(getFirstValue(searchParams?.dateFrom)!) : null,
+            to: getFirstValue(searchParams?.dateTo) ? new Date(getFirstValue(searchParams?.dateTo)!) : null,
+        },
+        providerIds: getFirstValue(searchParams?.providers) ? getFirstValue(searchParams?.providers)!.split(',') : [],
+        serviceTypes: getFirstValue(searchParams?.serviceTypes) ? getFirstValue(searchParams?.serviceTypes)!.split(',') : [],
+        productIds: getFirstValue(searchParams?.products) ? getFirstValue(searchParams?.products)!.split(',') : [],
+        searchQuery: getFirstValue(searchParams?.q) || '',
+    };
 
     // For initial data load - prefetch on the server
     const initialFinancialData = await getFinancialData({
@@ -59,7 +74,7 @@ export default async function AnalyticsDashboard(/* props: AnalyticsPageProps */
     });
 
     return (
-        <div className="flex flex-col gap-5 container mx-auto py-8 top-0">
+        <div className="container mx-auto py-8 space-y-8 top-0">
         {/* Title section */}
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
@@ -69,9 +84,9 @@ export default async function AnalyticsDashboard(/* props: AnalyticsPageProps */
         </div>
 
         {/* Moved filter below title with responsive width */}
-        <div className="w-full max-w-2xl"> {/* Added width constraint */}
+        <div className="true">
             <Suspense fallback={<Skeleton className="h-10 w-full" />}>
-                <DataFilters />
+                <DataFilters initialFilters={filters} />
             </Suspense>
         </div>
 
@@ -93,17 +108,14 @@ export default async function AnalyticsDashboard(/* props: AnalyticsPageProps */
 
                 <TabsContent value="overview" className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                         {/* Assuming FinancialOverview is a Client Component */}
                         <Suspense fallback={<ChartSkeleton />}>
                             <FinancialOverview data={initialFinancialData} />
                         </Suspense>
 
-                        {/* Assuming SalesChart is a Client Component */}
                         <Suspense fallback={<ChartSkeleton />}>
-                            <SalesChart data={initialSalesData} />
+                            <SalesChart filters={filters} />
                         </Suspense>
 
-                         {/* Assuming ComplaintAnalytics is a Client Component */}
                         <Suspense fallback={<ChartSkeleton />}>
                             <ComplaintAnalytics data={initialComplaintData} />
                         </Suspense>
