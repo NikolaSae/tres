@@ -142,120 +142,128 @@ export function HumanitarianOrgContracts({ organizationId, organizationName }: H
   };
 
   return (
-    <Card className="mt-6">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-2xl font-bold">Contracts</CardTitle>
+    <Card className="mt-6">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-2xl font-bold">Contracts</CardTitle>
         {organizationId && !isLoading && (
-            <Button
-              onClick={() => router.push(`/contracts/new?orgId=${organizationId}&orgName=${encodeURIComponent(organizationName)}`)}
-            >
-              Add Contract
-            </Button>
+          <Button
+            onClick={() => router.push(`/contracts/new?orgId=${organizationId}&orgName=${encodeURIComponent(organizationName)}`)}
+          >
+            Add Contract
+          </Button>
         )}
-      </CardHeader>
-      <CardContent>
-        {isLoading && organizationId && !error ? (
-          <div className="flex justify-center p-6">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            <span className="ml-2 text-muted-foreground">Loading contracts...</span>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 p-4 rounded flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-            <p className="text-red-800">{error}</p>
-          </div>
-        ) : contracts.length === 0 && organizationId && !isLoading ? ( // Prikazati "No contracts" samo ako ID postoji i nije loading
-          <div className="text-center p-6 border border-dashed rounded-md">
-            <FileText className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-            <h3 className="text-lg font-medium mb-1">No contracts found</h3>
-            <p className="text-gray-500 mb-4">This organization doesn't have any contracts yet.</p>
+      </CardHeader>
+      <CardContent>
+        {isLoading && organizationId && !error ? (
+          <div className="flex justify-center p-6">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <span className="ml-2 text-muted-foreground">Loading contracts...</span>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 p-4 rounded flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <p className="text-red-800">{error}</p>
+          </div>
+        ) : contracts.length === 0 && organizationId && !isLoading ? (
+          <div className="text-center p-6 border border-dashed rounded-md">
+            <FileText className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+            <h3 className="text-lg font-medium mb-1">No contracts found</h3>
+            <p className="text-gray-500 mb-4">This organization doesn't have any contracts yet.</p>
             {organizationId && (
-              <Button
-                onClick={() => router.push(`/contracts/new?orgId=${organizationId}&orgName=${encodeURIComponent(organizationName)}`)}
-              >
-                Add First Contract
-              </Button>
+              <Button
+                onClick={() => router.push(`/contracts/new?orgId=${organizationId}&orgName=${encodeURIComponent(organizationName)}`)}
+              >
+                Add First Contract
+              </Button>
             )}
-          </div>
-        ) : !organizationId && !isLoading ? ( // Prikazati poruku ako ID nedostaje i nije loading
-            <div className="text-center p-6 text-muted-foreground">
-                Organization ID is missing. Cannot load contracts.
-            </div>
+          </div>
+        ) : !organizationId && !isLoading ? (
+          <div className="text-center p-6 text-muted-foreground">
+            Organization ID is missing. Cannot load contracts.
+          </div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">Contract Name</th>
-                    <th className="text-left py-3 px-4">Contract No.</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                    <th className="text-left py-3 px-4">Period</th>
-                    <th className="text-left py-3 px-4">Revenue %</th>
-                    <th className="text-left py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contracts.map((contract) => (
-                    <tr key={contract.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <Link href={`/contracts/${contract.id}`} className="text-blue-600 hover:underline">
-                          {contract.name}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4">{contract.contractNumber}</td>
-                      <td className="py-3 px-4">{renderStatusBadge(contract.status)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4 text-gray-500" />
-                          <span>
-                            {formatDate(contract.startDate)} - {formatDate(contract.endDate)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">{contract.revenuePercentage}%</td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/contracts/${contract.id}`)}
-                          >
-                            View
-                          </Button>
-                          {contract.status === 'ACTIVE' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => router.push(`/contracts/${contract.id}/edit`)}
-                            >
-                              Edit
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          // This is where we render the contracts table
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm table-auto">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-2 sm:px-3">Contract Name</th>
+                    <th className="text-left py-2 px-2 sm:px-3 hidden sm:table-cell">Contract No.</th>
+                    <th className="text-left py-2 px-2 sm:px-3">Status</th>
+                    <th className="text-left py-2 px-2 sm:px-3">Period</th>
+                    <th className="text-left py-2 px-2 sm:px-3 hidden md:table-cell">Revenue %</th>
+                    <th className="text-left py-2 px-2 sm:px-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contracts.map((contract) => (
+                    <tr key={contract.id} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-2 sm:px-3 max-w-[150px] truncate">
+                        <Link href={`/contracts/${contract.id}`} className="text-blue-600 hover:underline">
+                          {contract.name}
+                        </Link>
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 hidden sm:table-cell">{contract.contractNumber}</td>
+                      <td className="py-2 px-2 sm:px-3">{renderStatusBadge(contract.status)}</td>
+                      <td className="py-2 px-2 sm:px-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                          <Clock className="h-4 w-4 text-gray-500 hidden sm:inline" />
+                          <span className="whitespace-nowrap">
+                            {formatDate(contract.startDate)} 
+                            <span className="hidden sm:inline"> - </span>
+                            <br className="sm:hidden" />
+                            {formatDate(contract.endDate)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 sm:px-3 hidden md:table-cell">{contract.revenuePercentage}%</td>
+                      <td className="py-2 px-2 sm:px-3">
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            className="text-xs"
+                            onClick={() => router.push(`/contracts/${contract.id}`)}
+                          >
+                            <span className="hidden sm:inline">View</span>
+                            <span className="sm:hidden">👁️</span>
+                          </Button>
+                          {contract.status === 'ACTIVE' && (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              className="text-xs"
+                              onClick={() => router.push(`/contracts/${contract.id}/edit`)}
+                            >
+                              <span className="hidden sm:inline">Edit</span>
+                              <span className="sm:hidden">✏️</span>
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                />
-              </div>
-            )}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-6">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
 
-            <div className="text-sm text-gray-500 mt-4 text-center">
-              Showing {contracts.length} of {totalResults} contracts
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
+            <div className="text-sm text-gray-500 mt-4 text-center">
+              Showing {contracts.length} of {totalResults} contracts
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

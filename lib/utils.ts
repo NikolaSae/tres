@@ -25,3 +25,10 @@ export function formatDate(dateString) {
 
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('sr-RS', {
+    style: 'currency',
+    currency: 'RSD',
+    minimumFractionDigits: 2,
+  }).format(value);
+}

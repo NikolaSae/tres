@@ -238,31 +238,25 @@ export class ExcelProcessor {
     }
   }
 
-  private parseDateFromComponents(yearStr: string, monthStr: string, dayStr: string): Date {
-    const year = parseInt(yearStr.replace(/\D/g, ''), 10);
-    const month = parseInt(monthStr.replace(/\D/g, ''), 10);
-    const day = parseInt(dayStr.replace(/\D/g, ''), 10);
-
-    if (isNaN(year) || year < 2000 || year > 2100) {
-      throw new Error(`Invalid year: ${yearStr}`);
-    }
-    
-    if (isNaN(month) || month < 1 || month > 12) {
-      throw new Error(`Invalid month: ${monthStr}`);
-    }
-    
-    if (isNaN(day) || day < 1 || day > 31) {
-      throw new Error(`Invalid day: ${dayStr}`);
-    }
-
-    const date = new Date(Date.UTC(year, month - 1, day));
-    
-    if (isNaN(date.getTime())) {
-      throw new Error(`Invalid date: ${year}-${month}-${day}`);
-    }
-    
-    return date;
+  private parseDate(year: string, month: string, day: string): Date {
+  // Handle different date formats
+  const dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  const date = new Date(dateStr);
+  
+  // Validate date
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${year}-${month}-${day}`);
   }
+  
+  // Ensure date components match
+  if (date.getUTCFullYear() !== parseInt(year) || 
+      date.getUTCMonth() + 1 !== parseInt(month) ||
+      date.getUTCDate() !== parseInt(day)) {
+    throw new Error(`Date components don't match: ${year}-${month}-${day}`);
+  }
+  
+  return date;
+}
 
   private extractDayFromHeader(header: string): string {
     if (!header) return '';
@@ -273,44 +267,44 @@ export class ExcelProcessor {
   }
 
   private identifyDateColumns(header: string[]): { columns: string[], startIndex: number } {
-    const dateCols: string[] = [];
-    let dataStartCol = 0;
+  const dateCols: string[] = [];
+  let dataStartCol = 3; // Fixed start index for your format
+  
+  for (let i = dataStartCol; i < header.length; i++) {
+    const colValue = header[i]?.toString().trim() || '';
     
-    for (let i = 0; i < header.length; i++) {
-      const colValue = header[i]?.toString().trim();
-      if (colValue && /^\d{1,2}\./.test(colValue)) {
-        if (dateCols.length === 0) dataStartCol = i;
-        dateCols.push(this.extractDayFromHeader(colValue));
-      }
+    // Handle multi-line dates like "01.05.\n2025."
+    const dayMatch = colValue.match(/^(\d{1,2})\./);
+    if (dayMatch) {
+      dateCols.push(dayMatch[1]);
     }
-    
-    if (dateCols.length === 0) {
-      const isLastTotal = header[header.length - 1]?.toUpperCase() === 'TOTAL';
-      const endIndex = isLastTotal ? header.length - 1 : header.length;
-      return {
-        columns: header.slice(2, endIndex).map(col => col?.toString() || ''),
-        startIndex: 2
-      };
+    // Stop at "TOTAL" column
+    else if (colValue === 'TOTAL') {
+      break;
     }
-    
-    return { columns: dateCols, startIndex: dataStartCol };
+    // Fallback: look for any numeric-looking header
+    else if (/^\d+$/.test(colValue)) {
+      dateCols.push(colValue);
+    }
   }
   
-  private isServiceRow = (row: string[]): boolean => {
-  // Check if we have at least 4 columns (service name, price, type, and at least one quantity)
-  if (row.length < 4) return false;
+  return { columns: dateCols, startIndex: dataStartCol };
+}
   
-  // Service name should be non-empty
+  private isServiceRow = (row: string[]): boolean => {
+  if (row.length < 4) return false;
   if (!row[0]?.trim()) return false;
   
-  // Price should be a valid number
   const price = this.convertToFloat(row[1]);
   if (isNaN(price) || price <= 0) return false;
   
-  // The third column should be "Broj" (case-insensitive)
-  if (row[2]?.toLowerCase() !== 'broj') return false;
-  
-  return true;
+  // More flexible header detection
+  const thirdCol = row[2]?.toLowerCase() || '';
+  return (
+    thirdCol.includes('broj') ||    // Croatian
+    thirdCol.includes('quantity') || // English
+    thirdCol.includes('količina')   // Slovenian
+  );
 }
 
   async processSheet(
@@ -322,8 +316,10 @@ export class ExcelProcessor {
 ): Promise<ProcessedSheet> {
   const warnings: string[] = [];
   const records: ParkingRecord[] = [];
+  let inPrepaidSection = false;
 
   try {
+    // Read and filter rows
     const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, {
       header: 1,
       defval: null,
@@ -336,45 +332,108 @@ export class ExcelProcessor {
       return { name: sheetName, records: [], warnings };
     }
 
-    const header = rows[0].map((x: any) => x !== null ? String(x).trim() : '');
-    const { columns: dateCols, startIndex: dataStartCol } = this.identifyDateColumns(header);
-
-    this.log(`Processing sheet ${sheetName}: found ${dateCols.length} date columns starting at index ${dataStartCol}`, 'info');
-    this.log(`Sheet header: ${JSON.stringify(header)}`, 'debug');
-    this.log(`First 5 rows: ${JSON.stringify(rows.slice(0, 5))}`, 'debug');
-
-    let i = 1;
-
-    while (i < rows.length) {
-      const row = rows[i]?.map((x: any) => x !== null ? String(x).trim() : '') || [];
+    // 1. EXTRACT DATE COLUMNS FROM FIRST ROW
+    const dateRow = rows[0];
+    const dateCols: string[] = [];
+    let dataStartCol = 3; // Column D is index 3
+    
+    for (let col = dataStartCol; col < dateRow.length; col++) {
+      const cellValue = dateRow[col]?.toString().trim() || '';
+      if (cellValue === 'TOTAL') break;
       
-      if (!row.some(cell => cell)) {
-        i++;
-        continue;
+      // Extract day from formats like "01.05.\n2025."
+      const dayMatch = cellValue.match(/^(\d{1,2})\./);
+      if (dayMatch && dayMatch[1]) {
+        dateCols.push(dayMatch[1]);
+      }
+    }
+
+    this.log(`Found ${dateCols.length} date columns in sheet ${sheetName}`, 'info');
+
+    // 2. PROCESS ROWS
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i].map((x: any) => (x !== null ? String(x).trim() : ''));
+      if (row.length === 0) continue;
+
+      const firstCell = row[0]?.toString().trim() || '';
+      
+      // 3. SECTION DETECTION
+      if (firstCell.toLowerCase().endsWith('- prepaid')) {
+        inPrepaidSection = true;
+        this.log(`Entered prepaid section: ${firstCell}`, 'info');
+        continue; // Skip section header row
+      } 
+      else if (firstCell.toLowerCase().endsWith('- postpaid')) {
+        inPrepaidSection = false;
+        this.log(`Exiting prepaid section: ${firstCell}`, 'info');
+        continue; // Skip section header row
+      }
+      else if (firstCell.toLowerCase().endsWith('- total')) {
+        inPrepaidSection = false;
+        continue; // Skip section header row
       }
 
-      // 1. Enhanced service row detection
-      if (this.isServiceRow(row)) {
-        const serviceName = row[0].trim();
+      // 4. ONLY PROCESS PREPAID SECTIONS
+      if (!inPrepaidSection) continue;
+
+      // 5. SERVICE ROW DETECTION - PRECISE MATCHING
+      const isServiceRow = (
+        firstCell.startsWith('S_') && 
+        row.length > 2 && 
+        row[2] === 'Broj' &&
+        !isNaN(parseFloat(row[1]))
+      );
+
+      if (isServiceRow) {
+        const serviceName = firstCell;
         const price = this.convertToFloat(row[1]);
-        // Extract quantities from the same row
-        const quantityValues = row.slice(dataStartCol, dataStartCol + dateCols.length);
+        this.log(`Processing service row: ${serviceName}`, 'debug');
 
-        this.log(`Processing service: ${serviceName}, price: ${price}`, 'info');
-        this.log(`Row data: ${JSON.stringify(row)}`, 'debug');
+        // 6. GET AMOUNT ROW (NEXT ROW)
+        if (i + 1 >= rows.length) {
+          warnings.push(`Missing amount row for service ${serviceName}`);
+          continue;
+        }
 
+        const amountRow = rows[i + 1].map((x: any) => (x !== null ? String(x).trim() : ''));
+        
+        // 7. VERIFY AMOUNT ROW TYPE
+        const isAmountRow = amountRow[2] === 'Iznos';
+        if (!isAmountRow) {
+          warnings.push(`Missing amount row (Iznos) for service ${serviceName}`);
+          continue;
+        }
+
+        // 8. PROCESS EACH DAY
         for (let j = 0; j < dateCols.length; j++) {
-          const rawValue = quantityValues[j] || 0;
-          const quantity = this.convertToFloat(rawValue);
-          const day = dateCols[j] || '';
+          const colIndex = dataStartCol + j;
+          const day = dateCols[j];
+          
+          // Skip if no data columns
+          if (colIndex >= row.length || colIndex >= amountRow.length) {
+            continue;
+          }
+
+          const quantity = this.convertToFloat(row[colIndex] || '0');
+          const amount = this.convertToFloat(amountRow[colIndex] || '0');
 
           if (quantity > 0) {
             try {
-              const dayPadded = day.padStart(2, '0');
-              const date = this.parseDateFromComponents(dateComponents.year, dateComponents.month, dayPadded);
+              // Pad single-digit days
+              const paddedDay = day.padStart(2, '0');
+              const date = new Date(
+                Date.UTC(
+                  parseInt(dateComponents.year), 
+                  parseInt(dateComponents.month) - 1, 
+                  parseInt(paddedDay)
+                )
+              );
               
-              const amount = quantity * price;
-              
+              // Validate date
+              if (isNaN(date.getTime())) {
+                throw new Error(`Invalid date: ${dateComponents.year}-${dateComponents.month}-${paddedDay}`);
+              }
+
               records.push({
                 parkingServiceId,
                 serviceId: '',
@@ -385,31 +444,28 @@ export class ExcelProcessor {
                 quantity,
                 amount
               });
-
-              this.log(
-                `Added record: ${serviceName} | ${date.toISOString().split('T')[0]} | ` +
-                `Qty: ${quantity} | Raw: ${rawValue} | Day: ${day}`,
-                'info'
-              );
-            } catch (dateError) {
-              warnings.push(`Date error: ${dateError.message} for day ${day}`);
+              
+              this.log(`Added record: ${serviceName} | ${date.toISOString().split('T')[0]} | Qty: ${quantity}`, 'debug');
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              warnings.push(`Date error for ${serviceName} on day ${day}: ${errorMsg}`);
             }
           }
         }
+        
+        i++; // Skip the amount row
       }
-      
-      i++;
     }
 
-    this.log(`Sheet ${sheetName} processed: ${records.length} records created`, 'success');
+    this.log(`Processed ${records.length} prepaid records in sheet ${sheetName}`, 'success');
     return { name: sheetName, records, warnings };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    this.log(`Error processing sheet ${sheetName}: ${errorMsg}`, 'error');
+    this.log(`Critical error processing sheet ${sheetName}: ${errorMsg}`, 'error');
     return { 
       name: sheetName, 
       records: [], 
-      warnings: [`Critical error processing sheet: ${errorMsg}`] 
+      warnings: [`Critical error: ${errorMsg}`] 
     };
   }
 }

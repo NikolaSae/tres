@@ -95,14 +95,19 @@ export class ParkingServiceProcessor {
   const mergedMap = new Map<string, ParkingRecord>();
 
   for (const record of records) {
-    // Koristimo ISO string za konzistentno poravnanje datuma
     const dateKey = record.date.toISOString().split('T')[0];
     const key = `${dateKey}_${record.serviceName}_${record.group}`;
     
     if (mergedMap.has(key)) {
       const existing = mergedMap.get(key)!;
-      existing.quantity += record.quantity;
-      existing.amount += record.amount;
+      
+      const newQuantity = existing.quantity + record.quantity;
+      const newAmount = existing.amount + record.amount;
+      const newPrice = newQuantity > 0 ? newAmount / newQuantity : 0;
+
+      existing.quantity = newQuantity;
+      existing.amount = newAmount;
+      existing.price = newPrice; // ✅ Update price
     } else {
       mergedMap.set(key, { ...record });
     }
@@ -345,12 +350,12 @@ export class ParkingServiceProcessor {
 
   for (const record of mergedRecords) {
     try {
-      // Provjera da li svi potrebni podaci postoje
       if (!record.parkingServiceId || !record.serviceId || !record.date) {
-        throw new Error("Nedostaju ključni podaci");
+        throw new Error("Missing required fields");
       }
 
-      await prisma.parkingTransaction.upsert({
+      // Use upsert and capture the operation result
+      const operation = await prisma.parkingTransaction.upsert({
         where: {
           parkingServiceId_date_serviceName_group: {
             parkingServiceId: record.parkingServiceId,
@@ -377,15 +382,16 @@ export class ParkingServiceProcessor {
         }
       });
 
-      // Logika za praćenje uspješnih operacija
-      if (mergedRecords.length > records.length) {
-        updated++;
-      } else {
+      // Determine operation type by checking created/updated timestamps
+      if (operation.createdAt.getTime() === operation.updatedAt.getTime()) {
         inserted++;
+      } else {
+        updated++;
       }
+       
     } catch (error) {
       errors++;
-      this.log(`Greška pri snimanju: ${record.serviceName} - ${error instanceof Error ? error.message : String(error)}`, 'error', filename);
+      this.log(`Error saving record: ${record.serviceName} - ${error instanceof Error ? error.message : String(error)}`, 'error', filename);
     }
   }
 

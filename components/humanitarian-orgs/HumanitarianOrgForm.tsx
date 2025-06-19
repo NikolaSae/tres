@@ -31,6 +31,11 @@ interface HumanitarianOrgFormProps {
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
+    pib: string | null;
+    registrationNumber: string | null;
+    bank: string | null;
+    accountNumber: string | null;
+    shortNumber: string | null;
   };
   isEditing?: boolean;
 }
@@ -51,6 +56,11 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
           website: organization.website ?? '',
           mission: organization.mission ?? '',
           isActive: organization.isActive,
+          pib: organization.pib ?? '',
+          registrationNumber: organization.registrationNumber ?? '',
+          bank: organization.bank ?? '',
+          accountNumber: organization.accountNumber ?? '',
+          shortNumber: organization.shortNumber ?? '',
         }
       : {
           isActive: true,
@@ -61,6 +71,11 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
           address: '',
           website: '',
           mission: '',
+          pib: '',
+          registrationNumber: '',
+          bank: '',
+          accountNumber: '',
+          shortNumber: '',
         },
     mode: 'onBlur',
   });
@@ -208,6 +223,101 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   )}
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* NEW: Financial Details Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="pib"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>PIB</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter PIB" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="registrationNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Matični broj</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter registration number" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="bank"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banka</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter bank name" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="accountNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tekući račun</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter account number" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="shortNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Kratki broj</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter short number" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </CardContent>
         </Card>

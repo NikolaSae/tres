@@ -17,9 +17,10 @@ import {
   Trash,
   AlertCircle,
   Copy,
+  Banknote
 } from "lucide-react";
 import { ParkingServiceDetail } from "@/lib/types/parking-service-types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCurrency } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,18 +34,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteService } from "@/actions/parking-services/delete";
 import { toast } from "sonner";
-import ParkingServiceContracts from "@/components/parking-services/ParkingServiceContracts";
 
 interface ParkingServiceDetailsProps {
   parkingService: ParkingServiceDetail;
   contractsCount: number;
   servicesCount: number;
+  activeContractsCount: number;
+  totalRevenue: number;
+  avgDailyRevenue: number;
 }
 
 export default function ParkingServiceDetails({
   parkingService,
   contractsCount,
-  servicesCount
+  servicesCount,
+  activeContractsCount,
+  totalRevenue,
+  avgDailyRevenue
 }: ParkingServiceDetailsProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -126,8 +132,8 @@ export default function ParkingServiceDetails({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle className="text-lg">Contact Information</CardTitle>
           </CardHeader>
@@ -263,7 +269,7 @@ export default function ParkingServiceDetails({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle className="text-lg">System Information</CardTitle>
           </CardHeader>
@@ -280,6 +286,59 @@ export default function ParkingServiceDetails({
               <div>
                 <span className="text-muted-foreground mr-1">Last Updated:</span>
                 <span>{formatDate(parkingService.updatedAt)}</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <span className="text-muted-foreground mr-1">Status:</span>
+                <Badge variant={parkingService.isActive ? "default" : "secondary"}>
+                  {parkingService.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-lg">Financial Metrics</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start gap-2">
+              <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-full">
+                <span className="font-medium">Total Revenue:</span>
+                <div className="flex justify-between items-center">
+                  <span className="font-mono">{formatCurrency(totalRevenue)}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-full">
+                <span className="font-medium">Avg Daily Revenue:</span>
+                <div className="flex justify-between items-center">
+                  <span className="font-mono">{formatCurrency(avgDailyRevenue)}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-full">
+                <span className="font-medium">Active Contracts:</span>
+                <div className="flex justify-between items-center">
+                  <span className="font-mono">{activeContractsCount}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-full">
+                <span className="font-medium">Total Services:</span>
+                <div className="flex justify-between items-center">
+                  <span className="font-mono">{servicesCount}</span>
+                </div>
               </div>
             </div>
           </CardContent>
