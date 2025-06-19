@@ -151,21 +151,27 @@ export function HumanitarianOrgList() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                  <div className="space-y-2">
-                    <p className="text-sm">
-                      <span className="font-medium">Contact:</span> {org.contactPerson || 'N/A'}
-                    </p>
-                    <p className="text-sm truncate">
-                      <span className="font-medium">Email:</span> {org.email || 'N/A'}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium">Phone:</span> {org.phone || 'N/A'}
-                    </p>
-                    <div className="flex items-center">
-                      <span className="font-medium mr-2">Status:</span>
-                      <Badge variant={org.isActive ? "default" : "destructive"}>
-                        {org.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
+            <div className="space-y-2">
+              <p className="text-sm">
+                <span className="font-medium">PIB:</span> {org.pib || 'N/A'}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Matični broj:</span> {org.registrationNumber || 'N/A'}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Contact:</span> {org.contactPerson || 'N/A'}
+              </p>
+              <p className="text-sm truncate">
+                <span className="font-medium">Email:</span> {org.email || 'N/A'}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Phone:</span> {org.phone || 'N/A'}
+              </p>
+              <div className="flex items-center">
+                <span className="font-medium mr-2">Status:</span>
+                <Badge variant={org.isActive ? "default" : "destructive"}>
+                  {org.isActive ? 'Active' : 'Inactive'}
+                </Badge>
                     </div>
                   </div>
                 </CardContent>

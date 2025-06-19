@@ -60,6 +60,11 @@ export const createHumanitarianOrg = async (values: HumanitarianOrgFormData) => 
                 website,
                 mission,
                 isActive,
+                pib: values.pib,
+                registrationNumber: values.registrationNumber,
+                bank: values.bank,
+                accountNumber: values.accountNumber,
+                shortNumber: values.shortNumber,
             },
         });
 

@@ -46,24 +46,42 @@ export async function getHumanitarianOrgs(params: GetOrgsParams) {
         const skip = (page - 1) * limit;
 
         // Dohvatanje podataka i ukupnog broja
-        const [organizations, totalCount] = await Promise.all([
-            db.humanitarianOrg.findMany({
-                where,
-                take: limit,
-                skip: skip,
-                orderBy: { name: 'asc' }, // Sortiranje
-                 include: {
-                     _count: {
-                         select: {
-                             contracts: true,
-                            // complaints: true, // Proverite tačno ime relacije
-                            // renewals: true // Proverite tačno ime relacije (humanitarianRenewals vs renewals)
-                         }
-                     }
-                 }
-            }),
-            db.humanitarianOrg.count({ where }),
-        ]);
+        
+            const [organizations, totalCount] = await Promise.all([
+                db.humanitarianOrg.findMany({
+                    where,
+                    take: limit,
+                    skip: skip,
+                    orderBy: { name: 'asc' }, // Sortiranje
+                    select: {
+                        id: true,
+                        name: true,
+                        contactName: true,
+                        email: true,
+                        phone: true,
+                        address: true,
+                        website: true,
+                        mission: true,
+                        isActive: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        pib: true,
+                        registrationNumber: true,
+                        bank: true,
+                        accountNumber: true,
+                        shortNumber: true,
+                        _count: {
+                            select: {
+                                contracts: true,
+                                renewals: true,
+                                complaints: true
+                            }
+                        }
+                    }
+                }),
+                db.humanitarianOrg.count({ where }),
+            ]);
+
 
         // Vraćanje podataka i ukupnog broja
         return { data: organizations as HumanitarianOrgWithDetails[], total: totalCount, error: null };

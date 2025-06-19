@@ -158,7 +158,6 @@ model Provider {
   @@index([name])
 }
 
-// Humanitarian Organization model
 model HumanitarianOrg {
   id          String    @id @default(cuid())
   name        String    @unique
@@ -172,12 +171,20 @@ model HumanitarianOrg {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // New fields
+  pib         String?   @db.VarChar(9)       // Tax ID (8-9 digits)
+  registrationNumber String? @map("maticni_broj") @db.VarChar(13) // Registration number (8-13 chars)
+  bank        String?   @db.VarChar(100)     // Bank name
+  accountNumber String? @map("tekuci_racun") @db.VarChar(25) // Account number (18-25 chars)
+  shortNumber String?   @map("kratki_broj")  @db.VarChar(10) // Short code (up to 10 chars)
+
   // Relations
   contracts   Contract[]
   renewals    HumanitarianContractRenewal[]
   complaints  Complaint[]
 
   @@index([name])
+  @@index([pib])
 }
 
 model VasTransaction {

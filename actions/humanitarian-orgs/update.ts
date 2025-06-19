@@ -77,6 +77,11 @@ export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgF
                 website,
                 mission,
                 isActive,
+                pib: values.pib,
+                registrationNumber: values.registrationNumber,
+                bank: values.bank,
+                accountNumber: values.accountNumber,
+                shortNumber: values.shortNumber,
             },
         });
 

@@ -3,11 +3,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-// Uklonjeno jer se user provera unutar canViewSalesData
-// import { currentUser } from "@/lib/auth";
 import { canViewSalesData } from "@/lib/security/permission-checker";
-// Uklonjen import za revalidatePath jer se ne koristi u ovoj akciji na ovaj način
-// import { revalidatePath } from "next/cache"; // <--- REMOVED
 
 export type SalesMetricsParams = {
   startDate?: Date;
@@ -64,7 +60,7 @@ export async function getSalesMetrics({
 
   const periodLengthMs = effectiveEndDate.getTime() - effectiveStartDate.getTime();
   const comparisonStartDate = new Date(effectiveStartDate.getTime() - periodLengthMs);
-  const comparisonEndDate = new Date(effectiveStartDate.getTime() - 1); // Just before current period
+  const comparisonEndDate = new Date(effectiveStartDate.getTime() - 1);
 
    comparisonStartDate.setHours(0, 0, 0, 0);
    comparisonEndDate.setHours(23, 59, 59, 999);
@@ -79,15 +75,14 @@ export async function getSalesMetrics({
       ...(providerId ? { provajderId: providerId } : {}),
     },
     include: {
-      service: true, // Needed for service type breakdown
-      provider: true, // Needed for provider breakdown
+      service: true,
+      provider: true,
     },
     orderBy: {
       mesec_pruzanja_usluge: "asc",
     },
   });
 
-  // Query comparison period data for growth calculation
   const comparisonData = await db.vasService.findMany({
     where: {
       mesec_pruzanja_usluge: {
@@ -97,18 +92,14 @@ export async function getSalesMetrics({
       ...(serviceType ? { service: { type: serviceType as any } } : {}),
       ...(providerId ? { provajderId: providerId } : {}),
     },
-     // Only select needed fields for comparison calculation
     select: {
         broj_transakcija: true,
         fakturisan_iznos: true,
     }
   });
 
-   // --- Aggregation and Calculation ---
-
-  // Group by month for time series
   const monthlyData = vasData.reduce((acc, item) => {
-     // Adjusting date formatting for consistency
+
     const monthYear = item.mesec_pruzanja_usluge.toLocaleString('en-US', { month: 'short', year: '2-digit' });
 
     if (!acc[monthYear]) {
@@ -118,13 +109,12 @@ export async function getSalesMetrics({
       };
     }
 
-    acc[monthYear].transactions += item.broj_transakcija || 0; // Add null check
-    acc[monthYear].revenue += item.fakturisan_iznos || 0; // Add null check
+    acc[monthYear].transactions += item.broj_transakcija || 0;
+    acc[monthYear].revenue += item.fakturisan_iznos || 0;
 
     return acc;
   }, {} as Record<string, { transactions: number; revenue: number; }>);
 
-   // Format monthly data - ensure all months in the range are included even if no data
   const fullMonthRangeData: Record<string, { transactions: number; revenue: number }> = {};
   let currentDate = new Date(effectiveStartDate);
   while (currentDate <= effectiveEndDate) {
@@ -132,7 +122,6 @@ export async function getSalesMetrics({
       fullMonthRangeData[monthYear] = monthlyData[monthYear] || { transactions: 0, revenue: 0 };
       currentDate.setMonth(currentDate.getMonth() + 1);
   }
-   // Convert to array and sort chronologically
   const transactionsByMonth = Object.entries(fullMonthRangeData)
     .map(([month, data]) => ({ month, ...data }))
     .sort((a, b) => {
@@ -144,7 +133,6 @@ export async function getSalesMetrics({
     });
 
 
-  // Group by service type
   const serviceTypeData = vasData.reduce((acc, item) => {
     const type = item.service.type;
 
@@ -152,12 +140,11 @@ export async function getSalesMetrics({
       acc[type] = 0;
     }
 
-    acc[type] += item.broj_transakcija || 0; // Add null check
+    acc[type] += item.broj_transakcija || 0;
 
     return acc;
   }, {} as Record<string, number>);
 
-  // Group by provider
   const providerData = vasData.reduce((acc, item) => {
     const name = item.provider.name;
 
@@ -168,33 +155,26 @@ export async function getSalesMetrics({
       };
     }
 
-    acc[name].transactions += item.broj_transakcija || 0; // Add null check
-    acc[name].revenue += item.fakturisan_iznos || 0; // Add null check
+    acc[name].transactions += item.broj_transakcija || 0;
+    acc[name].revenue += item.fakturisan_iznos || 0;
 
     return acc;
   }, {} as Record<string, { transactions: number; revenue: number; }>);
 
-  // Calculate totals
   const totalTransactions = vasData.reduce((sum, item) => sum + (item.broj_transakcija || 0), 0);
   const totalRevenue = vasData.reduce((sum, item) => sum + (item.fakturisan_iznos || 0), 0);
   const averageTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
-  // Calculate previous period totals for growth comparison
   const prevTotalTransactions = comparisonData.reduce((sum, item) => sum + (item.broj_transakcija || 0), 0);
   const prevTotalRevenue = comparisonData.reduce((sum, item) => sum + (item.fakturisan_iznos || 0), 0);
 
-  // Calculate growth rates
-  // Prevent division by zero if previous period had no activity
   const transactionsGrowth = prevTotalTransactions > 0
     ? ((totalTransactions - prevTotalTransactions) / prevTotalTransactions) * 100
-    : (totalTransactions > 0 ? 100 : 0); // If previous was 0 but current > 0, 100% growth. If both 0, 0% growth.
+    : (totalTransactions > 0 ? 100 : 0);
 
   const revenueGrowth = prevTotalRevenue > 0
     ? ((totalRevenue - prevTotalRevenue) / prevTotalRevenue) * 100
-    : (totalRevenue > 0 ? 100 : 0); // If previous was 0 but current > 0, 100% growth. If both 0, 0% growth.
-
-
-  // Format data for response
+    : (totalRevenue > 0 ? 100 : 0);
 
   const transactionsByServiceType = Object.entries(serviceTypeData).map(([serviceType, transactions]) => ({
     serviceType,
@@ -209,9 +189,7 @@ export async function getSalesMetrics({
       revenue: data.revenue,
     }))
     .sort((a, b) => b.transactions - a.transactions)
-    .slice(0, 10); // Top 10 providers
-
-  // REMOVED: revalidatePath("/analytics/sales"); // <--- THIS LINE WAS REMOVED
+    .slice(0, 10);
 
   return {
     totalTransactions,

@@ -1,6 +1,4 @@
 // /lib/types/humanitarian-org-types.ts
-
-// Osnovni tip za humanitarnu organizaciju
 export interface HumanitarianOrg {
   id: string;
   name: string;
@@ -8,36 +6,33 @@ export interface HumanitarianOrg {
   phone: string | null;
   contactPerson: string | null;
   address: string | null;
-  city: string | null;
-  country: string | null;
-  description: string | null;
+  website: string | null;
+  mission: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  pib: string | null;
+  registrationNumber: string | null;
+  bank: string | null;
+  accountNumber: string | null;
+  shortNumber: string | null;
 }
 
-// Prošireni tip sa brojem povezanih entiteta
 export interface HumanitarianOrgWithDetails extends HumanitarianOrg {
   _count?: {
     contracts: number;
     complaints: number;
-    services?: number;
+    renewals: number;
   }
 }
 
-// Tip za filtere
 export interface HumanitarianOrgFilterOptions {
   search?: string;
   isActive?: boolean;
-  country?: string;
-  city?: string;
-  hasContracts?: boolean;
-  hasComplaints?: boolean;
-  sortBy?: 'name' | 'createdAt' | 'contractsCount' | 'complaintsCount';
+  sortBy?: 'name' | 'createdAt' | 'updatedAt';
   sortDirection?: 'asc' | 'desc';
 }
 
-// Tip za rezultat API poziva
 export interface HumanitarianOrgsResult {
   data: HumanitarianOrgWithDetails[];
   total: number;

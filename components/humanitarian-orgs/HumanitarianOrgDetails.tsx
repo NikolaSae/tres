@@ -18,36 +18,58 @@ export function HumanitarianOrgDetails({ organization }: HumanitarianOrgDetailsP
             <Card>
                 <CardHeader>
                     <CardTitle>Basic Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    <div>
-                        <strong>Name:</strong> {organization.name}
-                    </div>
-                    <div>
-                        <strong>Contact Person:</strong> {organization.contactName || 'N/A'}
-                    </div>
-                    <div>
-                        <strong>Email:</strong> {organization.email || 'N/A'}
-                    </div>
-                    <div>
-                        <strong>Phone:</strong> {organization.phone || 'N/A'}
-                    </div>
-                    <div>
-                        <strong>Address:</strong> {organization.address || 'N/A'}
-                    </div>
-                    <div>
-                        <strong>Website:</strong> {organization.website || 'N/A'}
-                    </div>
-                    <div>
-                        <strong>Active:</strong> {organization.isActive ? 'Yes' : 'No'}
-                    </div>
-                    <div>
-                        <strong>Created:</strong> {organization.createdAt.toLocaleString()}
-                    </div>
-                    <div>
-                        <strong>Updated:</strong> {organization.updatedAt.toLocaleString()}
-                    </div>
-                </CardContent>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div>
+              <strong>Name:</strong> {organization.name}
+            </div>
+            <div>
+              <strong>Contact Person:</strong> {organization.contactName || 'N/A'}
+            </div>
+            <div>
+              <strong>Email:</strong> {organization.email || 'N/A'}
+            </div>
+            <div>
+              <strong>Phone:</strong> {organization.phone || 'N/A'}
+            </div>
+            <div>
+              <strong>Address:</strong> {organization.address || 'N/A'}
+            </div>
+            <div>
+              <strong>Website:</strong> {organization.website || 'N/A'}
+            </div>
+            <div>
+              <strong>Mission:</strong> {organization.mission || 'N/A'}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div>
+              <strong>PIB:</strong> {organization.pib || 'N/A'}
+            </div>
+            <div>
+              <strong>Matični broj:</strong> {organization.registrationNumber || 'N/A'}
+            </div>
+            <div>
+              <strong>Banka:</strong> {organization.bank || 'N/A'}
+            </div>
+            <div>
+              <strong>Tekući račun:</strong> {organization.accountNumber || 'N/A'}
+            </div>
+            <div>
+              <strong>Kratki broj:</strong> {organization.shortNumber || 'N/A'}
+            </div>
+            <div>
+              <strong>Active:</strong> {organization.isActive ? 'Yes' : 'No'}
+            </div>
+            <div>
+              <strong>Created:</strong> {organization.createdAt.toLocaleString()}
+            </div>
+            <div>
+              <strong>Updated:</strong> {organization.updatedAt.toLocaleString()}
+            </div>
+          </div>
+        </CardContent>
             </Card>
             {organization._count && (
                 <Card>
