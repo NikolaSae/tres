@@ -16,7 +16,7 @@ export async function updateContract(contractId: string, data: any) {
   
   try {
     // Get session with error handling
-    let session;
+    let session;  
     try {
       session = await auth();
     } catch (authError) {
