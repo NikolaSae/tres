@@ -107,7 +107,7 @@ export class ParkingServiceProcessor {
 
       existing.quantity = newQuantity;
       existing.amount = newAmount;
-      existing.price = newPrice; // ✅ Update price
+      existing.price = newPrice;
     } else {
       mergedMap.set(key, { ...record });
     }
@@ -115,7 +115,6 @@ export class ParkingServiceProcessor {
 
   return Array.from(mergedMap.values());
 }
-
 
   async processMultipleFiles(inputFiles: string[]): Promise<{
     totalProcessed: number;
@@ -197,7 +196,7 @@ export class ParkingServiceProcessor {
       data: {
         name: normalizedName,
         isActive: true,
-        createdById: this.currentUserId // Fixed this line
+        createdById: this.currentUserId
       }
     });
     this.log(`Created new parking service: ${normalizedName}`, 'success');
@@ -303,21 +302,17 @@ export class ParkingServiceProcessor {
   const serviceIdMapping: Record<string, string> = {};
   
   for (const serviceName of serviceNames) {
-    // Koristimo cijeli naziv usluge kao ključ
     const serviceCode = serviceName.trim();
     
-    // Provjera cache-a
     if (this.serviceCache.has(serviceCode)) {
       serviceIdMapping[serviceName] = this.serviceCache.get(serviceCode)!;
       continue;
     }
 
-    // Provjera u bazi
     let service = await prisma.service.findFirst({
       where: { name: serviceCode }
     });
 
-    // Kreiranje ako ne postoji
     if (!service) {
       service = await prisma.service.create({
         data: {
@@ -331,10 +326,8 @@ export class ParkingServiceProcessor {
       this.log(`Kreirana nova usluga: ${serviceCode}`, 'success');
     }
 
-    // Povezivanje sa parking servisom
     await this.getOrCreateServiceContract(service.id, parkingServiceId);
     
-    // Ažuriranje mappinga i cachea
     serviceIdMapping[serviceName] = service.id;
     this.serviceCache.set(serviceCode, service.id);
   }
@@ -354,7 +347,6 @@ export class ParkingServiceProcessor {
         throw new Error("Missing required fields");
       }
 
-      // Use upsert and capture the operation result
       const operation = await prisma.parkingTransaction.upsert({
         where: {
           parkingServiceId_date_serviceName_group: {
@@ -382,7 +374,6 @@ export class ParkingServiceProcessor {
         }
       });
 
-      // Determine operation type by checking created/updated timestamps
       if (operation.createdAt.getTime() === operation.updatedAt.getTime()) {
         inserted++;
       } else {
@@ -403,69 +394,152 @@ export class ParkingServiceProcessor {
   };
 }
 
-  async processFileWithImport(inputFile: string): Promise<{
-  recordsProcessed: number;
-  imported: number;
-  updated: number;
-  errors: number;
-  warnings: string[];
-}> {
-  const filename = path.basename(inputFile);
-  
-  try {
-    this.log(`Početak obrade: ${filename}`, 'info');
-    this.updateFileStatus(filename, 'processing');
-    
-    // Ekstrakcija i kreiranje parking servisa
-    const providerName = this.excelProcessor.extractParkingProvider(filename);
-    const { id: parkingServiceId, created } = await this.getOrCreateParkingService(providerName);
-    
-    if (created) {
-      this.log(`Kreiran novi parking servis: ${providerName} (ID: ${parkingServiceId})`, 'success');
-    } else {
-      this.log(`Korišten postojeći parking servis: ${providerName} (ID: ${parkingServiceId})`, 'info');
+  // NEW: Save original file to required directory structure
+  private async saveOriginalFile(
+    inputFile: string,
+    providerName: string,
+    filename: string
+  ): Promise<string> {
+    try {
+      // Extract year from filename
+      const year = this.excelProcessor.extractYearFromFilenamePublic(filename);
+      
+      // Sanitize provider name
+      const safeName = providerName
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .toLowerCase();
+      
+      // Create directory structure
+      const dirPath = path.join(
+        PROJECT_ROOT,
+        'public',
+        'parking-service',
+        safeName,
+        'report',
+        year,
+        'original'
+      );
+      
+      await fs.mkdir(dirPath, { recursive: true });
+      
+      // Create unique filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileExt = path.extname(filename);
+      const baseName = path.basename(filename, fileExt);
+      const targetPath = path.join(dirPath, `${baseName}_${timestamp}${fileExt}`);
+      
+      // Copy the original file
+      await fs.copyFile(inputFile, targetPath);
+      
+      this.log(`Original file saved to: ${targetPath}`, 'success');
+      return targetPath;
+      
+    } catch (error) {
+      const errorMsg = `Failed to save original file: ${error instanceof Error ? error.message : String(error)}`;
+      this.log(errorMsg, 'error');
+      throw new Error(errorMsg);
     }
-
-    // Obrada Excel fajla
-    const result = await this.excelProcessor.processExcelFile(inputFile, parkingServiceId);
-    this.log(`Pronađeno zapisa: ${result.records.length}`, 'info');
-    
-    // Mapiranje usluga
-    const serviceNames = this.excelProcessor.getServiceNamesFromRecords(result.records);
-    const serviceIdMapping = await this.createServiceMappings(serviceNames, parkingServiceId);
-    
-    // Dodjela ID-eva usluga
-    this.excelProcessor.assignServiceIds(result.records, serviceIdMapping);
-    
-    // Snimanje u bazu
-    const importStats = await this.importRecordsToDatabase(result.records, filename);
-    
-    this.log(`Obrađeno zapisa: ${importStats.inserted + importStats.updated}`, 'success');
-    this.log(`Pojedinačni rezultati: 
-      - Novo: ${importStats.inserted}
-      - Ažurirano: ${importStats.updated}
-      - Greške: ${importStats.errors}
-      - Duplikati: ${importStats.duplicates}`, 'info');
-    
-    return {
-      recordsProcessed: result.records.length,
-      imported: importStats.inserted,
-      updated: importStats.updated,
-      errors: importStats.errors,
-      warnings: result.warnings
-    };
-    
-  } catch (error) {
-    this.log(`Kritična greška: ${error instanceof Error ? error.message : String(error)}`, 'error');
-    return {
-      recordsProcessed: 0,
-      imported: 0,
-      updated: 0,
-      errors: 1,
-      warnings: [`Kritična greška: ${error instanceof Error ? error.message : String(error)}`]
-    };
   }
-}
+
+  // NEW: Move file to processed/error folder
+  private async moveToProcessedFolder(
+    inputFile: string, 
+    filename: string, 
+    type: 'processed' | 'error'
+  ): Promise<void> {
+    try {
+      const targetDir = type === 'processed' ? PROCESSED_FOLDER : ERROR_FOLDER;
+      await fs.mkdir(targetDir, { recursive: true });
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const targetPath = path.join(targetDir, `${timestamp}_${filename}`);
+      
+      await fs.rename(inputFile, targetPath);
+      this.log(`File moved to ${type} folder: ${targetPath}`, 'info');
+    } catch (moveError) {
+      this.log(`Failed to move file to ${type} folder: ${moveError}`, 'error');
+    }
+  }
+
+  // UPDATED: Save original file and move after processing
+  async processFileWithImport(inputFile: string): Promise<{
+    recordsProcessed: number;
+    imported: number;
+    updated: number;
+    errors: number;
+    warnings: string[];
+    originalFilePath?: string;
+  }> {
+    const filename = path.basename(inputFile);
+    
+    try {
+      this.log(`Početak obrade: ${filename}`, 'info');
+      this.updateFileStatus(filename, 'processing');
+      
+      // Extract provider name
+      const providerName = this.excelProcessor.extractParkingProvider(filename);
+      
+      // Save original file first
+      const originalFilePath = await this.saveOriginalFile(inputFile, providerName, filename);
+      
+      // Get or create parking service
+      const { id: parkingServiceId, created } = await this.getOrCreateParkingService(providerName);
+      
+      if (created) {
+        this.log(`Kreiran novi parking servis: ${providerName} (ID: ${parkingServiceId})`, 'success');
+      } else {
+        this.log(`Korišten postojeći parking servis: ${providerName} (ID: ${parkingServiceId})`, 'info');
+      }
+
+      // Process Excel file
+      const result = await this.excelProcessor.processExcelFile(inputFile, parkingServiceId);
+      this.log(`Pronađeno zapisa: ${result.records.length}`, 'info');
+      
+      // Map services
+      const serviceNames = this.excelProcessor.getServiceNamesFromRecords(result.records);
+      const serviceIdMapping = await this.createServiceMappings(serviceNames, parkingServiceId);
+      
+      // Assign service IDs
+      this.excelProcessor.assignServiceIds(result.records, serviceIdMapping);
+      
+      // Import to database
+      const importStats = await this.importRecordsToDatabase(result.records, filename);
+      
+      this.log(`Obrađeno zapisa: ${importStats.inserted + importStats.updated}`, 'success');
+      this.log(`Pojedinačni rezultati: 
+        - Novo: ${importStats.inserted}
+        - Ažurirano: ${importStats.updated}
+        - Greške: ${importStats.errors}
+        - Duplikati: ${importStats.duplicates}`, 'info');
+      
+      // Move original file to processed folder
+      await this.moveToProcessedFolder(inputFile, filename, 'processed');
+      
+      return {
+        recordsProcessed: result.records.length,
+        imported: importStats.inserted,
+        updated: importStats.updated,
+        errors: importStats.errors,
+        warnings: result.warnings,
+        originalFilePath
+      };
+      
+    } catch (error) {
+      this.log(`Kritična greška: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      
+      // Move file to error folder
+      await this.moveToProcessedFolder(inputFile, filename, 'error');
+      
+      return {
+        recordsProcessed: 0,
+        imported: 0,
+        updated: 0,
+        errors: 1,
+        warnings: [`Kritična greška: ${error instanceof Error ? error.message : String(error)}`]
+      };
+    }
+  }
 
   async disconnect() {
     await prisma.$disconnect();
