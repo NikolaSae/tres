@@ -268,21 +268,29 @@ export class ExcelProcessor {
 
   private identifyDateColumns(header: string[]): { columns: string[], startIndex: number } {
   const dateCols: string[] = [];
-  let dataStartCol = 3; // Fixed start index for your format
+  let dataStartCol = 3; // Start at column D
   
   for (let i = dataStartCol; i < header.length; i++) {
     const colValue = header[i]?.toString().trim() || '';
     
-    // Handle multi-line dates like "01.05.\n2025."
-    const dayMatch = colValue.match(/^(\d{1,2})\./);
+    // IMPROVED DATE DETECTION
+    const dayMatch = colValue.match(/(\d{1,2})[\.\/]/);
     if (dayMatch) {
       dateCols.push(dayMatch[1]);
+    }
+    // Handle columns like "01.05.\n2025."
+    else if (colValue.includes('\n')) {
+      const firstLine = colValue.split('\n')[0];
+      const firstLineMatch = firstLine.match(/(\d{1,2})[\.\/]/);
+      if (firstLineMatch) {
+        dateCols.push(firstLineMatch[1]);
+      }
     }
     // Stop at "TOTAL" column
     else if (colValue === 'TOTAL') {
       break;
     }
-    // Fallback: look for any numeric-looking header
+    // Fallback: numeric headers
     else if (/^\d+$/.test(colValue)) {
       dateCols.push(colValue);
     }
@@ -469,16 +477,101 @@ export class ExcelProcessor {
     };
   }
 }
+  private sanitizeForFilesystem(name: string): string {
+  return name
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-')     // Replace spaces with dashes
+    .toLowerCase();
+}
 
-  async processExcelFile(inputFile: string, parkingServiceId: string): Promise<FileProcessResult> {
+  async saveProcessedData(
+  result: FileProcessResult,
+  outputFormat: 'json' | 'csv' | 'xlsx' = 'json'
+): Promise<string> {
+  try {
+    // Validate critical data
+    if (!result.providerName || !result.parkingServiceId) {
+      throw new Error('Provider name or parkingServiceId is missing');
+    }
+    
+    const year = this.extractYearFromFilenamePublic(result.filename);
+    const sanitizedProviderName = this.sanitizeForFilesystem(result.providerName);
+    
+    // Construct output directory path
+    const outputDir = path.join(
+      'public',
+      'parking-service',
+      sanitizedProviderName,
+      'report',
+      year
+    );
+    
+    // Ensure output directory exists
+    await fs.mkdir(outputDir, { recursive: true });
+    
+    // Generate filename
+    const baseName = path.basename(result.filename, path.extname(result.filename));
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const outputPath = path.join(outputDir, `${baseName}_${timestamp}_processed.${outputFormat}`);
+    
+    this.log(`Saving to: ${outputPath}`, 'info', result.filename);
+    
+    // Save in specified format
+    switch (outputFormat) {
+      case 'json':
+        await fs.writeFile(outputPath, JSON.stringify(result, null, 2));
+        break;
+        
+      case 'csv':
+        const csvContent = [
+          'ParkingServiceID,ServiceID,Date,Group,ServiceName,Price,Quantity,Amount',
+          ...result.records.map(r => 
+            `${r.parkingServiceId},${r.serviceId},${r.date.toISOString()},"${r.group}","${r.serviceName}",${r.price},${r.quantity},${r.amount}`
+          )
+        ].join('\n');
+        await fs.writeFile(outputPath, csvContent);
+        break;
+        
+      case 'xlsx':
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(result.records.map(r => ({
+          ...r,
+          date: r.date.toISOString().split('T')[0]
+        })));
+        XLSX.utils.book_append_sheet(wb, ws, 'ProcessedData');
+        XLSX.writeFile(wb, outputPath);
+        break;
+    }
+    
+    this.log(`Successfully saved processed data to ${outputPath}`, 'success', result.filename);
+    return outputPath;
+    
+  } catch (error) {
+    const errorMsg = `Save failed: ${error instanceof Error ? error.message : String(error)}`;
+    this.log(errorMsg, 'error', result.filename);
+    throw new Error(errorMsg);
+  }
+}
+
+  async processExcelFile(
+    inputFile: string, 
+    parkingServiceId: string,
+    outputDir?: string,
+    outputFormat: 'json' | 'csv' | 'xlsx' = 'json'
+  ): Promise<FileProcessResult> {
     const filename = path.basename(inputFile);
     const warnings: string[] = [];
     
+    if (!parkingServiceId || typeof parkingServiceId !== 'string') {
+      const errorMsg = `Invalid parkingServiceId: ${parkingServiceId}`;
+      this.log(errorMsg, 'error', filename);
+      throw new Error(errorMsg);
+    }
     try {
       this.log(`Processing file: ${filename}`, 'info', filename);
       this.updateFileStatus(filename, 'processing');
       this.updateProgress(filename, 10);
-
+      
       const fileBuffer = await fs.readFile(inputFile);
       const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
       
@@ -513,17 +606,24 @@ export class ExcelProcessor {
       this.log(`Total records from all sheets: ${allRecords.length}`, 'info');
       this.updateProgress(filename, 70);
       
-      this.log(`Successfully processed ${allRecords.length} records for provider: ${providerName}`, 'success', filename);
-
-      return {
+      const result = {
         records: allRecords,
-        parkingServiceId,
+        parkingServiceId, // NOW PROPERLY INCLUDED
         providerName,
         filename,
         userId: this.currentUserId,
         sheetsProcessed,
         warnings
       };
+      
+      // Save processed data if output directory is provided
+      if (outputDir) {
+        const savedPath = await this.saveProcessedData(result);
+      this.log(`Output saved to: ${savedPath}`, 'success', filename);
+      }
+
+      this.log(`Successfully processed ${allRecords.length} records for provider: ${providerName}`, 'success', filename);
+      return result;
       
     } catch (error) {
       this.log(`Error processing file: ${error}`, 'error', filename);
