@@ -1,42 +1,41 @@
-// /lib/contracts/revenue-calculator.ts
+// lib/contracts/revenue-calculator.ts
 import { db } from '@/lib/db';
-import { Contract, ServiceContract, VASService as PrismaVASService, BulkService as PrismaBulkService, ServiceType, Service } from '@prisma/client'; // Use aliases to avoid conflict with local types if any
+import { Contract, ServiceContract, ServiceType } from '@prisma/client';
 import { startOfMonth, endOfMonth, max, min } from 'date-fns';
 
-// Tipovi za uključene relacije
 type ContractWithServicesAndProvider = Contract & {
     services: (ServiceContract & { service: { id: string, type: ServiceType, name: string } })[];
-    provider: { id: string } | null; // Ensure provider is included for filtering VAS data
+    provider: { id: string } | null;
+    parkingService: { id: string } | null;
 };
 
-// Define the structure that calculateContractRevenue will return
-interface CalculatedRevenueData {
-    totalGrossRevenue: number; // Revenue before percentage split
-    platformRevenue: number; // Revenue share for the platform
-    partnerRevenue: number; // Revenue share for the partner
-    serviceBreakdown: {
-        id: string; // Service ID
-        name: string; // Service Name
-        revenueAmount: number; // Gross revenue from THIS service for THIS contract in the period
-        percentage: number; // Percentage of THIS service's gross revenue vs total gross revenue
-    }[];
+interface ServiceBreakdownItem {
+    id: string;
+    name: string;
+    revenueAmount: number;
+    percentage: number;
+    details?: {
+        messages: number;
+        messageRevenue: number;
+        records: number;
+        recordRevenue: number;
+    };
 }
 
-/**
- * Kalkuliše podatke o prihodu za specifičan ugovor u datom vremenskom periodu,
- * vraćajući strukturu sa ukupnim iznosima i razradom po servisima.
- * @param contractId - ID ugovora za koji se kalkuliše prihod.
- * @param calculationStartDate - Početni datum perioda za kalkulaciju (podrazumevano početak ugovora).
- * @param calculationEndDate - Krajnji datum perioda za kalkulaciju (podrazumevano kraj ugovora).
- * @returns Objekat tipa CalculatedRevenueData ili null ako ugovor ne postoji.
- */
+interface CalculatedRevenueData {
+    totalGrossRevenue: number;
+    platformRevenue: number;
+    partnerRevenue: number;
+    serviceBreakdown: ServiceBreakdownItem[];
+}
+
 export const calculateContractRevenue = async (
     contractId: string,
     calculationStartDate?: Date,
     calculationEndDate?: Date
 ): Promise<CalculatedRevenueData | null> => {
     try {
-        // 1. Dohvatanje ugovora sa potrebnim relacijama
+        // Get contract with necessary relations
         const contract = await db.contract.findUnique({
             where: { id: contractId },
             include: {
@@ -51,30 +50,30 @@ export const calculateContractRevenue = async (
                 humanitarianOrg: { select: { id: true } },
                 parkingService: { select: { id: true } },
             },
-        }) as ContractWithServicesAndProvider | null; // Cast to the specific included type
+        }) as ContractWithServicesAndProvider | null;
 
         if (!contract) {
-            console.warn(`Contract with ID ${contractId} not found for revenue calculation.`);
-            return null; // Vrati null ako ugovor ne postoji
+            console.warn(`Contract with ID ${contractId} not found`);
+            return null;
         }
 
-        // 2. Definisanje perioda kalkulacije
-        const periodStart = calculationStartDate ? max([contract.startDate, calculationStartDate]) : contract.startDate;
-        const periodEnd = calculationEndDate ? min([contract.endDate, calculationEndDate]) : contract.endDate;
+        // Define calculation period
+        const periodStart = calculationStartDate 
+            ? max([contract.startDate, calculationStartDate]) 
+            : contract.startDate;
+            
+        const periodEnd = calculationEndDate 
+            ? min([contract.endDate, calculationEndDate]) 
+            : contract.endDate;
 
-        // Adjust periodEnd to the end of the day if it matches contractEndDate exactly
-        // This ensures date comparisons work correctly if endDate is stored as start of day
-        if (contract.endDate && periodEnd.getTime() === contract.endDate.getTime()) {
-             periodEnd.setHours(23, 59, 59, 999);
-        }
-         // Adjust periodStart to the start of the day if it matches contractStartDate exactly
-         if (contract.startDate && periodStart.getTime() === contract.startDate.getTime()) {
-              periodStart.setHours(0, 0, 0, 0);
-         }
+        // Adjust date boundaries
+        const adjustedStart = new Date(periodStart);
+        const adjustedEnd = new Date(periodEnd);
+        
+        adjustedStart.setHours(0, 0, 0, 0);
+        adjustedEnd.setHours(23, 59, 59, 999);
 
-
-        if (periodStart > periodEnd) {
-             // Vrati strukturu sa 0 vrednostima ako se periodi ne preklapaju
+        if (adjustedStart > adjustedEnd) {
             return {
                 totalGrossRevenue: 0,
                 platformRevenue: 0,
@@ -84,90 +83,226 @@ export const calculateContractRevenue = async (
         }
 
         let totalGrossRevenue = 0;
-        const serviceRevenueMap: { [serviceId: string]: { name: string; amount: number } } = {};
-
-        // 3. Iteracija kroz povezane servise i dohvatanje relevantnih podataka
-        for (const serviceLink of contract.services) {
-            const serviceId = serviceLink.serviceId;
-            const serviceType = serviceLink.service.type;
-            const serviceName = serviceLink.service.name;
-
-            let serviceGrossRevenue = 0;
-
-            if (serviceType === ServiceType.VAS && contract.providerId) {
-                // FIX: Corrected db.vASService to db.vasService
-                const vasData = await db.vasService.findMany({
-                    where: {
-                        serviceId: serviceId,
-                        provajderId: contract.providerId,
-                         mesec_pruzanja_usluge: {
-                            // Filtering by month start/end might need adjustment
-                            // depending on how mesec_pruzanja_usluge is stored (e.g., always 1st of month)
-                            // and if you need revenue for parts of months.
-                            // Current filter gte/lte start/end of period months is a reasonable approximation
-                            gte: startOfMonth(periodStart),
-                            lte: endOfMonth(periodEnd),
-                         },
-                    },
-                    select: {
-                        naplacen_iznos: true,
-                    },
-                });
-
-                serviceGrossRevenue = vasData.reduce((sum, data) => sum + (data.naplacen_iznos || 0), 0);
-
-            } else if (serviceType === ServiceType.BULK) {
-                 // Placeholder logic for Bulk - needs implementation
-                console.warn(`Bulk service "${serviceName}" attached to contract ${contract.contractNumber}. Revenue calculation for Bulk services over a period is not fully implemented.`);
-                serviceGrossRevenue = 0; // Assume 0 for now until implemented with rates/dates
+        const serviceRevenueMap = new Map<string, {
+            name: string;
+            amount: number;
+            details?: {
+                messages: number;
+                messageRevenue: number;
+                records: number;
+                recordRevenue: number;
             }
-            // Dodajte logiku za druge ServiceType ako postoje
+        }>();
 
-            if (serviceGrossRevenue > 0) {
-                 // Aggregate revenue per service ID
-                if (!serviceRevenueMap[serviceId]) {
-                    serviceRevenueMap[serviceId] = { name: serviceName, amount: 0 };
+        // Handle parking contracts
+        if (contract.type === "PARKING" && contract.parkingService?.id) {
+            // Get service IDs associated with this contract
+            const serviceIds = contract.services.map(sc => sc.serviceId);
+            
+            // Get parking transactions for services in this contract
+            const parkingTransactions = await db.parkingTransaction.findMany({
+                where: {
+                    serviceId: { in: serviceIds },
+                    parkingServiceId: contract.parkingService.id,
+                    date: {
+                        gte: adjustedStart,
+                        lte: adjustedEnd,
+                    },
+                },
+                select: {
+                    amount: true,
+                    serviceId: true,
+                    service: {
+                        select: {
+                            name: true
+                        }
+                    }
+                },
+            });
+
+            // Sum revenue per service
+            for (const transaction of parkingTransactions) {
+                const serviceId = transaction.serviceId;
+                const serviceName = transaction.service?.name || "Unknown Service";
+                
+                if (!serviceRevenueMap.has(serviceId)) {
+                    serviceRevenueMap.set(serviceId, {
+                        name: serviceName,
+                        amount: 0
+                    });
                 }
-                serviceRevenueMap[serviceId].amount += serviceGrossRevenue;
-                totalGrossRevenue += serviceGrossRevenue;
+                
+                const current = serviceRevenueMap.get(serviceId)!;
+                current.amount += transaction.amount || 0;
+                totalGrossRevenue += transaction.amount || 0;
+            }
+        } else {
+            // Handle other contract types (VAS, BULK, etc.)
+            for (const serviceLink of contract.services) {
+                const serviceId = serviceLink.serviceId;
+                const serviceType = serviceLink.service.type;
+                const serviceName = serviceLink.service.name;
+
+                let serviceGrossRevenue = 0;
+
+                if (serviceType === "VAS" && contract.providerId) {
+                    const vasData = await db.vasTransaction.findMany({
+                        where: {
+                            serviceId: serviceId,
+                            providerId: contract.providerId,
+                            date: {
+                                gte: adjustedStart,  // ✅ Koristiti adjustedStart umesto startOfMonth
+                                lte: adjustedEnd,    // ✅ Koristiti adjustedEnd umesto endOfMonth
+                            },
+                        },
+                    });
+
+                    serviceGrossRevenue = vasData.reduce(
+                        (sum, data) => sum + (data.amount || 0), 
+                        0
+                    );
+                    
+                    // ✅ DODANO: Dodavanje u serviceRevenueMap
+                    if (serviceGrossRevenue > 0) {
+                        totalGrossRevenue += serviceGrossRevenue;
+                        
+                        if (serviceRevenueMap.has(serviceId)) {
+                            const existing = serviceRevenueMap.get(serviceId)!;
+                            existing.amount += serviceGrossRevenue;
+                        } else {
+                            serviceRevenueMap.set(serviceId, {
+                                name: serviceName,
+                                amount: serviceGrossRevenue,
+                            });
+                        }
+                    }
+                } else if (serviceType === "BULK") {
+                    const bulkData = await db.bulkService.findMany({
+                        where: {
+                            serviceId: serviceId,
+                            datumNaplate: {
+                                gte: adjustedStart,
+                                lte: adjustedEnd,
+                            },
+                        },
+                        select: {
+                            id: true,
+                            requests: true,
+                            message_parts: true,
+                            datumNaplate: true,
+                        },
+                    });
+
+                    // Group transactions by month
+                    const monthlyTransactions = new Map<string, {
+                        messages: number,
+                        records: number,
+                        messageParts: number
+                    }>();
+
+                    let totalRequests = 0;
+                    let totalRecords = 0;
+                    let totalMessageParts = 0;
+
+                    for (const data of bulkData) {
+                        const monthKey = data.datumNaplate.toISOString().slice(0, 7); // YYYY-MM format
+                        
+                        if (!monthlyTransactions.has(monthKey)) {
+                            monthlyTransactions.set(monthKey, {
+                                messages: 0,
+                                records: 0,
+                                messageParts: 0
+                            });
+                        }
+                        
+                        const monthData = monthlyTransactions.get(monthKey)!;
+                        monthData.messages += data.requests || 0;
+                        monthData.records += 1; // Each record counts as 1
+                        monthData.messageParts += data.message_parts || 0;
+                        
+                        totalRequests += data.requests || 0;
+                        totalRecords += 1;
+                        totalMessageParts += data.message_parts || 0;
+                    }
+
+                    // Calculate revenue per month
+                    let messageRevenueTotal = 0;
+                    let recordRevenueTotal = 0;
+                    
+                    for (const [month, monthData] of monthlyTransactions) {
+                        const perMessageRate = monthData.messages >= 1000000 ? 1.20 : 1.50;
+                        const messageRevenue = monthData.messages * perMessageRate;
+                        const recordRevenue = monthData.records * 1000; // 1000 RSD per record
+                        const monthlyRevenue = messageRevenue + recordRevenue;
+                        
+                        serviceGrossRevenue += monthlyRevenue;
+                        messageRevenueTotal += messageRevenue;
+                        recordRevenueTotal += recordRevenue;
+                    }
+
+                    // Add to service breakdown with details
+                    if (serviceGrossRevenue > 0) {
+                        totalGrossRevenue += serviceGrossRevenue;
+                        
+                        serviceRevenueMap.set(serviceId, {
+                            name: serviceName,
+                            amount: serviceGrossRevenue,
+                            details: {
+                                messages: totalRequests,
+                                messageRevenue: messageRevenueTotal,
+                                records: totalRecords,
+                                recordRevenue: recordRevenueTotal,
+                            }
+                        });
+                    }
+                } else {
+                    // For other service types, just add the revenue
+                    if (serviceGrossRevenue > 0) {
+                        totalGrossRevenue += serviceGrossRevenue;
+                        
+                        if (serviceRevenueMap.has(serviceId)) {
+                            const existing = serviceRevenueMap.get(serviceId)!;
+                            existing.amount += serviceGrossRevenue;
+                        } else {
+                            serviceRevenueMap.set(serviceId, {
+                                name: serviceName,
+                                amount: serviceGrossRevenue,
+                            });
+                        }
+                    }
+                }
             }
         }
 
-        // 4. Formatiranje Service Breakdown i računanje procenata
-        const serviceBreakdown = Object.keys(serviceRevenueMap).map(serviceId => {
-             const service = serviceRevenueMap[serviceId];
-             const percentage = totalGrossRevenue > 0 ? (service.amount / totalGrossRevenue) * 100 : 0;
-             return {
-                 id: serviceId,
-                 name: service.name,
-                 revenueAmount: service.amount,
-                 percentage: percentage,
-             };
-        });
+        // Format service breakdown with details
+        const serviceBreakdown = Array.from(serviceRevenueMap.entries()).map(
+            ([id, { name, amount, details }]) => ({
+                id,
+                name,
+                revenueAmount: amount,
+                percentage: totalGrossRevenue > 0 ? (amount / totalGrossRevenue) * 100 : 0,
+                details
+            })
+        );
 
-
-        // 5. Primena revenuePercentage ugovora za Platformu i Partnera
+        // Calculate platform and partner revenue
         const platformRevenue = totalGrossRevenue * (contract.revenuePercentage / 100);
-        const partnerRevenue = totalGrossRevenue - platformRevenue; // Partner dobija ostatak
+        const partnerRevenue = totalGrossRevenue - platformRevenue;
 
-        // 6. Vraćanje kompletne strukture
         return {
-            totalGrossRevenue: totalGrossRevenue, // Ukupno pre podele
-            platformRevenue: platformRevenue,
-            partnerRevenue: partnerRevenue,
-            serviceBreakdown: serviceBreakdown,
+            totalGrossRevenue,
+            platformRevenue,
+            partnerRevenue,
+            serviceBreakdown,
         };
 
     } catch (error) {
-        console.error(`Error calculating revenue for contract ${contractId}:`, error);
-        // Vraćanje strukture sa 0 vrednostima u slučaju greške
+        console.error(`Error calculating revenue:`, error);
         return {
-             totalGrossRevenue: 0,
+            totalGrossRevenue: 0,
             platformRevenue: 0,
             partnerRevenue: 0,
             serviceBreakdown: [],
         };
     }
 };
-
-// calculateTotalPlatformRevenue is not used for this specific fix

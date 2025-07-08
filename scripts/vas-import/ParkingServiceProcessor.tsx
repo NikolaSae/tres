@@ -401,8 +401,14 @@ export class ParkingServiceProcessor {
     filename: string
   ): Promise<string> {
     try {
-      // Extract year from filename
-      const year = this.excelProcessor.extractYearFromFilenamePublic(filename);
+      const periodMatch = filename.match(/_(\d{4})(\d{2})\d{2}_\d{4}__(\d{4})(\d{2})\d{2}_/);
+      if (!periodMatch) {
+        throw new Error('Cannot extract report period from filename');
+      }
+      
+      // Get current month (1-12)
+      const reportYear = periodMatch[1];
+      const reportMonth = parseInt(periodMatch[2], 10).toString();
       
       // Sanitize provider name
       const safeName = providerName
@@ -410,14 +416,15 @@ export class ParkingServiceProcessor {
         .replace(/\s+/g, '-')
         .toLowerCase();
       
-      // Create directory structure
+      // Create directory structure with year/month
       const dirPath = path.join(
         PROJECT_ROOT,
         'public',
         'parking-service',
         safeName,
         'report',
-        year,
+        reportYear,
+        reportMonth, // Use month from report (1-12 without leading zero)
         'original'
       );
       

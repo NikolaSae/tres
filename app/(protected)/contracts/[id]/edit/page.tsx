@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 
 export async function generateMetadata(props: { params: { id: string } }): Promise<Metadata> {
-  const params = await props.params; // Await the params promise
+  const params = await props.params;
   const id = params.id;
   
   try {
@@ -36,7 +36,6 @@ interface EditContractPageProps {
   }>;
 }
 
-// Zamenite postojeću getContract funkciju sa ovom
 async function getContract(id: string, currentUserId?: string, userRole?: string) {
   try {
     const contract = await db.contract.findUnique({
@@ -64,7 +63,6 @@ async function getContract(id: string, currentUserId?: string, userRole?: string
       return null;
     }
 
-    // Debug logovi
     console.log("[GET_CONTRACT] Permission check:", {
       currentUserId,
       userRole,
@@ -74,8 +72,6 @@ async function getContract(id: string, currentUserId?: string, userRole?: string
       stringComparison: String(contract.createdById) === String(currentUserId)
     });
 
-    // FIXED: Better permission logic
-    // Allow access if user is ADMIN OR if user is the creator
     const isAdmin = userRole === 'ADMIN';
     const isCreator = contract.createdById === currentUserId;
     
@@ -146,21 +142,21 @@ async function getParkingServices() {
 }
 
 export default async function EditContractPage(props: EditContractPageProps) {
-  const params = await props.params; // Await the params promise
+  const params = await props.params;
   const id = params.id;
   
   const session = await auth();
   console.log("[EDIT_PAGE] Complete session debugging:", {
-  hasSession: !!session,
-  hasUser: !!session?.user,
-  userId: session?.user?.id,
-  userEmail: session?.user?.email,
-  userRole: (session?.user as any)?.role,
-  userProps: session?.user ? Object.keys(session.user) : [],
-  fullUser: session?.user,
-  rawSession: session
-});
-  // Handle session/user state
+    hasSession: !!session,
+    hasUser: !!session?.user,
+    userId: session?.user?.id,
+    userEmail: session?.user?.email,
+    userRole: (session?.user as any)?.role,
+    userProps: session?.user ? Object.keys(session.user) : [],
+    fullUser: session?.user,
+    rawSession: session
+  });
+  
   if (!session) {
     console.error("[EDIT_PAGE] No session found");
     return redirect("/auth/login");
@@ -170,22 +166,22 @@ export default async function EditContractPage(props: EditContractPageProps) {
     console.error("[EDIT_PAGE] Session exists but no user object");
     return redirect("/auth/login");
   }
+  
   if (session?.user?.id) {
-  try {
-    const dbUser = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, email: true, role: true, name: true }
-    });
-    console.log("[EDIT_PAGE] Direct DB user query:", dbUser);
-  } catch (error) {
-    console.error("[EDIT_PAGE] Error fetching user from DB:", error);
+    try {
+      const dbUser = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, email: true, role: true, name: true }
+      });
+      console.log("[EDIT_PAGE] Direct DB user query:", dbUser);
+    } catch (error) {
+      console.error("[EDIT_PAGE] Error fetching user from DB:", error);
+    }
   }
-}
-  // Enhanced user ID extraction
+  
   let userId = '';
   let userRole = '';
   
-  // Try to get user data from database since session is incomplete
   if (session.user.email) {
     try {
       const dbUser = await db.user.findUnique({
@@ -209,7 +205,6 @@ export default async function EditContractPage(props: EditContractPageProps) {
     }
   }
   
-  // Fallback to session-based extraction if DB lookup failed
   if (!userId) {
     if (session.user.id) userId = session.user.id;
     else if ((session.user as any)?.sub) userId = (session.user as any).sub;
@@ -231,7 +226,7 @@ export default async function EditContractPage(props: EditContractPageProps) {
 
   try {
     const [contract, providers, operators, humanitarianOrgs, parkingServices] = await Promise.all([
-      getContract(id, userId, userRole), // Now passing the correct role
+      getContract(id, userId, userRole),
       getProviders(),
       getOperators(),
       getHumanitarianOrgs(),

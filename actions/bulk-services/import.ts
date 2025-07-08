@@ -1,5 +1,4 @@
 //actions/bulk-services/import.ts
-
 "use server";
 
 import { db } from "@/lib/db";
@@ -11,7 +10,10 @@ import { LogSeverity, ServiceType, BillingType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { BulkServiceImportResult } from "@/lib/types/bulk-service-types";
 
-export async function importBulkServicesFromCsv(csvContent: string): Promise<BulkServiceImportResult> {
+export async function importBulkServicesFromCsv(
+  csvContent: string,
+  importDate: Date
+): Promise<BulkServiceImportResult> {
   const results: BulkServiceImportResult = {
     totalRows: 0,
     validRows: [],
@@ -19,6 +21,7 @@ export async function importBulkServicesFromCsv(csvContent: string): Promise<Bul
     importErrors: [],
     error: null,
     createdCount: 0,
+    updatedCount: 0,
     createdServices: [],
   };
 
@@ -175,8 +178,42 @@ export async function importBulkServicesFromCsv(csvContent: string): Promise<Bul
       return results;
     }
 
+    // Check for existing records for this import date
+    const existingRecords = await db.bulkService.findMany({
+      where: {
+        datumNaplate: importDate
+      },
+      select: {
+        provider_name: true,
+        agreement_name: true,
+        service_name: true,
+        step_name: true,
+        sender_name: true,
+        datumNaplate: true
+      }
+    });
+
+    // Create keys for existing records
+    const existingKeys = new Set(
+      existingRecords.map(r => 
+        `${r.provider_name}-${r.agreement_name}-${r.service_name}-${r.step_name}-${r.sender_name}-${r.datumNaplate.toISOString()}`
+      )
+    );
+
+    // Filter records to create and update
+    const recordsToCreate = processingResult.validRows.filter(record => {
+      const key = `${record.provider_name}-${record.agreement_name}-${record.service_name}-${record.step_name}-${record.sender_name}-${importDate.toISOString()}`;
+      return !existingKeys.has(key);
+    });
+
+    const recordsToUpdate = processingResult.validRows.filter(record => {
+      const key = `${record.provider_name}-${record.agreement_name}-${record.service_name}-${record.step_name}-${record.sender_name}-${importDate.toISOString()}`;
+      return existingKeys.has(key);
+    });
+
+    // Create new records
     const createdRecords = await db.$transaction(
-      processingResult.validRows.map(record =>
+      recordsToCreate.map(record =>
         db.bulkService.create({
           data: {
             providerId: record.providerId as string,
@@ -188,6 +225,7 @@ export async function importBulkServicesFromCsv(csvContent: string): Promise<Bul
             sender_name: record.sender_name,
             requests: record.requests,
             message_parts: record.message_parts,
+            datumNaplate: importDate,
             createdAt: new Date(),
             updatedAt: new Date(),
           }
@@ -195,7 +233,31 @@ export async function importBulkServicesFromCsv(csvContent: string): Promise<Bul
       )
     );
 
+    // Update existing records
+    const updatedRecords = await db.$transaction(
+      recordsToUpdate.map(record =>
+        db.bulkService.updateMany({
+          where: {
+            provider_name: record.provider_name,
+            agreement_name: record.agreement_name,
+            service_name: record.service_name,
+            step_name: record.step_name,
+            sender_name: record.sender_name,
+            datumNaplate: importDate
+          },
+          data: {
+            providerId: record.providerId as string,
+            serviceId: record.serviceId as string,
+            requests: record.requests,
+            message_parts: record.message_parts,
+            updatedAt: new Date(),
+          }
+        })
+      )
+    );
+
     results.createdCount = createdRecords.length;
+    results.updatedCount = recordsToUpdate.length; // Note: updateMany returns count, but we already have the array length
     results.error = (results.invalidRows.length > 0 || results.importErrors.length > 0)
       ? "Import completed with errors or skipped duplicates."
       : null;
@@ -204,7 +266,7 @@ export async function importBulkServicesFromCsv(csvContent: string): Promise<Bul
       action: "IMPORT_BULK_SERVICES",
       entityType: "BULK_SERVICE",
       entityId: null,
-      details: `Imported ${results.createdCount} bulk services. Created ${results.createdServices.length} new services. ${results.invalidRows.length} records had validation or mapping errors.`,
+      details: `Imported ${results.createdCount} new bulk services, updated ${results.updatedCount} existing services. Created ${results.createdServices.length} new services. ${results.invalidRows.length} records had validation or mapping errors.`,
       severity: LogSeverity.INFO,
       userId: currentUser.id,
     });

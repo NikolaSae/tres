@@ -27,6 +27,7 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
   const [previewData, setPreviewData] = useState<string[][]>([]);
   const [error, setError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [importDate, setImportDate] = useState<Date | null>(null);
   const [importStats, setImportStats] = useState({ 
     imported: 0, 
     failed: 0, 
@@ -52,8 +53,22 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
       setError("Please upload a valid CSV file");
       return;
     }
+    const dateMatch = selectedFile.name.match(/bulk (\d{2}-\d{2}-\d{4})\.csv$/i);
+    if (!dateMatch) {
+      setError("Filename must be in format 'bulk DD-MM-YYYY.csv'");
+      return;
+    }
     
+    // Parse date from filename
+    const [day, month, year] = dateMatch[1].split('-').map(Number);
+    const parsedDate = new Date(year, month - 1, day);
+    
+    if (isNaN(parsedDate.getTime())) {
+      setError(`Invalid date in filename: ${dateMatch[1]}`);
+      return;
+    }
     setFile(selectedFile);
+    setImportDate(parsedDate);
     
     // Preview the file
     const reader = new FileReader();
@@ -119,7 +134,7 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
         });
       }, 300);
       
-      const result: BulkServiceImportResult = await importBulkServicesFromCsv(csvContent);
+      const result: BulkServiceImportResult = await importBulkServicesFromCsv(csvContent, importDate);
       
       clearInterval(progressInterval);
       setProgress(100);
@@ -165,6 +180,7 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
     setPreviewData([]);
     setImportSuccess(false);
     setProgress(0);
+    setImportDate(null);
     setImportStats({ imported: 0, failed: 0, errors: 0, errorDetails: [], createdServices: [] /*, createdProviders: []*/ }); // Resetuj
     if (fileInputRef.current) {
       fileInputRef.current.value = '';

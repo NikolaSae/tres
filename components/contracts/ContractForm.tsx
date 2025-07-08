@@ -302,7 +302,7 @@ export function ContractForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {["ACTIVE", "EXPIRED", "PENDING", "RENEWAL_IN_PROGRESS"].map((status) => (
+                      {["ACTIVE", "EXPIRED", "PENDING", "RENEWAL_IN_PROGRESS", "TERMINATED"].map((status) => (
                         <SelectItem key={status} value={status}>
                           {status.replace(/_/g, ' ')}
                         </SelectItem>

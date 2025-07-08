@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addAttachment } from "@/actions/contracts/add-attachment";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface AttachmentUploadProps {
   contractId: string;
@@ -18,7 +18,7 @@ interface AttachmentUploadProps {
 export function AttachmentUpload({ contractId, onUploadComplete }: AttachmentUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const { toast } = useToast();
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {

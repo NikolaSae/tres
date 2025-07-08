@@ -1,5 +1,4 @@
 // /actions/contracts/update.ts
-// /actions/contracts/update.ts
 'use server';
 
 import { z } from 'zod';
@@ -15,7 +14,6 @@ export async function updateContract(contractId: string, data: any) {
   console.log('[UPDATE_CONTRACT] Data keys:', Object.keys(data || {}));
   
   try {
-    // Get session with error handling
     let session;  
     try {
       session = await auth();
@@ -40,7 +38,6 @@ export async function updateContract(contractId: string, data: any) {
       userRole
     });
 
-    // Validate input data
     let validatedData;
     try {
       validatedData = contractSchema.parse(data);
@@ -52,7 +49,6 @@ export async function updateContract(contractId: string, data: any) {
       };
     }
     
-    // Find the existing contract
     const existingContract = await db.contract.findUnique({
       where: { id: contractId },
       select: { 
@@ -74,7 +70,6 @@ export async function updateContract(contractId: string, data: any) {
       createdById: existingContract.createdById
     });
 
-    // Check permissions
     const isAdmin = userRole === 'ADMIN';
     const isOwner = existingContract.createdById === userId;
     
@@ -93,32 +88,43 @@ export async function updateContract(contractId: string, data: any) {
       };
     }
 
-    // Extract services to handle separately
-    const { services: servicesData, ...restValidatedData } = validatedData;
+    const sanitizedData = {
+      ...validatedData,
+      operatorId: validatedData.operatorId === '' ? null : validatedData.operatorId,
+      providerId: validatedData.providerId === '' ? null : validatedData.providerId,
+      humanitarianOrgId: validatedData.humanitarianOrgId === '' ? null : validatedData.humanitarianOrgId,
+      parkingServiceId: validatedData.parkingServiceId === '' ? null : validatedData.parkingServiceId,
+    };
 
-    // Prepare data for database
+    const { services: servicesData, ...restValidatedData } = sanitizedData;
+
     const dbData = {
       ...restValidatedData,
-      // Clear irrelevant IDs based on contract type
       providerId: restValidatedData.type === ContractType.PROVIDER ? restValidatedData.providerId : null,
       humanitarianOrgId: restValidatedData.type === ContractType.HUMANITARIAN ? restValidatedData.humanitarianOrgId : null,
       parkingServiceId: restValidatedData.type === ContractType.PARKING ? restValidatedData.parkingServiceId : null,
-      // Clear operator data if revenue sharing is disabled
       operatorId: restValidatedData.isRevenueSharing ? restValidatedData.operatorId : null,
       operatorRevenue: restValidatedData.isRevenueSharing ? restValidatedData.operatorRevenue : 0,
       updatedAt: new Date(),
     };
 
-    // Perform the update with transaction
     const updatedContract = await db.$transaction(async (tx) => {
-      // Handle services update
+      const validateReference = async (id: string | null, model: string) => {
+        if (!id) return;
+        const exists = await (tx as any)[model].findUnique({ where: { id } });
+        if (!exists) throw new Error(`Invalid ${model} reference: ${id}`);
+      };
+
+      await validateReference(dbData.operatorId, 'operator');
+      await validateReference(dbData.providerId, 'provider');
+      await validateReference(dbData.humanitarianOrgId, 'humanitarianOrg');
+      await validateReference(dbData.parkingServiceId, 'parkingService');
+
       if (Array.isArray(servicesData)) {
-        // Delete existing services
         await tx.serviceContract.deleteMany({
           where: { contractId }
         });
         
-        // Create new services if any
         if (servicesData.length > 0) {
           await tx.serviceContract.createMany({
             data: servicesData.map((service: any) => ({
@@ -130,7 +136,6 @@ export async function updateContract(contractId: string, data: any) {
         }
       }
       
-      // Update the main contract (without services)
       return await tx.contract.update({
         where: { id: contractId },
         data: dbData,
@@ -157,7 +162,6 @@ export async function updateContract(contractId: string, data: any) {
 
     console.log('[UPDATE_CONTRACT] Contract updated successfully:', updatedContract.id);
 
-    // Log activity
     try {
       await logActivity({
         action: 'UPDATE',
@@ -170,7 +174,6 @@ export async function updateContract(contractId: string, data: any) {
       console.warn('[UPDATE_CONTRACT] Failed to log activity:', logError);
     }
 
-    // Revalidate cache
     try {
       revalidatePath('/contracts');
       revalidatePath(`/contracts/${contractId}`);
@@ -189,7 +192,6 @@ export async function updateContract(contractId: string, data: any) {
   } catch (error: any) {
     console.error('[UPDATE_CONTRACT] Unexpected error:', error);
     
-    // Handle specific errors
     if (error.code === 'P2002') {
       return { 
         success: false, 
@@ -198,9 +200,20 @@ export async function updateContract(contractId: string, data: any) {
     }
     
     if (error.code === 'P2003') {
+      const constraintMap: Record<string, string> = {
+        'Contract_operatorId_fkey': 'Operator',
+        'Contract_providerId_fkey': 'Provider',
+        'Contract_humanitarianOrgId_fkey': 'Humanitarian Organization',
+        'Contract_parkingServiceId_fkey': 'Parking Service'
+      };
+
+      const entityName = error.meta?.constraint 
+        ? constraintMap[error.meta.constraint] || 'reference' 
+        : 'reference';
+
       return { 
         success: false, 
-        error: 'Invalid reference to provider, operator, or service' 
+        error: `Invalid ${entityName} selected. Please choose a valid option.` 
       };
     }
     
@@ -208,6 +221,13 @@ export async function updateContract(contractId: string, data: any) {
       return { 
         success: false, 
         error: 'Contract not found' 
+      };
+    }
+    
+    if (error.message?.includes('Invalid reference:')) {
+      return { 
+        success: false, 
+        error: error.message.replace('Invalid', 'Invalid or inactive')
       };
     }
     

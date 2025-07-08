@@ -24,6 +24,8 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import DetailSkeleton from "@/components/skeletons/DetailSkeleton";
 import { formatCurrency } from "@/lib/utils";
+import { months } from "@/lib/constants";
+import { getReportFileNames } from "@/actions/reports/getReportFileNames";
 
 export const metadata: Metadata = {
   title: "Parking Service Details | Contract Management System",
@@ -62,6 +64,19 @@ export default async function ParkingServiceDetailsPage({
     getParkingServiceStats(id),
     getMonthlyRevenueStats(id)
   ]);
+
+  const formattedParkingServiceName = parkingService.name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+
+    const monthMap: Record<string, number> = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12
+  };
+
+  const reportFiles = await getReportFileNames(id);
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -130,21 +145,62 @@ export default async function ParkingServiceDetailsPage({
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quantity</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {monthlyRevenueStats.length > 0 ? (
-                  monthlyRevenueStats.map((stat, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{stat.month_year}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(stat.total_amount)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stat.total_quantity}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(stat.average_price)}</td>
-                    </tr>
-                  ))
+                  monthlyRevenueStats.map((stat, index) => {
+                    // Extract year and month from "YYYY-MM" format
+                    const [year, month] = stat.month_year.split('-');
+                    
+                    // Remove leading zero from month
+                    const monthNum = parseInt(month, 10);
+                    
+                    // Create base path without filename
+                    const basePath = `/parking-service/${formattedParkingServiceName}/report/${year}/${monthNum}/original/`;
+                    
+                    // Find matching report file
+                    const reportFile = reportFiles.find(file => 
+                      file.includes(year) && 
+                      file.includes(monthNum.toString()) &&
+                      file.toLowerCase().includes(formattedParkingServiceName.toLowerCase())
+                    );
+
+                    return (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {stat.month_year}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatCurrency(stat.total_amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {stat.total_quantity}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatCurrency(stat.average_price)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {reportFile ? (
+                            <Link 
+                              href={`${basePath}${encodeURIComponent(reportFile)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              View Report
+                            </Link>
+                          ) : (
+                            <span className="text-gray-400">Report not found</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
                       No monthly revenue data available
                     </td>
                   </tr>
