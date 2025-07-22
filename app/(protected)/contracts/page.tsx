@@ -5,8 +5,7 @@ import { ContractsSection } from "@/components/contracts/ContractsSection";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, FileSpreadsheet, Clock } from "lucide-react";
 import { db } from "@/lib/db";
-import { Contract } from "@/lib/types/contract-types";
-import { ContractStatus, ContractType } from "@prisma/client";
+import { Contract as ContractType, ContractStatus, ContractType as PrismaContractType } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Contracts Management | Management Dashboard",
@@ -22,15 +21,24 @@ async function getContracts(searchParams: {
   type?: string;
   partner?: string;
 }): Promise<{
-  contracts: Contract[];
+  contracts: ContractType[]; // Koristiti ContractType za jasnoću
   totalCount: number;
   totalPages: number;
   currentPage: number;
+  useServerPagination: boolean;
 }> {
   try {
+    // Parse page and limit regardless of server filters
     const page = parseInt(searchParams.page || '1');
     const limit = parseInt(searchParams.limit || '25');
-    const skip = (page - 1) * limit;
+
+    // Check if there are any server-side filters (excluding page and limit for this check)
+    const hasServerFilters = Boolean(
+      searchParams.search?.trim() ||
+      (searchParams.status && Object.values(ContractStatus).includes(searchParams.status as ContractStatus)) ||
+      (searchParams.type && Object.values(ContractType).includes(searchParams.type as ContractType)) ||
+      searchParams.partner
+    );
 
     const where: any = {};
     const conditions = [];
@@ -75,10 +83,47 @@ async function getContracts(searchParams: {
       where.AND = conditions;
     }
 
-    // ALWAYS apply pagination
-    const [contracts, totalCount] = await Promise.all([
-      db.contract.findMany({
-        where,
+    if (hasServerFilters) {
+      // SERVER-SIDE PAGINATION: Apply pagination when there are server filters
+      const skip = (page - 1) * limit;
+
+      const [contracts, totalCount] = await Promise.all([
+        db.contract.findMany({
+          where,
+          include: {
+            provider: { select: { id: true, name: true } },
+            humanitarianOrg: { select: { id: true, name: true } },
+            parkingService: { select: { id: true, name: true } },
+            services: true,
+            _count: {
+              select: {
+                services: true,
+                attachments: true,
+                reminders: true
+              }
+            }
+          },
+          orderBy: { updatedAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        db.contract.count({ where })
+      ]);
+      
+      const totalPages = Math.ceil(totalCount / limit);
+
+      return {
+        contracts,
+        totalCount,
+        totalPages,
+        currentPage: page, // Use the parsed page for server-side
+        useServerPagination: true
+      };
+    } else {
+      // CLIENT-SIDE PAGINATION: Load ALL contracts when no server filters
+      // Still respect the 'where' clause here in case client-side filters were cleared, but a search term persisted or similar
+      const contracts = await db.contract.findMany({
+        where, // Apply conditions if they exist
         include: {
           provider: { select: { id: true, name: true } },
           humanitarianOrg: { select: { id: true, name: true } },
@@ -93,27 +138,25 @@ async function getContracts(searchParams: {
           }
         },
         orderBy: { updatedAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      db.contract.count({ where })
-    ]);
-    
-    const totalPages = Math.ceil(totalCount / limit);
+        // NO skip/take - load ALL contracts to be filtered/paginated client-side
+      });
 
-    return {
-      contracts,
-      totalCount,
-      totalPages,
-      currentPage: page
-    };
+      return {
+        contracts,
+        totalCount: contracts.length,
+        totalPages: Math.ceil(contracts.length / limit), // Use parsed limit for client-side totalPages
+        currentPage: page, // IMPORTANT: Use the parsed page from searchParams for initial client-side page
+        useServerPagination: false
+      };
+    }
   } catch (error) {
     console.error('Error fetching contracts:', error);
     return {
       contracts: [],
       totalCount: 0,
       totalPages: 0,
-      currentPage: 1
+      currentPage: parseInt(searchParams.page || '1'), // Return parsed page even on error
+      useServerPagination: false
     };
   }
 }
@@ -123,21 +166,19 @@ async function getServerTime() {
 }
 
 interface PageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: { [key: string]: string | string[] | undefined }; // searchParams are not a Promise in Next.js 13+ App Router
 }
 
-// Remove force-dynamic to prevent unnecessary re-execution
-export const dynamic = 'auto';
+export const dynamic = 'auto'; // Keep as 'auto'
 
-async function getSafeParams(searchParams: Promise<{ [key: string]: string | string[] | undefined }>) {
-  const params = await searchParams;
+async function getSafeParams(searchParams: { [key: string]: string | string[] | undefined }) { // Updated type
   return {
-    page: typeof params.page === 'string' ? params.page : undefined,
-    limit: typeof params.limit === 'string' ? params.limit : undefined,
-    search: typeof params.search === 'string' ? params.search : undefined,
-    status: typeof params.status === 'string' ? params.status : undefined,
-    type: typeof params.type === 'string' ? params.type : undefined,
-    partner: typeof params.partner === 'string' ? params.partner : undefined,
+    page: typeof searchParams.page === 'string' ? searchParams.page : undefined,
+    limit: typeof searchParams.limit === 'string' ? searchParams.limit : undefined,
+    search: typeof searchParams.search === 'string' ? searchParams.search : undefined,
+    status: typeof searchParams.status === 'string' ? searchParams.status : undefined,
+    type: typeof searchParams.type === 'string' ? searchParams.type : undefined,
+    partner: typeof searchParams.partner === 'string' ? searchParams.partner : undefined,
   };
 }
 
@@ -145,10 +186,11 @@ export default async function ContractsPage({ searchParams }: PageProps) {
   const safeParams = await getSafeParams(searchParams);
 
   // Fetch data with clean params
-  const { contracts, totalCount, totalPages, currentPage } = await getContracts(safeParams);
+  const { contracts, totalCount, totalPages, currentPage, useServerPagination } = await getContracts(safeParams);
   const serverTime = await getServerTime();
 
   // Create stable key for ContractsSection to prevent unnecessary re-mounts
+  // The key changes when searchParams change, causing ContractsSection to remount
   const sectionKey = JSON.stringify(safeParams);
 
   return (
@@ -180,6 +222,13 @@ export default async function ContractsPage({ searchParams }: PageProps) {
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 Expired
               </span>
+            </div>
+            
+            {/* Debug info - ukloni posle testiranja */}
+            <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
+              Debug: Total contracts loaded: {contracts.length} | 
+              Server pagination: {useServerPagination ? 'Yes' : 'No'} |
+              Has filters: {Object.values(safeParams).some(v => v) ? 'Yes' : 'No'}
             </div>
           </div>
           
@@ -216,6 +265,7 @@ export default async function ContractsPage({ searchParams }: PageProps) {
           initialTotalCount={totalCount}
           initialTotalPages={totalPages}
           initialCurrentPage={currentPage}
+          useServerPagination={useServerPagination}
         />
 
         {/* Footer info */}
