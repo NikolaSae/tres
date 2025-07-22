@@ -1,0 +1,16 @@
+{
+  "name": "Fin App Hub Dokumentacija",
+  "root": "docs",
+  "colors": {
+    "primary": "#2563eb",      // plava kao tailwind blue-600
+    "background": "#ffffff",
+    "foreground": "#000000"
+  },
+  "theme": "mint",
+  "navigation": {
+    "pages": [
+      "index",
+      "struktura"
+    ]
+  }
+}
