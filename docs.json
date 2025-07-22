@@ -2,7 +2,7 @@
   "name": "Fin App Hub Dokumentacija",
   "root": "docs",
   "colors": {
-    "primary": "#2563eb",      // plava kao tailwind blue-600
+    "primary": "#2563eb",
     "background": "#ffffff",
     "foreground": "#000000"
   },
