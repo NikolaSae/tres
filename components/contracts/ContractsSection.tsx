@@ -300,31 +300,71 @@ export function ContractsSection({
 
   }, [searchParams, router, state.totalPages, state.itemsPerPage]);
 
-  // Export funkcija (ostaje ista)
-  const exportContracts = useCallback(async () => {
+  // CSV export handler
+  const exportAsCSV = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      
+    
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      
+    
       abortControllerRef.current = new AbortController();
-      
+    
       const params = new URLSearchParams(searchParams.toString());
-      params.set('export', 'true');
+      params.set('export', 'csv');
 
       const response = await fetch(`/api/contracts/export?${params}`, {
         signal: abortControllerRef.current.signal
       });
-      
+    
       if (!response.ok) throw new Error('Export failed');
-      
+    
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `contracts-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Export error:', error);
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [searchParams]);
+
+  // PDF export handler
+  const exportAsPDF = useCallback(async () => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+    
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    
+      abortControllerRef.current = new AbortController();
+    
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('export', 'csv');
+      params.set('format', 'pdf');
+
+      const response = await fetch(`/api/contracts/export?${params}`, {
+        signal: abortControllerRef.current.signal
+      });
+    
+      if (!response.ok) throw new Error('Export failed');
+    
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contracts-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -408,7 +448,7 @@ export function ContractsSection({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => exportContracts('csv')}
+            onClick={exportAsCSV}
             disabled={state.loading}
           >
             <Download className="h-4 w-4 mr-2" />
@@ -417,7 +457,7 @@ export function ContractsSection({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportAsPDF}
+            onClick={exportAsPDF}
             disabled={state.loading}
           >
             <FileText className="h-4 w-4 mr-2" />
