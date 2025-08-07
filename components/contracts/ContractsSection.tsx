@@ -408,11 +408,20 @@ export function ContractsSection({
           <Button
             variant="outline"
             size="sm"
-            onClick={exportContracts}
+            onClick={() => exportContracts('csv')}
             disabled={state.loading}
           >
             <Download className="h-4 w-4 mr-2" />
-            {state.loading ? 'Exporting...' : 'Export'}
+            {state.loading ? 'Exporting...' : 'Export as CSV'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportAsPDF}
+            disabled={state.loading}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            {state.loading ? 'Exporting...' : 'Export as PDF'}
           </Button>
         </CardHeader>
         <CardContent>
