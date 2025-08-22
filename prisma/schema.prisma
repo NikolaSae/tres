@@ -175,13 +175,14 @@ model HumanitarianOrg {
   pib         String?   @db.VarChar(9)       // Tax ID (8-9 digits)
   registrationNumber String? @map("maticni_broj") @db.VarChar(13) // Registration number (8-13 chars)
   bank        String?   @db.VarChar(100)     // Bank name
-  accountNumber String? @map("tekuci_racun") @db.VarChar(25) // Account number (18-25 chars)
+  accountNumber String? @map("tekuci_racun") @db.VarChar(100) // Account number (18-100 chars)
   shortNumber String?   @map("kratki_broj")  @db.VarChar(10) // Short code (up to 10 chars)
 
   // Relations
   contracts   Contract[]
   renewals    HumanitarianContractRenewal[]
   complaints  Complaint[]
+  reportFiles ReportFile[] // Add this line
 
   @@index([name])
   @@index([pib])
@@ -965,4 +966,22 @@ model NotificationPreference {
   updatedAt   DateTime @updatedAt
 
   @@index([userId]) // Indexiranje po userId za brže pretrage
+}
+
+model ReportFile {
+  id             String    @id @default(cuid())
+  fileName       String
+  filePath       String
+  organizationId String
+  startDate      DateTime
+  endDate        DateTime
+  fileSize       Int
+  mimeType       String
+  uploadedAt     DateTime  @default(now())
+  
+  // Relations
+  organization   HumanitarianOrg @relation(fields: [organizationId], references: [id])
+  
+  @@index([organizationId])
+  @@index([startDate])
 }

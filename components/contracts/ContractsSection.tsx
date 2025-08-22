@@ -8,13 +8,12 @@ import { ContractsList} from "@/components/contracts/ContractList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileText } from "lucide-react";
 import { Contract } from "@/lib/types/contract-types";
-import { ContractStatus } from "@prisma/client"; // Dodato za StatusBadge
+import { ContractStatus } from "@prisma/client";
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
-// State interface
 interface ContractsState {
   contracts: Contract[];
   filteredContracts: Contract[];
@@ -26,7 +25,6 @@ interface ContractsState {
   useServerPagination: boolean;
 }
 
-// Action types
 type ContractsAction =
   | { type: 'SET_INITIAL_DATA'; payload: { contracts: Contract[]; totalCount: number; totalPages: number; currentPage: number; useServerPagination: boolean } }
   | { type: 'SET_FILTERED_CONTRACTS'; payload: Contract[] }
@@ -36,14 +34,13 @@ type ContractsAction =
   | { type: 'SWITCH_TO_LOCAL_PAGINATION'; payload: Contract[] }
   | { type: 'UPDATE_SERVER_DATA'; payload: { contracts: Contract[]; totalCount: number; totalPages: number; currentPage: number } };
 
-// Reducer function
 function contractsReducer(state: ContractsState, action: ContractsAction): ContractsState {
   switch (action.type) {
     case 'SET_INITIAL_DATA':
       return {
         ...state,
         contracts: action.payload.contracts,
-        filteredContracts: action.payload.contracts, // Inicijalno, filtrirani su svi ugovori
+        filteredContracts: action.payload.contracts,
         totalCount: action.payload.totalCount,
         totalPages: action.payload.totalPages,
         currentPage: action.payload.currentPage,
@@ -51,15 +48,14 @@ function contractsReducer(state: ContractsState, action: ContractsAction): Contr
       };
     
     case 'SET_FILTERED_CONTRACTS':
-      // Ovo je za client-side filtriranje. Implicitno prebacuje na local pagination.
       const newTotalPagesFiltered = Math.ceil(action.payload.length / state.itemsPerPage);
       return {
         ...state,
         filteredContracts: action.payload,
         totalCount: action.payload.length,
         totalPages: newTotalPagesFiltered,
-        currentPage: 1, // Resetuj na stranicu 1 prilikom primene client-side filtera
-        useServerPagination: false // Prebaci na lokalnu paginaciju
+        currentPage: 1,
+        useServerPagination: false
       };
     
     case 'SET_LOADING':
@@ -82,20 +78,16 @@ function contractsReducer(state: ContractsState, action: ContractsAction): Contr
       };
     
     case 'SWITCH_TO_LOCAL_PAGINATION':
-      // Koristi se kada se primeni client-side filter nakon što je server-side bio aktivan
       return {
         ...state,
         useServerPagination: false,
         filteredContracts: action.payload,
         totalCount: action.payload.length,
         totalPages: Math.ceil(action.payload.length / state.itemsPerPage),
-        currentPage: 1 // Resetuj na stranicu 1 kada se eksplicitno prebacuje na lokalnu paginaciju
+        currentPage: 1
       };
     
     case 'UPDATE_SERVER_DATA':
-      // Ova akcija se koristi kada se inicijalni propovi promene zbog server-side ažuriranja (npr. promena URL stranice)
-      // i useServerPagination je true.
-      // Ona u suštini ponovo inicijalizuje relevantne delove stanja sa novim serverskim podacima.
       return {
         ...state,
         contracts: action.payload.contracts,
@@ -103,7 +95,7 @@ function contractsReducer(state: ContractsState, action: ContractsAction): Contr
         totalCount: action.payload.totalCount,
         totalPages: action.payload.totalPages,
         currentPage: action.payload.currentPage,
-        useServerPagination: true // Eksplicitno potvrdi server paginacija režim
+        useServerPagination: true
       };
     
     default:
@@ -145,13 +137,12 @@ export function ContractsSection({
   const urlPage = parseInt(stableSearchParams.page || '1');
   const urlLimit = parseInt(stableSearchParams.limit || '25');
 
-  // Inicijalizuj stanje direktno iz propova i URL parametara
   const initialState: ContractsState = {
     contracts: initialContracts,
     filteredContracts: initialContracts,
     totalCount: initialTotalCount,
     totalPages: initialTotalPages,
-    currentPage: initialCurrentPage, // Sada initialCurrentPage ispravno dolazi iz URL-a u page.tsx
+    currentPage: initialCurrentPage,
     itemsPerPage: urlLimit,
     loading: false,
     useServerPagination: useServerPagination
@@ -159,12 +150,6 @@ export function ContractsSection({
 
   const [state, dispatch] = useReducer(contractsReducer, initialState);
 
-  // UKLONJEN JE redundantni SET_INITIAL_DATA useEffect sa [] zavisnošću
-  // Stanje se ispravno inicijalizuje pomoću useReducer-a pri mount/remountu komponente.
-
-  // Ovaj useEffect osigurava da se stanje ažurira kada se inicijalni propovi promene.
-  // Pokriva slučajeve gde se komponenta remountuje (zbog promene ključa) ili se propovi ažuriraju bez remounta.
-  // Obrađuje i server-side i client-side (kada useServerPagination postane false) ažuriranja propova.
   useEffect(() => {
     if (useServerPagination) {
       dispatch({
@@ -177,38 +162,31 @@ export function ContractsSection({
         }
       });
     } else {
-      // Ako je client-side paginacija aktivna (ili postane aktivna, npr. filteri su obrisani)
-      // Osiguraj da lokalno stanje odražava trenutne inicijalne podatke (koji sada uključuju URL stranicu)
-      // i ispravno postavlja totalPages na osnovu svih učitanih ugovora.
       dispatch({
-        type: 'SET_INITIAL_DATA', // Ponovo koristi ovu akciju za ponovnu inicijalizaciju za client-side
+        type: 'SET_INITIAL_DATA',
         payload: {
             contracts: initialContracts,
             totalCount: initialContracts.length,
             totalPages: Math.ceil(initialContracts.length / state.itemsPerPage),
-            currentPage: initialCurrentPage, // Koristi stranicu prosleđenu sa servera (koja poštuje URL)
+            currentPage: initialCurrentPage,
             useServerPagination: false
         }
       });
     }
   }, [useServerPagination, initialContracts, initialTotalCount, initialTotalPages, initialCurrentPage, state.itemsPerPage]);
 
-  // Sinhronizuj lokalno stanje sa URL parametrima za stavke po stranici
   useEffect(() => {
     if (urlLimit !== state.itemsPerPage) {
       dispatch({ type: 'SET_ITEMS_PER_PAGE', payload: urlLimit });
     }
   }, [urlLimit, state.itemsPerPage]);
 
-  // Sinhronizuj trenutnu stranicu sa URL-om. Ovo je ključno za konzistentnost.
-  // Ovaj useEffect će sada raditi i za server i za klijent stranu ako se URL promeni.
   useEffect(() => {
     if (urlPage !== state.currentPage && !state.loading) {
       dispatch({ type: 'SET_PAGE', payload: urlPage });
     }
   }, [urlPage, state.currentPage, state.loading]);
 
-  // Cleanup funkcija
   useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) {
@@ -220,12 +198,9 @@ export function ContractsSection({
     };
   }, []);
 
-  // Handler za lokalne filtere sa debounced router push
   const handleFilterChange = useCallback((filtered: Contract[]) => {
-    // Uvek prebaci na lokalnu paginaciju kada se primene client-side filteri.
     dispatch({ type: 'SWITCH_TO_LOCAL_PAGINATION', payload: filtered });
     
-    // Obriši relevantne URL parametre (search, status, type, partner) prilikom prebacivanja na lokalno filtriranje.
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
@@ -233,7 +208,6 @@ export function ContractsSection({
     debounceTimeoutRef.current = setTimeout(() => {
       const currentUrl = new URL(window.location.href);
       const paramsToKeep = new URLSearchParams();
-      // Eksplicitno zadrži 'page' i 'limit' ako su prisutni i želite da ostanu
       if (stableSearchParams.page) paramsToKeep.set('page', stableSearchParams.page);
       if (stableSearchParams.limit) paramsToKeep.set('limit', stableSearchParams.limit);
 
@@ -241,7 +215,6 @@ export function ContractsSection({
     }, 300);
   }, [router, stableSearchParams.page, stableSearchParams.limit]);
 
-  // Dobijanje paginiranih ugovora za prikaz
   const getPaginatedContracts = useCallback(() => {
     if (state.useServerPagination) {
       return state.contracts;
@@ -252,7 +225,6 @@ export function ContractsSection({
     return state.filteredContracts.slice(startIndex, endIndex);
   }, [state.useServerPagination, state.contracts, state.filteredContracts, state.currentPage, state.itemsPerPage]);
 
-  // URL helpers (ova funkcija više nije neophodna unutar handlePageChange na isti način, ali se može zadržati za druge svrhe)
   const createPageUrl = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
     if (page > 1) {
@@ -260,26 +232,21 @@ export function ContractsSection({
     } else {
       params.delete('page');
     }
-    params.set('limit', state.itemsPerPage.toString()); // Osiguraj da je limit uvek prisutan u URL-u
+    params.set('limit', state.itemsPerPage.toString());
     return `/contracts${params.toString() ? `?${params.toString()}` : ''}`;
   }, [searchParams, state.itemsPerPage]);
 
-
-  // Event handler za promenu broja stavki po stranici
   const handleItemsPerPageChange = useCallback((value: string) => {
     const newItemsPerPage = parseInt(value);
     
-    // Uvek ažuriraj URL za stavke po stranici, što će uzrokovati ponovno dohvatanje podataka na serveru
-    // i ponovno mountovanje ili ažuriranje komponente ContractsSection.
     const params = new URLSearchParams(searchParams.toString());
     params.set('limit', value);
-    params.delete('page'); // Resetuj stranicu na 1 prilikom promene limita, jer se ukupan broj stranica može značajno promeniti
+    params.delete('page');
     router.push(`/contracts?${params.toString()}`, { scroll: false });
 
-    dispatch({ type: 'SET_ITEMS_PER_PAGE', payload: newItemsPerPage }); // Ažuriraj lokalno stanje za trenutni prikaz
+    dispatch({ type: 'SET_ITEMS_PER_PAGE', payload: newItemsPerPage });
   }, [searchParams, router]);
 
-  // Modifikovana handlePageChange funkcija da uvek ažurira URL
   const handlePageChange = useCallback((page: number) => {
     if (page < 1 || page > state.totalPages) return;
     
@@ -287,20 +254,16 @@ export function ContractsSection({
     if (page > 1) {
       params.set('page', page.toString());
     } else {
-      params.delete('page'); // Ukloni page parametar za stranicu 1
+      params.delete('page');
     }
-    params.set('limit', state.itemsPerPage.toString()); // Osiguraj da je limit uvek prosleđen
+    params.set('limit', state.itemsPerPage.toString());
 
     router.push(`/contracts?${params.toString()}`, { scroll: false });
 
-    // Ažuriraj lokalno stanje odmah za bolji odziv.
-    // Kada je server paginacija aktivna, ovo će ažurirati stanje, a zatim će ponovno renderovanje
-    // od strane Next.js-a sa novim serverskim podacima ponovo potvrditi/sinhronizovati ovo stanje.
     dispatch({ type: 'SET_PAGE', payload: page });
 
   }, [searchParams, router, state.totalPages, state.itemsPerPage]);
 
-  // CSV export handler
   const exportAsCSV = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -339,7 +302,6 @@ export function ContractsSection({
     }
   }, [searchParams]);
 
-  // PDF export handler
   const exportAsPDF = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -379,12 +341,10 @@ export function ContractsSection({
     }
   }, [searchParams]);
 
-  // Izračunavanja paginacije (ostaju ista)
   const displayedContracts = useMemo(() => getPaginatedContracts(), [getPaginatedContracts]);
   const startItem = state.totalCount > 0 ? (state.currentPage - 1) * state.itemsPerPage + 1 : 0;
   const endItem = Math.min(state.currentPage * state.itemsPerPage, state.totalCount);
 
-  // Generisanje brojeva stranica za paginaciju (ostaje ista)
   const pageNumbers = useMemo(() => {
     const maxVisiblePages = 5;
     const pages = [];
@@ -414,7 +374,6 @@ export function ContractsSection({
 
   return (
     <div className="space-y-6">
-      {/* Debug info - ukloni posle testiranja */}
       <div className="text-xs text-muted-foreground p-2 bg-yellow-50 border rounded">
         ContractsSection Debug: 
         Total contracts: {state.contracts.length} | 
@@ -428,10 +387,7 @@ export function ContractsSection({
         Displayed contracts: {displayedContracts.length}
       </div>
 
-      {/* Filters section */}
       <div className="bg-white rounded-lg shadow-sm border">
-        {/* Prosledite initialContracts kao sve ugovore za lokalno filtriranje, ako nije server paginacija */}
-        {/* Ako je server paginacija, ContractFilters komponenta mora sama da upravlja ažuriranjem URL-a za filtere */}
         <ContractFilters 
           contracts={useServerPagination ? [] : initialContracts} 
           onFilterChange={handleFilterChange}
@@ -439,30 +395,31 @@ export function ContractsSection({
         />
       </div>
 
-      {/* Results section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>
             Contracts {state.totalCount > 0 && `(${state.totalCount.toLocaleString()})`}
           </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportAsCSV}
-            disabled={state.loading}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {state.loading ? 'Exporting...' : 'Export as CSV'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportAsPDF}
-            disabled={state.loading}
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            {state.loading ? 'Exporting...' : 'Export as PDF'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportAsCSV}
+              disabled={state.loading}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {state.loading ? 'Exporting...' : 'Export as CSV'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportAsPDF}
+              disabled={state.loading}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              {state.loading ? 'Exporting...' : 'Export as PDF'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {state.loading ? (
@@ -481,7 +438,6 @@ export function ContractsSection({
                 serverTime={serverTime} 
               />
 
-              {/* Pagination */}
               {state.totalCount > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between mt-6 pt-6 border-t gap-4">
                   <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">

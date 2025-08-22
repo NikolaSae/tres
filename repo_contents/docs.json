@@ -1,0 +1,14 @@
+{
+  "name": "Fin App Hub Dokumentacija",
+  "root": "docs",
+  "colors": {
+    "primary": "#2563eb"
+  },
+  "theme": "mint",
+  "navigation": {
+    "pages": [
+      "index",
+      "struktura"
+    ]
+  }
+}

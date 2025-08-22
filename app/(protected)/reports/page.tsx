@@ -1,14 +1,17 @@
 // app/(protected)/reports/page.tsx
+
 import { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRecentReports } from "@/actions/reports/get-recent-reports";
-import { CalendarIcon, FileText, Clock, BarChart } from "lucide-react";
-// CORRECTED: Use named import for ReportPreview
+import { CalendarIcon, FileText, Clock, BarChart, Building2, Download, RotateCcw, Users, Upload } from "lucide-react";
 import { ReportPreview } from "@/components/reports/ReportPreview";
-import { format } from "date-fns"; // Import format for date display if needed elsewhere
+import { HumanitarianTemplateGenerator } from "@/components/reports/HumanitarianTemplateGenerator";
+import { HumanitarianFileUploader } from "@/components/reports/HumanitarianFileUploader";
+import { MonthlyCounterReset } from "@/components/reports/MonthlyCounterReset";
+import { format } from "date-fns";
 
 export const metadata: Metadata = {
   title: "Reports | Dashboard",
@@ -47,6 +50,8 @@ export default async function ReportsPage() {
       <Tabs defaultValue="recent" className="w-full">
         <TabsList>
           <TabsTrigger value="recent">Recent Reports</TabsTrigger>
+          <TabsTrigger value="humanitarian">Humanitarian Templates</TabsTrigger>
+          <TabsTrigger value="upload">File Upload</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="operations">Operations</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
@@ -73,6 +78,73 @@ export default async function ReportsPage() {
               </Card>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="humanitarian" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Humanitarian Organization Templates
+              </CardTitle>
+              <CardDescription>
+                Generate monthly report templates for all humanitarian organizations. 
+                Templates will be created in their respective report folders and auto-populated with organization data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HumanitarianTemplateGenerator />
+            </CardContent>
+          </Card>
+
+          {/* Management cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Template Status</CardTitle>
+                <CardDescription>
+                  View the status of generated templates by organization
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full">
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Template Status
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Master Template</CardTitle>
+                <CardDescription>
+                  Download or update the master XLSX template
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full">
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Master Template
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Counter Management</CardTitle>
+                <CardDescription>
+                  Reset monthly counters for organizations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MonthlyCounterReset />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="upload" className="space-y-4">
+          <HumanitarianFileUploader />
         </TabsContent>
 
         <TabsContent value="financial" className="space-y-4">

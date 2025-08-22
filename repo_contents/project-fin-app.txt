@@ -1,0 +1,406 @@
+pravimo next15+ app sa login register stranicom, implementiramo prisma, nextauth, middleware, definisemo modele za prismu.u aplikaciji imamo admin, user. sve krece od ugovora koji potpisujemo sa provajderom ili humanitarnom organizacijom ili parking sluzbom. ugovor odredjuje podelu prihoda izmedju provajdera, humanitarnom organizacijom i parking sluzbom sa jedne strane i nas kao operatora sa druge strane. ugovor definise tip servisa (vas (prepaid, postpaid), bulk, humaniservisi(prepaid, postpaid), parking servise(prepaid, postpaid), svaki tip servisa ima svoje specificne proizvode (koji se kasnije pominju u reklamacijama) koje definisemo kroz podatke koje importujemo kroz aplikaciju u vidu .csv fajlova svaki mesec (u zavisnosti od izvestaja imamo prikaz prodaje proizvoda na dnvevnom ili mesecnom nivou). takodje podatke moramo i da eksportujemo iz aplikacije u posebnim formatima .xls i saljemo na stampu ili otpremamo u folder. svaki specifican proizvod iz odredjene grupe servisa moze imati mesecne reklamacije koje moramo da pratimo i resavamo, kao i novcani iznosi koji su reklamirani takodje i vremenski period.
+znaci ugovori, stranica za reklamacije, stranica za import podataka, stranica za humanitarne organizacije koje posebno pratimo za isticanje ugovora. stranica za analizu finansija
+stranica sa reklamacijama mora prilikom izbora da ima izbor grupe servisa, provajdera, mora sve da bude povezano, kako bi mogli da imamo statistiku reklamiranih proizvoda od ukupnog broja prodatih proizvoda tog meseca i slicne statistike. sad treba od ovog da samo napises projekat koji ce mi biti kostur za dalji rad i pracenje realizacije, znaci nista kod, moze list fajlova, bez src foldera, sve sto moze kroz server side render umesto api poziva, bez koda samo planovi i liste za projekat detaljno koncizno
+mogu dodatno da objasnim svaki detalj ako je potrebno
+
+
+Koraci za obradu e-mail prepiske: Identifikuj ključne elemente iz prepiske: Subject: Izvuci broj servisnog zahteva (npr. 1-153049022467). Body: Pronadji ključne informacije o servisu, kao što su ime servisa, cena, učestalost naplate (nedeljno/mesečno), i datumi aktivacije/deaktivacije. Kontakt podaci: Zabeleži e-mail adresu, brojeve telefona i dodatne informacije. Analiziraj zahteve i odgovore: Proveri ko je poslao e-mail (prvi pošiljalac), na koji datum, i šta je glavni zahtev (reklamacija, provera servisa, itd.). Utvrdi da li je reklamacija odobrena ili odbijena na osnovu odgovora iz korisničke službe. Strukturiraj podatke u tabeli: Organizuj informacije tako da budu pregledne, na primer: Dodatni proračuni za reklamacije: Ako je reklamacija odobrena, izračunaj ukupan broj naplaćenih servisa. Koristi podatke o ceni i odobrenom iznosu. Podeli broj servisa po mesecima, na osnovu datuma aktivacije i deaktivacije. Sistematizuj raspored naplate po mesecima: Napomena za varijacije: U slučaju da prepiska sadrži drugačije formate informacija, koristi isti princip prepoznavanja ključnih elemenata i strukturiranja. Finalni pregled i zaključak: Proveri da li su svi podaci logično organizovani i odgovaraju originalnoj prepisci. Pripremi podatke u tabeli za dalju komunikaciju ili analizu, znaci samo vrati tabelu, i ukljuci pretragu za kratki broj takodje dodaj u tabelu, tabela sa kolona: subject, from, to, date, body, kratki broj, ime servisa, servisni-zahtev, broj telefona, cena, vrsta naplata, datum reklama od, datum reklama do, ukupno reklamirano, reklamacija (odobrena/odbijena)
+
+
+1. Maintain a Clean and Organized Codebase
+Stick to the structured folder organization outlined in the project plan.
+
+Follow consistent naming conventions (e.g., camelCase for functions, PascalCase for components).
+
+Keep configuration files (.env, Prisma schema) in a dedicated folder for clarity.
+
+2. Use Server-Side Rendering (SSR) Where Possible
+Prioritize server-side rendering for pages to reduce client-side API calls.
+
+Cache results when possible to improve performance.
+
+Consider static generation (getStaticProps) for less dynamic pages.
+
+3. Prisma ORM Best Practices
+Define clear relations between models (e.g., contracts ↔ providers ↔ products).
+
+
+
+Use migrations effectively to avoid conflicts.
+
+Optimize queries by selecting only the required fields (select {} instead of findMany()).
+
+4. Authentication & Middleware
+Implement NextAuth.js with JWT sessions for better security.
+
+Use middleware to protect routes dynamically based on user roles (admin/user).
+
+Log authentication events for security monitoring.
+
+5. Data Import & Export
+Validate incoming .csv files to prevent corrupt data imports.
+
+Ensure exported .xls files follow consistent formatting.
+
+Automate import/export tasks using cron jobs or background workers.
+
+6. Notifications & Alerts
+Set up automated alerts using server-side workers (e.g., cron jobs).
+
+Ensure contract expiration alerts trigger timely reminders.
+
+Provide email & in-app notifications for critical updates.
+
+7. Financial & Analytics Optimization
+Store financial transactions in a dedicated table for tracking.
+
+Use indexed queries to optimize statistical calculations.
+
+Keep detailed logs of complaint rates vs. sales trends.
+
+8. Version Control & Collaboration
+Use GitHub/GitLab for proper version control.
+
+Follow branching strategy (main, dev, feature-branch).
+
+Maintain detailed commit messages for better tracking.
+
+
+
+
+
+
+
+1. Reports & Analytics Structure
+App Routes
+
+/app/(protected)/analytics/page.tsx - Main analytics dashboard
+/app/(protected)/analytics/financials/page.tsx - Financial analytics view
+/app/(protected)/analytics/sales/page.tsx - Sales performance analytics
+/app/(protected)/analytics/complaints/page.tsx - Complaint analytics
+/app/(protected)/analytics/providers/page.tsx - Provider performance analytics
+/app/(protected)/reports/page.tsx - Report generation interface
+/app/(protected)/reports/generate/page.tsx - Custom report creator
+/app/(protected)/reports/scheduled/page.tsx - Scheduled reports management
+
+Components
+
+/components/analytics/FinancialOverview.tsx - Financial summary component
+/components/analytics/SalesChart.tsx - Sales visualization
+/components/analytics/ComplaintAnalytics.tsx - Complaint trend analysis
+/components/analytics/KpiDashboard.tsx - KPI metrics display
+/components/analytics/AnomalyDetection.tsx - Anomaly highlight component
+/components/analytics/DataFilters.tsx - Analytics filtering controls
+/components/reports/ExportOptions.tsx - Export format selection
+/components/reports/ScheduleForm.tsx - Report scheduling interface
+/components/reports/ReportPreview.tsx - Preview generated reports
+/components/reports/ExcelGenerator.tsx - Excel report generator
+
+Actions & API Routes
+
+/actions/analytics/get-financial-data.ts - Financial data retriever
+/actions/analytics/get-sales-metrics.ts - Sales metrics calculator
+/actions/analytics/get-complaint-stats.ts - Complaint statistics
+/actions/reports/generate-excel.ts - Generate Excel reports
+/actions/reports/schedule-report.ts - Schedule report generation
+/app/api/analytics/financials/route.ts - Financial data API
+/app/api/analytics/sales/route.ts - Sales data API
+/app/api/reports/generate/route.ts - Report generation API
+
+Utils & Services
+
+/lib/analytics/financial-calculations.ts - Financial calculation utilities
+/lib/analytics/anomaly-detection.ts - Detect unusual patterns
+/lib/reports/excel-generator.ts - Excel file creation
+/lib/reports/scheduled-jobs.ts - Scheduled report functionality
+
+2. Notifications Structure
+App Routes
+
+/app/(protected)/notifications/page.tsx - Notification center
+/app/(protected)/notifications/settings/page.tsx - Notification preferences
+/app/(protected)/admin/notifications/page.tsx - Admin notification management
+
+Components
+
+/components/notifications/NotificationList.tsx - List of notifications
+/components/notifications/NotificationBadge.tsx - Unread notification indicator
+/components/notifications/AlertBanner.tsx - Important alert display
+/components/notifications/EmailPreview.tsx - Email template preview
+/components/notifications/NotificationSettings.tsx - User notification preferences
+/components/notifications/AdminNotificationControls.tsx - Admin controls
+
+Actions & API Routes
+
+/actions/notifications/mark-as-read.ts - Mark notifications as read
+/actions/notifications/update-preferences.ts - Update notification preferences
+/app/api/notifications/route.ts - Notifications CRUD API
+/app/api/notifications/email/route.ts - Email notification sending
+/app/api/notifications/push/route.ts - Push notification sending
+
+Utils & Services
+
+/lib/notifications/email-sender.ts - Email notification service
+/lib/notifications/in-app-notifier.ts - In-app notification logic
+/lib/notifications/cron-alerts.ts - Scheduled alert generation
+/lib/notifications/templates.ts - Notification templates
+
+3. Security & Performance Structure
+Middleware
+
+/middleware.ts - Role-based access control and rate limiting
+
+Components
+
+/components/security/PermissionGate.tsx - Role-based UI component
+/components/security/ActivityLog.tsx - User activity display
+/components/security/PerformanceMetrics.tsx - Performance monitoring UI
+
+Actions & API Routes
+
+/actions/security/log-event.ts - Security event logger
+/actions/security/check-permission.ts - Permission verification
+/app/api/security/logs/route.ts - Security logs API
+/app/api/security/permissions/route.ts - Permission management API
+
+Utils & Services
+
+/lib/security/auth-helpers.ts - Authentication utilities
+/lib/security/rate-limiter.ts - API request rate limiting
+/lib/security/permission-checker.ts - Permission validation
+/lib/security/audit-logger.ts - Security audit logging
+/lib/security/backup-service.ts - Database backup utilities
+
+4. Shared Types & Schemas
+
+/schemas/analytics.ts - Analytics validation schemas
+/schemas/notification.ts - Notification validation schemas
+/schemas/security.ts - Security log validation schemas
+/lib/types/analytics-types.ts - Analytics type definitions
+/lib/types/notification-types.ts - Notification type definitions
+/lib/types/security-types.ts - Security-related type definitions
+
+This structure aligns with Next.js App Router conventions while providing a clear organization for your reports, analytics, notifications, and security components.
+
+
+
+
+ 5. Servisi & Proizvodi
+5.1. App Routes
+
+5.1.1 /app/(protected)/services/page.tsx - Main services listing page
+5.1.2. /app/(protected)/services/[serviceType]/page.tsx - Service type specific view (VAS, Bulk, etc.)
+/app/(protected)/services/[serviceType]/[id]/page.tsx - Individual service details
+/app/(protected)/services/[serviceType]/[id]/edit/page.tsx - Edit service page
+/app/(protected)/products/page.tsx - Products listing page
+/app/(protected)/products/[id]/page.tsx - Individual product details page
+/app/(protected)/services/import/page.tsx - CSV import interface
+
+5.2. Components
+
+5.2.1. /components/services/ServiceForm.tsx - Reusable form for creating/editing services
+/components/services/ServiceList.tsx - Tabular list of services
+/components/services/ServiceFilters.tsx - Filter controls for services
+/components/services/ServiceStats.tsx - Service statistics display
+/components/services/ServiceCard.tsx - Card component for service display
+/components/services/category/VasServiceCard.tsx - VAS-specific service card
+/components/services/category/BulkServiceCard.tsx - Bulk-specific service card
+/components/services/category/HumanServiceCard.tsx - Humanitarian service card
+/components/services/category/ParkingServiceCard.tsx - Parking service card
+/components/products/ProductForm.tsx - Form for product creation/editing
+/components/products/ProductList.tsx - List of products
+/components/products/ProductCard.tsx - Product display card
+/components/services/ImportForm.tsx - CSV import form and validation UI
+
+5.3. Actions & API Routes
+
+5.3.1. /actions/services/create.ts - Create new service
+/actions/services/update.ts - Update existing service
+/actions/services/delete.ts - Delete service
+/actions/services/import.ts - Import services from CSV
+/actions/services/export.ts - Export services data
+/actions/products/create.ts - Create new product
+/actions/products/update.ts - Update product
+/actions/products/delete.ts - Delete product
+/app/api/services/route.ts - Services CRUD API
+/app/api/services/[id]/route.ts - Individual service API
+/app/api/services/import/route.ts - CSV import endpoint
+/app/api/products/route.ts - Products CRUD API
+/app/api/products/[id]/route.ts - Individual product API
+
+5.4. Hooks & Utils
+
+5.4.1. /hooks/use-services.ts - Custom hook for service data
+/hooks/use-products.ts - Custom hook for products
+/hooks/use-service-stats.ts - Hook for service statistics
+/lib/services/csv-processor.ts - CSV processing utilities
+/lib/services/validators.ts - Service validation utilities
+/lib/services/statistics.ts - Statistics calculation functions
+/lib/services/constants.ts - Service type constants and configurations
+
+5.5. Types & Schemas
+
+5.5.1. /schemas/service.ts - Zod validation schema for services
+/schemas/product.ts - Zod validation schema for products
+/lib/types/service-types.ts - TypeScript types for services
+/lib/types/product-types.ts - TypeScript types for products
+/lib/types/csv-types.ts - Types for CSV import/export
+
+
+
+
+ 6. complaints
+
+6.1. Database Schema Updates
+
+/prisma/schema.prisma - Add complaint models with proper relations to users, services, products, and providers
+
+6.2. Type Definitions & Schemas
+
+/schemas/complaint.ts - Zod validation schema for complaint data validation
+/schemas/service.ts - Service types validation schemas
+/schemas/product.ts - Product validation for complaint association
+/schemas/provider.ts - Provider validation schemas
+/lib/types/interfaces.ts - TypeScript interfaces for complaint system
+/lib/types/enums.ts - Status enums and service category definitions
+/lib/types/complaint-types.ts - Specialized complaint type definitions
+
+3. API Routes
+
+/app/api/complaints/route.ts - Main endpoint for complaint management
+/app/api/complaints/[id]/route.ts - Operations on specific complaints
+/app/api/complaints/[id]/comments/route.ts - Comment management for complaints
+/app/api/complaints/[id]/status/route.ts - Status change handling
+/app/api/complaints/[id]/attachments/route.ts - File attachment handling
+/app/api/complaints/statistics/route.ts - Statistics data endpoints
+/app/api/complaints/export/route.ts - Export complaint data
+/app/api/services/categories/route.ts - Service category information
+
+4. Server Actions
+
+/actions/complaints/create.ts - Create new complaint records
+/actions/complaints/update.ts - Update existing complaints
+/actions/complaints/delete.ts - Remove complaint entries
+/actions/complaints/comment.ts - Add tracking comments
+/actions/complaints/change-status.ts - Update complaint status
+/actions/complaints/import.ts - Import complaint data
+/actions/complaints/export.ts - Export complaint reports
+/actions/services/get-by-category.ts - Retrieve services by category
+/actions/products/get-by-service.ts - Get products associated with services
+/actions/providers/get-by-service.ts - Get providers by service type
+
+5. UI Pages
+
+/app/(protected)/complaints/page.tsx - Main complaints listing
+/app/(protected)/complaints/new/page.tsx - Create new complaint
+/app/(protected)/complaints/[id]/page.tsx - View complaint details
+/app/(protected)/complaints/[id]/edit/page.tsx - Edit complaint
+/app/(protected)/admin/complaints/page.tsx - Admin complaints management
+/app/(protected)/admin/complaints/statistics/page.tsx - Statistics dashboard
+/app/(protected)/admin/complaints/reports/page.tsx - Report generation
+
+6. Components
+
+/components/complaints/ComplaintForm.tsx - Form for creating/editing complaints
+/components/complaints/ComplaintList.tsx - Tabular list of complaints
+/components/complaints/CommentSection.tsx - Thread of complaint comments
+/components/complaints/StatusBadge.tsx - Visual status indicator
+/components/complaints/ComplaintFilters.tsx - Filter controls container
+/components/complaints/ServiceCategoryFilter.tsx - Filter by service category
+/components/complaints/ProviderFilter.tsx - Filter by provider
+/components/complaints/DateRangeFilter.tsx - Date-based filtering
+/components/complaints/ComplaintTimeline.tsx - Chronological view of changes
+/components/complaints/FileUpload.tsx - File attachment component
+/components/complaints/StatisticsCard.tsx - Statistics display card
+/components/complaints/NotificationBanner.tsx - Status change notifications
+/components/complaints/AmountSummary.tsx - Financial summary of complaints
+/components/complaints/ProductSelection.tsx - Product selector with validation
+/components/complaints/ServiceSelection.tsx - Service selection component
+
+7. Charts & Statistics
+
+/components/complaints/charts/TrendChart.tsx - Trend visualization
+/components/complaints/charts/StatusChart.tsx - Status distribution chart
+/components/complaints/charts/MonthlyComparisonChart.tsx - Monthly comparison visualization
+/components/complaints/charts/ServiceCategoryBreakdown.tsx - Service breakdown chart
+/components/complaints/charts/ProviderPerformance.tsx - Provider performance metrics
+/components/complaints/reports/ExcelExport.tsx - Excel export component
+/components/complaints/reports/KpiDashboard.tsx - KPI visualization dashboard
+
+8. Hooks & Utils
+
+/hooks/use-complaints.ts - Data fetching for complaints
+/hooks/use-service-categories.ts - Service category data hook
+/hooks/use-products-by-service.ts - Product filtering by service
+/hooks/use-providers-by-service.ts - Provider filtering by service
+/lib/actions/complaints.ts - Core complaint manipulation functions
+/utils/complaint-notification.ts - Notification generation utilities
+/utils/complaint-statistics.ts - Statistical calculation functions
+/utils/excel-generator.ts - Excel report generation
+/utils/anomaly-detection.ts - Unusual complaint pattern detection
+/utils/date-filters.ts - Date manipulation utilities
+
+9. Import & Validation
+
+/components/complaints/CsvImport.tsx - CSV import interface
+/utils/csv-validator.ts - Validate imported data
+/utils/import-processor.ts - Process validated import data
+
+10. Notification System
+
+/lib/notifications/complaint-status.ts - Status change notifications
+/lib/notifications/anomaly-alert.ts - Anomaly detection alerts
+/components/notifications/AlertBanner.tsx - Alert display component
+
+
+
+
+
+
+
+
+
+
+
+Klasifikacija strukture projekta sa numeracijom:
+
+1. Reports & Analytics Structure
+1.1. App Routes
+1.2. Components
+1.3. Actions & API Routes
+1.4. Utils & Services
+
+2. Notifications Structure
+2.1. App Routes
+2.2. Components
+2.3. Actions & API Routes
+2.4. Utils & Services
+
+3. Security & Performance Structure
+3.1. Middleware
+3.2. Components
+3.3. Actions & API Routes
+3.4. Utils & Services
+
+4. Shared Types & Schemas
+4.1. Validation Schemas (/schemas/*)
+4.2. Type Definitions (/lib/types/*)
+
+5. Servisi & Proizvodi
+5.1. App Routes
+5.2. Components
+5.3. Actions & API Routes
+5.4. Hooks & Utils
+5.5. Types & Schemas
+
+6. complaints
+6.1. Database Schema Updates
+6.2. Type Definitions & Schemas
+6.3. API Routes
+6.4. Server Actions
+6.5. UI Pages
+6.6. Components
+6.7. Charts & Statistics
+6.8. Hooks & Utils
+6.9. Import & Validation
+6.10. Notification System
