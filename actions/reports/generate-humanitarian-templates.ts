@@ -1,11 +1,10 @@
-/////actions/reports/generate-humanitarian-templates.ts
+// actions/reports/generate-humanitarian-templates.ts
 'use server';
 
 import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { sr } from 'date-fns/locale';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -28,34 +27,55 @@ interface OrganizationData {
   id: string;
   name: string;
   accountNumber: string | null;
-  registrationNumber: string | null;
-  pib: string | null;
-  contracts: Array<{
+  registrationNumber?: string | null;
+  pib?: string | null;
+  activeContract: {
     name: string;
-  }>;
+  } | null;
 }
 
 const MASTER_TEMPLATE_PATH = path.join(process.cwd(), 'templates', 'humanitarian-template.xlsx');
 const REPORTS_BASE_PATH = path.join(process.cwd(), 'reports');
 
+// Validacija master template-a
+async function validateMasterTemplate(): Promise<{ isValid: boolean; error?: string }> {
+  try {
+    await fs.access(MASTER_TEMPLATE_PATH, fs.constants.R_OK);
+    
+    const stats = await fs.stat(MASTER_TEMPLATE_PATH);
+    if (stats.size === 0) {
+      return { isValid: false, error: 'Master template file is empty' };
+    }
+    
+    return { isValid: true };
+  } catch (error) {
+    return { 
+      isValid: false, 
+      error: `Master template validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    };
+  }
+}
+
 export async function generateHumanitarianTemplates(
   month: number,
-  year: number,
-  paymentType: string
+  year: number
 ): Promise<TemplateGenerationResult> {
   const generatedFiles: TemplateGenerationResult['generatedFiles'] = [];
   const errors: string[] = [];
 
   try {
-    // Validate master template exists
-    try {
-      await fs.access(MASTER_TEMPLATE_PATH);
-    } catch {
+    // Validacija master template-a
+    const templateValidation = await validateMasterTemplate();
+    if (!templateValidation.isValid) {
       return {
         success: false,
-        message: 'Master template fajl nije pronađen',
+        message: 'Master template fajl nije pronađen ili nije ispravan',
         processed: 0,
-        errors: ['Master template fajl nije dostupan na putanji: ' + MASTER_TEMPLATE_PATH]
+        errors: [
+          templateValidation.error || 'Unknown template validation error',
+          'Proverite da li postoji fajl: ' + MASTER_TEMPLATE_PATH,
+          'Proverite da li aplikacija ima dozvole za čitanje fajla'
+        ]
       };
     }
 
@@ -102,19 +122,28 @@ export async function generateHumanitarianTemplates(
     // Process each organization
     for (const org of organizations) {
       try {
+        // Transform the organization data to match our interface
+        const orgData: OrganizationData = {
+          id: org.id,
+          name: org.name,
+          accountNumber: org.accountNumber,
+          registrationNumber: org.registrationNumber,
+          pib: org.pib,
+          activeContract: org.contracts[0] || null
+        };
+
         const result = await generateTemplateForOrganization(
-          org,
+          orgData,
           month,
-          year,
-          paymentType
+          year
         );
         
-        generatedFiles.push(result);
+        generatedFiles?.push(result);
       } catch (error) {
         const errorMsg = `Greška za ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`;
         errors.push(errorMsg);
         
-        generatedFiles.push({
+        generatedFiles?.push({
           organizationName: org.name,
           fileName: '',
           status: 'error',
@@ -123,7 +152,7 @@ export async function generateHumanitarianTemplates(
       }
     }
 
-    const successCount = generatedFiles.filter(f => f.status === 'success').length;
+    const successCount = generatedFiles?.filter(f => f.status === 'success').length || 0;
     
     return {
       success: successCount > 0,
@@ -134,13 +163,21 @@ export async function generateHumanitarianTemplates(
     };
 
   } catch (error) {
-    console.error('Error in generateHumanitarianTemplates:', error);
+    console.error('Error in generateHumanitarianTemplates:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      templatePath: MASTER_TEMPLATE_PATH,
+      timestamp: new Date().toISOString()
+    });
     
     return {
       success: false,
       message: 'Greška pri generisanju template-a',
       processed: 0,
-      errors: [error instanceof Error ? error.message : 'Nepoznata greška']
+      errors: [
+        error instanceof Error ? error.message : 'Nepoznata greška',
+        'Proverite console za detaljnije informacije'
+      ]
     };
   }
 }
@@ -148,8 +185,7 @@ export async function generateHumanitarianTemplates(
 async function generateTemplateForOrganization(
   org: OrganizationData,
   month: number,
-  year: number,
-  paymentType: string
+  year: number
 ): Promise<NonNullable<TemplateGenerationResult['generatedFiles']>[0]> {
   
   try {
@@ -163,7 +199,7 @@ async function generateTemplateForOrganization(
 
     // METHOD 1: Try using ExcelJS (better formatting preservation)
     try {
-      const result = await generateWithExcelJS(org, month, year, paymentType, filePath);
+      const result = await generateWithExcelJS(org, month, year, filePath);
       if (result) {
         return {
           organizationName: org.name,
@@ -177,7 +213,7 @@ async function generateTemplateForOrganization(
 
     // METHOD 2: Fallback - Copy template and use Python script (if available)
     try {
-      const result = await generateWithPythonScript(org, month, year, paymentType, filePath);
+      const result = await generateWithPythonScript(org, month, year, filePath);
       if (result) {
         return {
           organizationName: org.name,
@@ -190,7 +226,7 @@ async function generateTemplateForOrganization(
     }
 
     // METHOD 3: Last resort - Simple file copy and manual data injection
-    await generateWithSimpleCopy(org, month, year, paymentType, filePath);
+    await generateWithSimpleCopy(org, month, year, filePath);
 
     return {
       organizationName: org.name,
@@ -207,12 +243,25 @@ async function generateWithExcelJS(
   org: OrganizationData,
   month: number,
   year: number,
-  paymentType: string,
   filePath: string
 ): Promise<boolean> {
   try {
-    // Try to import ExcelJS dynamically
-    const ExcelJS = await import('exceljs');
+    // Proveriti da li je ExcelJS dostupan
+    let ExcelJS;
+    try {
+      ExcelJS = await import('exceljs');
+    } catch (importError) {
+      console.log('ExcelJS not available:', importError);
+      return false;
+    }
+    
+    // Proveriti da li master template postoji i čitljiv je
+    try {
+      await fs.access(MASTER_TEMPLATE_PATH, fs.constants.R_OK);
+    } catch (accessError) {
+      console.log('Master template not accessible:', accessError);
+      return false;
+    }
     
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(MASTER_TEMPLATE_PATH);
@@ -230,24 +279,15 @@ async function generateWithExcelJS(
     const monthEnd = endOfMonth(new Date(year, month - 1));
     const dateRange = `${format(monthStart, 'dd.MM.yyyy')} do ${format(monthEnd, 'dd.MM.yyyy')}`;
 
-    // Get month name in Serbian for D38
-    const monthNames = [
-      'јануару', 'фебруару', 'марту', 'априлу', 'мају', 'јуну',
-      'јулу', 'августу', 'септембру', 'октобру', 'новембру', 'децембру'
-    ];
-    const monthNameSr = monthNames[month - 1];
-
     // Update cells while preserving formatting
-    const activeContract = org.contracts && org.contracts.length > 0 ? org.contracts[0] : null;
     const updates = [
-      { cell: 'C19', value: activeContract?.name || '' },
+      { cell: 'C19', value: org.activeContract?.name || '' },
       { cell: 'D21', value: org.name },
       { cell: 'D24', value: prevMonthValue },
       { cell: 'D27', value: org.accountNumber || '' },
       { cell: 'D28', value: `Матични број ${org.registrationNumber || ''}` },
       { cell: 'D29', value: `ПИБ ${org.pib || ''}` },
       { cell: 'E39', value: dateRange },
-      { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у ${monthNameSr} периоду` },
       { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` },
       { cell: 'D18', value: currentCounter }
     ];
@@ -272,7 +312,6 @@ async function generateWithPythonScript(
   org: OrganizationData,
   month: number,
   year: number,
-  paymentType: string,
   filePath: string
 ): Promise<boolean> {
   try {
@@ -286,20 +325,10 @@ async function generateWithPythonScript(
     const monthEnd = endOfMonth(new Date(year, month - 1));
     const dateRange = `${format(monthStart, 'dd.MM.yyyy')} do ${format(monthEnd, 'dd.MM.yyyy')}`;
 
-    // Get month name in Serbian for D38
-    const monthNames = [
-      'јануару', 'фебруару', 'марту', 'априлу', 'мају', 'јуну',
-      'јулу', 'августу', 'септембру', 'октобру', 'новембру', 'децембру'
-    ];
-    const monthNameSr = monthNames[month - 1];
-
-    const activeContract = org.contracts && org.contracts.length > 0 ? org.contracts[0] : null;
-
     // Create Python script for Excel manipulation
     const pythonScript = `
 import openpyxl
 import sys
-import json
 
 def update_excel(template_path, output_path, updates):
     wb = openpyxl.load_workbook(template_path)
@@ -316,14 +345,13 @@ if __name__ == "__main__":
     output_path = "${filePath.replace(/\\/g, '\\\\')}"
     
     updates = {
-        "C19": "${activeContract?.name || ''}",
+        "C19": "${org.activeContract?.name || ''}",
         "D21": "${org.name}",
         "D24": ${prevMonthValue},
         "D27": "${org.accountNumber || ''}",
         "D28": "Матични број ${org.registrationNumber || ''}",
         "D29": "ПИБ ${org.pib || ''}",
         "E39": "${dateRange}",
-        "D38": "Наплаћен износ у ${paymentType} саобраћају у ${monthNameSr} периоду",
         "E18": "/${month.toString().padStart(2, '0')}",
         "D18": ${currentCounter}
     }
@@ -344,7 +372,11 @@ if __name__ == "__main__":
     const { stdout, stderr } = await execAsync(`python3 ${tempScriptPath}`);
     
     // Clean up temp script
-    await fs.unlink(tempScriptPath);
+    try {
+      await fs.unlink(tempScriptPath);
+    } catch (cleanupError) {
+      console.log('Failed to cleanup temp script:', cleanupError);
+    }
     
     if (stdout.includes('SUCCESS')) {
       await updateMonthCounter(org.id, month, year, currentCounter);
@@ -363,15 +395,14 @@ async function generateWithSimpleCopy(
   org: OrganizationData,
   month: number,
   year: number,
-  paymentType: string,
   filePath: string
 ): Promise<void> {
   // Simple file copy - user will need to manually update data
   await fs.copyFile(MASTER_TEMPLATE_PATH, filePath);
   
   // Create a JSON file with the data that needs to be inserted
-  const prevMonthValue = await getPreviousMonthData(org.id, month, year);
-  const currentCounter = await getCurrentMonthCounter(org.id, month, year);
+  const prevMonthValue = await getPreviousMonthData(org, month, year);
+  const currentCounter = await getCurrentMonthCounter(org, month, year);
   
   const monthStart = startOfMonth(new Date(year, month - 1));
   const monthEnd = endOfMonth(new Date(year, month - 1));
@@ -384,33 +415,23 @@ async function generateWithSimpleCopy(
   ];
   const monthNameSr = monthNames[month - 1];
 
-  const activeContract = org.contracts && org.contracts.length > 0 ? org.contracts[0] : null;
-
   const dataToInsert = {
-    C19: activeContract?.name || '',
+    C19: org.activeContract?.name || '',
     D21: org.name,
     D24: prevMonthValue,
     D27: org.accountNumber || '',
     D28: `Матични број ${org.registrationNumber || ''}`,
     D29: `ПИБ ${org.pib || ''}`,
     E39: dateRange,
-    D38: `Наплаћен износ у ${paymentType} саобраћају у ${monthNameSr} периоду`,
+    D38: `Наплаћен износ у јавном саобраћају у ${monthNameSr} периоду`,
     E18: `/${month.toString().padStart(2, '0')}`,
-    D18: currentCounter,
-    _metadata: {
-      organization: org.name,
-      month: month,
-      year: year,
-      paymentType: paymentType,
-      generatedAt: new Date().toISOString(),
-      note: 'Ove vrednosti treba uneti u odgovarajuće ćelije Excel fajla'
-    }
+    D18: currentCounter
   };
   
   const dataFilePath = path.join(path.dirname(filePath), 'data_to_insert.json');
   await fs.writeFile(dataFilePath, JSON.stringify(dataToInsert, null, 2));
   
-  await updateMonthCounter(org.id, month, year, currentCounter);
+  await updateMonthCounter(org, month, year, currentCounter);
 }
 
 async function getPreviousMonthData(orgId: string, month: number, year: number): Promise<number> {
@@ -447,17 +468,7 @@ async function getPreviousMonthData(orgId: string, month: number, year: number):
             return typeof cell.value === 'number' ? cell.value : parseFloat(cell.value as string) || 0;
           }
         } catch (excelJSError) {
-          console.log('Could not read previous month data with ExcelJS, checking data file');
-          
-          // Fallback: check if there's a data_to_insert.json file with the previous value
-          const dataFilePath = path.join(prevReportPath, 'data_to_insert.json');
-          try {
-            const dataContent = await fs.readFile(dataFilePath, 'utf8');
-            const data = JSON.parse(dataContent);
-            return typeof data.D24 === 'number' ? data.D24 : 0;
-          } catch (dataFileError) {
-            console.log('No data file found either');
-          }
+          console.log('Could not read previous month data with ExcelJS:', excelJSError);
         }
       }
     } catch (error) {
@@ -508,8 +519,7 @@ async function updateMonthCounter(orgId: string, month: number, year: number, co
       counter,
       lastUpdated: new Date().toISOString(),
       month,
-      year,
-      organizationId: orgId
+      year
     };
 
     await fs.writeFile(counterFilePath, JSON.stringify(counterData, null, 2));

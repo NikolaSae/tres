@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRecentReports } from "@/actions/reports/get-recent-reports";
-import { CalendarIcon, FileText, Clock, BarChart, Building2, Download, RotateCcw, Users, Upload } from "lucide-react";
+import { CalendarIcon, FileText, Clock, BarChart, Building2, Download, RotateCcw, Users, Upload, Settings } from "lucide-react";
 import { ReportPreview } from "@/components/reports/ReportPreview";
 import { HumanitarianTemplateGenerator } from "@/components/reports/HumanitarianTemplateGenerator";
 import { HumanitarianFileUploader } from "@/components/reports/HumanitarianFileUploader";
 import { MonthlyCounterReset } from "@/components/reports/MonthlyCounterReset";
+import { TemplateValidator } from "@/components/reports/TemplateValidator";
 import { format } from "date-fns";
 
 export const metadata: Metadata = {
@@ -52,6 +53,7 @@ export default async function ReportsPage() {
           <TabsTrigger value="recent">Recent Reports</TabsTrigger>
           <TabsTrigger value="humanitarian">Humanitarian Templates</TabsTrigger>
           <TabsTrigger value="upload">File Upload</TabsTrigger>
+          <TabsTrigger value="validation">System Validation</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="operations">Operations</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
@@ -89,7 +91,8 @@ export default async function ReportsPage() {
               </CardTitle>
               <CardDescription>
                 Generate monthly report templates for all humanitarian organizations. 
-                Templates will be created in their respective report folders and auto-populated with organization data.
+                Templates will be created with organization data and saved in their respective report folders.
+                System supports Excel formatting preservation through multiple methods (ExcelJS, Python, manual copy).
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -103,7 +106,7 @@ export default async function ReportsPage() {
               <CardHeader>
                 <CardTitle className="text-lg">Template Status</CardTitle>
                 <CardDescription>
-                  View the status of generated templates by organization
+                  View the status of generated templates by organization and month
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -118,14 +121,19 @@ export default async function ReportsPage() {
               <CardHeader>
                 <CardTitle className="text-lg">Master Template</CardTitle>
                 <CardDescription>
-                  Download or update the master XLSX template
+                  Download the master XLSX template or check its status
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" className="w-full">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Master Template
-                </Button>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Master Template
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Path: /templates/humanitarian-template.xlsx
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -144,7 +152,84 @@ export default async function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="upload" className="space-y-4">
-          <HumanitarianFileUploader />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                File Upload Management
+              </CardTitle>
+              <CardDescription>
+                Upload and process humanitarian organization files and reports
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HumanitarianFileUploader />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="validation" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                System Validation
+              </CardTitle>
+              <CardDescription>
+                Validate that all required components for template generation are available and working
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TemplateValidator />
+            </CardContent>
+          </Card>
+
+          {/* Additional validation info */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Template Generation Methods</CardTitle>
+                <CardDescription>
+                  Available methods for generating Excel templates
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm space-y-2">
+                  <div className="flex items-center justify-between p-2 rounded border">
+                    <span>ExcelJS Library</span>
+                    <span className="text-xs text-muted-foreground">Best formatting preservation</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded border">
+                    <span>Python + openpyxl</span>
+                    <span className="text-xs text-muted-foreground">Fallback method</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded border">
+                    <span>Simple File Copy</span>
+                    <span className="text-xs text-muted-foreground">Manual data insertion</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">System Requirements</CardTitle>
+                <CardDescription>
+                  Dependencies needed for full functionality
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="text-sm space-y-1">
+                  <div>• Master template file in /templates/</div>
+                  <div>• Write permissions for /reports/</div>
+                  <div>• ExcelJS npm package (optional)</div>
+                  <div>• Python3 + openpyxl (optional)</div>
+                  <div>• Database connection</div>
+                  <div>• Active humanitarian organizations</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="financial" className="space-y-4">

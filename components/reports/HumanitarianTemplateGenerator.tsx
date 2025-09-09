@@ -1,4 +1,4 @@
-// components/reports/HUmanitarianTemplateGenerator.tsx
+// components/reports/HumanitarianTemplateGenerator.tsx
 
 'use client';
 
@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, CheckCircle, XCircle, AlertCircle, FileText, Loader2, Users, Building } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, FileText, Loader2, Users } from 'lucide-react';
 import { generateHumanitarianTemplates } from '@/actions/reports/generate-humanitarian-templates';
 import { generateAllHumanitarianReports } from '@/actions/reports/generate-all-humanitarian-reports';
 import { toast } from '@/hooks/use-toast';
@@ -46,25 +46,31 @@ const MONTHS = [
 
 const YEARS = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i);
 
-const PAYMENT_TYPES = [
-  { value: 'postpaid', label: 'Postpaid' },
-  { value: 'prepaid', label: 'Prepaid' },
-];
-
 export function HumanitarianTemplateGenerator() {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedPaymentType, setSelectedPaymentType] = useState<string>('postpaid');
-  const [generateForAll, setGenerateForAll] = useState<boolean>(true);
+  const [generateForAll, setGenerateForAll] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<TemplateGenerationResult | null>(null);
 
   const handleGenerate = async () => {
-    if (!selectedMonth || !selectedYear || !selectedPaymentType) {
+    // Dodati dodatne validacije
+    if (!selectedMonth || !selectedYear) {
       toast({
         title: "Greška",
-        description: "Molimo izaberite mesec, godinu i tip plaćanja",
+        description: "Molimo izaberite mesec i godinu",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validirati da li je datum valjan
+    const targetDate = new Date(selectedYear, selectedMonth - 1);
+    if (isNaN(targetDate.getTime())) {
+      toast({
+        title: "Greška", 
+        description: "Nevaljan datum",
         variant: "destructive",
       });
       return;
@@ -89,11 +95,14 @@ export function HumanitarianTemplateGenerator() {
       let result: TemplateGenerationResult;
 
       if (generateForAll) {
-        // Generate reports for all organizations
-        result = await generateAllHumanitarianReports(selectedMonth, selectedYear, selectedPaymentType);
+        // Generate reports for all organizations - proveriti da li ova funkcija postoji
+        if (typeof generateAllHumanitarianReports !== 'function') {
+          throw new Error('generateAllHumanitarianReports funkcija nije dostupna');
+        }
+        result = await generateAllHumanitarianReports(selectedMonth, selectedYear);
       } else {
-        // Generate only templates
-        result = await generateHumanitarianTemplates(selectedMonth, selectedYear, selectedPaymentType);
+        // Generate only templates - uklonjen selectedPaymentType parametar
+        result = await generateHumanitarianTemplates(selectedMonth, selectedYear);
       }
       
       clearInterval(progressInterval);
@@ -115,14 +124,22 @@ export function HumanitarianTemplateGenerator() {
       }
     } catch (error) {
       console.error('Error generating templates/reports:', error);
+      
+      // Clear progress interval if it's still running
+      setProgress(100);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Došlo je do neočekivane greške';
+      
       setResult({
         success: false,
-        message: 'Došlo je do neočekivane greške',
-        processed: 0
+        message: errorMessage,
+        processed: 0,
+        errors: [errorMessage]
       });
+      
       toast({
         title: "Greška",
-        description: "Došlo je do neočekivane greške prilikom generisanja",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -138,7 +155,7 @@ export function HumanitarianTemplateGenerator() {
   return (
     <div className="space-y-6">
       {/* Generation Controls */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="month">Mesec</Label>
           <Select
@@ -179,30 +196,10 @@ export function HumanitarianTemplateGenerator() {
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="paymentType">Tip plaćanja</Label>
-          <Select
-            value={selectedPaymentType}
-            onValueChange={setSelectedPaymentType}
-            disabled={isGenerating}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Izaberite tip" />
-            </SelectTrigger>
-            <SelectContent>
-              {PAYMENT_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="flex items-end">
           <Button
             onClick={handleGenerate}
-            disabled={isGenerating || !selectedMonth || !selectedYear || !selectedPaymentType}
+            disabled={isGenerating || !selectedMonth || !selectedYear}
             className="w-full"
           >
             {isGenerating ? (
@@ -300,6 +297,11 @@ export function HumanitarianTemplateGenerator() {
                         <div className="text-sm text-muted-foreground">
                           {file.fileName}
                         </div>
+                        {file.message && file.status === 'error' && (
+                          <div className="text-xs text-red-600 mt-1">
+                            {file.message}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -342,8 +344,6 @@ export function HumanitarianTemplateGenerator() {
           <code className="ml-1 text-sm bg-muted px-1 py-0.5 rounded">
             /reports/[organizacija-id]/{selectedYear}/{selectedMonth.toString().padStart(2, '0')}/
           </code>
-          <br />
-          Tip plaćanja: <strong>{PAYMENT_TYPES.find(t => t.value === selectedPaymentType)?.label}</strong>
           {!generateForAll && (
             <>
               <br />
