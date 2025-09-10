@@ -27,7 +27,7 @@ interface OrganizationReportData {
   id: string;
   name: string;
   accountNumber: string | null;
-  registrationNumber: string | null;
+  maticni_broj: string | null;
   pib: string | null;
   contracts: Array<{
     name: string;
@@ -41,7 +41,7 @@ interface OrganizationReportData {
   };
 }
 
-const MASTER_TEMPLATE_PATH = path.join(process.cwd(), 'templates', 'humanitarian-template.xlsx');
+const MASTER_TEMPLATE_PATH = path.join(process.cwd(), 'templates', 'humanitarian-template-telekom.xlsx');
 const REPORTS_BASE_PATH = path.join(process.cwd(), 'reports');
 
 export async function generateAllHumanitarianReports(
@@ -131,18 +131,19 @@ async function getOrganizationsWithReportData(
     where: {
       isActive: true,
       contracts: {
-        some: {
-          status: 'ACTIVE',
-          startDate: { lte: new Date() },
-          endDate: { gte: new Date() }
-        }
-      }
+  select: {
+    name: true,
+    contractNumber: true,
+    startDate: true,  // NEDOSTAJE
+    endDate: true     // NEDOSTAJE
+  }
+}
     },
     select: {
       id: true,
       name: true,
       accountNumber: true,
-      registrationNumber: true,
+      maticni_broj: true,
       pib: true,
       contracts: {
         where: {

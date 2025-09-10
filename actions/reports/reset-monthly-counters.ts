@@ -106,9 +106,10 @@ async function resetCounterForOrganization(
     // Create folder if it doesn't exist
     await fs.mkdir(counterFolderPath, { recursive: true });
 
-    // Reset counter to 0
+    // ISPRAVKA: Reset oba brojača na 0
     const counterData = {
-      counter: 0,
+      totalReports: 0,           // Ukupno generisanih template-a
+      validReportsCount: 0,      // Samo oni sa vrednošću D24 > 0
       lastUpdated: new Date().toISOString(),
       lastReset: new Date().toISOString(),
       month,

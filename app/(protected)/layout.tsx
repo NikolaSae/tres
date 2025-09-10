@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/contexts/theme-context";
 import { themeScript } from "@/utils/theme-script";
 import Script from "next/script";
 import React from 'react';
+import { FloatingChatButton } from "./_components/floating-chat-button";
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -44,6 +45,9 @@ export default async function ProtectedLayout({
                 </div>
               </div>
             </footer>
+            
+            {/* Floating AI Chat Button - dostupan kroz celu aplikaciju */}
+            <FloatingChatButton />
           </div>
         </SessionProvider>
       </ThemeProvider>
