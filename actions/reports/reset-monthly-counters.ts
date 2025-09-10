@@ -1,4 +1,5 @@
 // actions/reports/reset-monthly-counters.ts
+
 'use server';
 
 import { promises as fs } from 'fs';
@@ -55,7 +56,7 @@ export async function resetMonthlyCounters(
       } catch (error) {
         const errorMsg = `Greška za ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`;
         errors.push(errorMsg);
-        
+
         resetOrganizations.push({
           organizationName: org.name,
           organizationId: org.id,
@@ -66,7 +67,7 @@ export async function resetMonthlyCounters(
     }
 
     const successCount = resetOrganizations.filter(o => o.status === 'success').length;
-    
+
     return {
       success: successCount > 0,
       message: `Uspešno resetovano ${successCount} od ${organizations.length} brojača`,
@@ -74,10 +75,8 @@ export async function resetMonthlyCounters(
       errors: errors.length > 0 ? errors : undefined,
       resetOrganizations
     };
-
   } catch (error) {
     console.error('Error in resetMonthlyCounters:', error);
-    
     return {
       success: false,
       message: 'Greška pri resetovanju brojača',
@@ -100,16 +99,15 @@ async function resetCounterForOrganization(
       year.toString(),
       month.toString().padStart(2, '0')
     );
-    
     const counterFilePath = path.join(counterFolderPath, 'counter.json');
 
     // Create folder if it doesn't exist
     await fs.mkdir(counterFolderPath, { recursive: true });
 
-    // ISPRAVKA: Reset oba brojača na 0
+    // Reset oba brojača na 0
     const counterData = {
-      totalReports: 0,           // Ukupno generisanih template-a
-      validReportsCount: 0,      // Samo oni sa vrednošću D24 > 0
+      totalReports: 0,
+      validReportsCount: 0,
       lastUpdated: new Date().toISOString(),
       lastReset: new Date().toISOString(),
       month,
@@ -125,7 +123,6 @@ async function resetCounterForOrganization(
       organizationId: orgId,
       status: 'success'
     };
-
   } catch (error) {
     throw new Error(`Greška pri resetovanju brojača: ${error instanceof Error ? error.message : 'Nepoznata greška'}`);
   }

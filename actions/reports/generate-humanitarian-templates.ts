@@ -4,7 +4,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from "@/lib/db";
-import { format, startOfMonth, endOfMonth, getDaysInMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -28,13 +28,13 @@ interface OrganizationData {
   name: string;
   accountNumber: string | null;
   pib: string | null;
-  maticni_broj: string | null;  // ISPRAVKA: bilo registrationNumber
-  kratki_broj: string | null;
+  registrationNumber: string | null;
+  shortNumber: string | null;
   activeContract: {
     name: string;
     contractNumber?: string;
-    startDate?: Date;  // DODATO
-    endDate?: Date;    // DODATO
+    startDate?: Date;
+    endDate?: Date;
   } | null;
 }
 
@@ -55,12 +55,11 @@ async function validateMasterTemplate(templateType: TemplateType): Promise<{ isV
   try {
     const templatePath = getMasterTemplatePath(templateType);
     await fs.access(templatePath, fs.constants.R_OK);
-    
     const stats = await fs.stat(templatePath);
     if (stats.size === 0) {
       return { isValid: false, error: 'Master template file is empty' };
     }
-    
+
     return { isValid: true };
   } catch (error) {
     return { 
@@ -78,7 +77,7 @@ async function getOriginalReportValue(
   paymentType: PaymentType
 ): Promise<number> {
   try {
-    const orgFolderName = `${orgData.kratki_broj} - ${orgData.name}`;
+    const orgFolderName = `${orgData.shortNumber} - ${orgData.name}`;
     const originalReportPath = path.join(
       ORIGINAL_REPORTS_PATH,
       orgFolderName,
@@ -112,11 +111,10 @@ async function getOriginalReportValue(
     try {
       const ExcelJS = await import('exceljs');
       const workbook = new ExcelJS.Workbook();
-      
       await workbook.xlsx.readFile(filePath);
-      
+
       let value = 0;
-      
+
       if (paymentType === 'prepaid') {
         // Prvi sheet, poslednja vrednost u koloni C
         const worksheet = workbook.getWorksheet(1);
@@ -128,7 +126,7 @@ async function getOriginalReportValue(
               lastRow = rowNumber;
             }
           });
-          
+
           const lastCell = worksheet.getCell(`C${lastRow}`);
           if (lastCell.value) {
             value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
@@ -146,29 +144,28 @@ async function getOriginalReportValue(
               lastRow = rowNumber;
             }
           });
-          
+
           const lastCell = worksheet.getCell(`N${lastRow}`);
           if (lastCell.value) {
             value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
           }
         }
       }
-      
+
       console.log(`Extracted value from original report: ${value}`);
       return value;
-      
+
     } catch (excelError) {
       console.log('ExcelJS failed to read .xls file, returning 0:', excelError);
       return 0;
     }
-    
   } catch (error) {
     console.error(`Error reading original report for ${orgData.name}:`, error);
     return 0;
   }
 }
 
-// ISPRAVKA: Broji samo izveštaje sa vrednošću > 0
+// Broji samo izveštaje sa vrednošću > 0
 async function getCurrentMonthCounter(orgId: string, month: number, year: number): Promise<number> {
   try {
     const counterFilePath = path.join(
@@ -182,7 +179,6 @@ async function getCurrentMonthCounter(orgId: string, month: number, year: number
     try {
       const counterData = await fs.readFile(counterFilePath, 'utf8');
       const parsed = JSON.parse(counterData);
-      // Koristiti validReportsCount koji broji samo izveštaje sa vrednošću > 0
       return parsed.validReportsCount || 0;
     } catch (error) {
       return 0;
@@ -193,7 +189,7 @@ async function getCurrentMonthCounter(orgId: string, month: number, year: number
   }
 }
 
-// ISPRAVKA: Update counter sa proverom da li je vrednost > 0
+// Update counter sa proverom da li je vrednost > 0
 async function updateMonthCounter(
   orgId: string, 
   month: number, 
@@ -207,28 +203,25 @@ async function updateMonthCounter(
       year.toString(),
       month.toString().padStart(2, '0')
     );
-    
     await fs.mkdir(counterFolderPath, { recursive: true });
-    
+
     const counterFilePath = path.join(counterFolderPath, 'counter.json');
 
     let counterData = {
       totalReports: 0,
-      validReportsCount: 0, // Brojimo samo izveštaje sa vrednošću > 0
+      validReportsCount: 0,
       lastUpdated: new Date().toISOString(),
       month,
       year
     };
 
-    // Učitaj postojeće podatke
     try {
       const existingData = await fs.readFile(counterFilePath, 'utf8');
       counterData = { ...counterData, ...JSON.parse(existingData) };
     } catch (error) {
-      // Fajl ne postoji, koristićemo default vrednosti
+      // fajl ne postoji
     }
 
-    // Uvećaj brojače
     counterData.totalReports += 1;
     if (reportValue > 0) {
       counterData.validReportsCount += 1;
@@ -236,7 +229,7 @@ async function updateMonthCounter(
     counterData.lastUpdated = new Date().toISOString();
 
     await fs.writeFile(counterFilePath, JSON.stringify(counterData, null, 2));
-    
+
     return counterData.validReportsCount;
   } catch (error) {
     console.error(`Error updating counter for ${orgId}:`, error);
@@ -254,7 +247,6 @@ export async function generateHumanitarianTemplates(
   const errors: string[] = [];
 
   try {
-    // Validacija master template-a
     const templateValidation = await validateMasterTemplate(templateType);
     if (!templateValidation.isValid) {
       return {
@@ -269,7 +261,6 @@ export async function generateHumanitarianTemplates(
       };
     }
 
-    // ISPRAVKA: Dodati startDate i endDate u select
     const organizations = await db.humanitarianOrg.findMany({
       where: {
         isActive: true,
@@ -286,8 +277,8 @@ export async function generateHumanitarianTemplates(
         name: true,
         accountNumber: true,
         pib: true,
-        maticni_broj: true,  // ISPRAVKA: bilo registrationNumber
-        kratki_broj: true,
+        registrationNumber: true,
+        shortNumber: true,
         contracts: {
           where: {
             status: 'ACTIVE',
@@ -297,8 +288,8 @@ export async function generateHumanitarianTemplates(
           select: {
             name: true,
             contractNumber: true,
-            startDate: true,  // DODATO
-            endDate: true     // DODATO
+            startDate: true,
+            endDate: true
           },
           take: 1
         }
@@ -313,17 +304,15 @@ export async function generateHumanitarianTemplates(
       };
     }
 
-    // Process each organization
     for (const org of organizations) {
       try {
-        // ISPRAVKA: Mapiranje podataka sa ispravnim nazivima
         const orgData: OrganizationData = {
           id: org.id,
           name: org.name,
           accountNumber: org.accountNumber,
           pib: org.pib,
-          maticni_broj: org.maticni_broj,  // ISPRAVKA
-          kratki_broj: org.kratki_broj,
+          registrationNumber: org.registrationNumber,
+          shortNumber: org.shortNumber,
           activeContract: org.contracts[0] || null
         };
 
@@ -334,12 +323,12 @@ export async function generateHumanitarianTemplates(
           paymentType,
           templateType
         );
-        
+
         generatedFiles?.push(result);
       } catch (error) {
         const errorMsg = `Greška za ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`;
         errors.push(errorMsg);
-        
+
         generatedFiles?.push({
           organizationName: org.name,
           fileName: '',
@@ -350,7 +339,7 @@ export async function generateHumanitarianTemplates(
     }
 
     const successCount = generatedFiles?.filter(f => f.status === 'success').length || 0;
-    
+
     return {
       success: successCount > 0,
       message: `Uspešno generisano ${successCount} od ${organizations.length} ${paymentType} template(s)`,
@@ -358,10 +347,8 @@ export async function generateHumanitarianTemplates(
       errors: errors.length > 0 ? errors : undefined,
       generatedFiles
     };
-
   } catch (error) {
     console.error('Error in generateHumanitarianTemplates:', error);
-    
     return {
       success: false,
       message: 'Greška pri generisanju template-a',
@@ -378,9 +365,7 @@ async function generateTemplateForOrganization(
   paymentType: PaymentType,
   templateType: TemplateType
 ): Promise<NonNullable<TemplateGenerationResult['generatedFiles']>[0]> {
-  
   try {
-    // Create organization folder structure
     const orgFolderPath = path.join(
       REPORTS_BASE_PATH, 
       org.id, 
@@ -389,18 +374,13 @@ async function generateTemplateForOrganization(
     );
     await fs.mkdir(orgFolderPath, { recursive: true });
 
-    // Get original report value
     const reportValue = await getOriginalReportValue(org, month, year, paymentType);
-    
-    // ISPRAVKA: Get current counter (only counting reports with value > 0)
     const currentCounter = await getCurrentMonthCounter(org.id, month, year);
     const nextCounter = reportValue > 0 ? currentCounter + 1 : currentCounter;
 
-    // Generate filename
     const fileName = `template_${org.name.replace(/[^a-zA-Z0-9]/g, '_')}_${paymentType}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
     const filePath = path.join(orgFolderPath, fileName);
 
-    // Generate template
     const success = await generateWithExcelJS(
       org, 
       month, 
@@ -413,9 +393,8 @@ async function generateTemplateForOrganization(
     );
 
     if (success) {
-      // ISPRAVKA: Update counter samo ako je reportValue > 0
       await updateMonthCounter(org.id, month, year, reportValue);
-      
+
       return {
         organizationName: org.name,
         fileName,
@@ -424,7 +403,6 @@ async function generateTemplateForOrganization(
     } else {
       throw new Error('Failed to generate template with available methods');
     }
-
   } catch (error) {
     throw new Error(`Greška za organizaciju ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`);
   }
@@ -448,58 +426,50 @@ async function generateWithExcelJS(
       console.log('ExcelJS not available:', importError);
       return false;
     }
-    
+
     const masterTemplatePath = getMasterTemplatePath(templateType);
-    
     try {
       await fs.access(masterTemplatePath, fs.constants.R_OK);
     } catch (accessError) {
       console.log('Master template not accessible:', accessError);
       return false;
     }
-    
+
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(masterTemplatePath);
-    
+
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) {
       throw new Error('Worksheet not found');
     }
 
-    // Pripremi podatke prema novim pravilima
     const monthStart = startOfMonth(new Date(year, month - 1));
     const monthEnd = endOfMonth(new Date(year, month - 1));
-    const dateRange = `${format(monthStart, 'dd.MM.yyyy')} do ${format(monthEnd, 'dd.MM.yyyy')}`;
-    
-    // ISPRAVKA: Contract info sa startDate
+    const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
+
     const contractInfo = org.activeContract?.contractNumber && org.activeContract?.startDate
       ? `Уговор бр ${org.activeContract.contractNumber} од ${format(org.activeContract.startDate, 'dd.MM.yyyy')}`
       : '';
 
-    // Update cells prema TAČNO specificiranim pravilima
     const updates = [
-      { cell: 'D18', value: counterValue }, // redni broj napravljenog izveštaja
-      { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` }, // /mm format
-      { cell: 'A19', value: contractInfo }, // Уговор бр *ContractNumber* од dd.mm.yyyy
-      { cell: 'D21', value: org.name }, // ime humanitarne organizacije
-      { cell: 'D24', value: reportValue }, // vrednost iz originalnog izveštaja
-      { cell: 'E39', value: dateRange }, // mesecni range
-      { cell: 'D29', value: `ПИБ ${org.pib || ''}` }, // "ПИБ 3921039102" 
-      { cell: 'F29', value: `матични број ${org.maticni_broj || ''}` }, // "матични број 17690132"
-      { cell: 'G40', value: org.kratki_broj || '' }, // kratki_broj
-      { 
-        cell: 'D38', 
-        value: `Наплаћен износ у ${paymentType} саобраћају у периоду` // tip saobraćaja
-      }
+      { cell: 'D18', value: counterValue },
+      { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` },
+      { cell: 'A19', value: contractInfo },
+      { cell: 'D21', value: org.name },
+      { cell: 'D24', value: reportValue },
+      { cell: 'E39', value: dateRange },
+      { cell: 'D29', value: `ПИБ ${org.pib || ''}` },
+      { cell: 'F29', value: `матични број ${org.registrationNumber || ''}` },
+      { cell: 'G40', value: org.shortNumber || '' },
+      { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у периоду` }
     ];
 
     updates.forEach(({ cell, value }) => {
-      const cellObj = worksheet.getCell(cell);
-      cellObj.value = value;
+      worksheet.getCell(cell).value = value;
     });
 
     await workbook.xlsx.writeFile(filePath);
-    
+
     return true;
   } catch (error) {
     console.error('ExcelJS method failed:', error);

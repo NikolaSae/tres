@@ -27,12 +27,14 @@ interface OrganizationReportData {
   id: string;
   name: string;
   accountNumber: string | null;
-  maticni_broj: string | null;
+  registrationNumber: string | null;
   pib: string | null;
+  shortNumber: string | null;
   contracts: Array<{
     name: string;
+    contractNumber: string | null;
+    startDate: Date | null;
   }>;
-  // Add relevant data fields for the complete report
   monthlyRevenue?: number;
   totalTransactions?: number;
   serviceUsage?: {
@@ -41,13 +43,23 @@ interface OrganizationReportData {
   };
 }
 
-const MASTER_TEMPLATE_PATH = path.join(process.cwd(), 'templates', 'humanitarian-template-telekom.xlsx');
+type PaymentType = 'prepaid' | 'postpaid';
+type TemplateType = 'telekom' | 'globaltel';
+
+const TEMPLATES_PATH = path.join(process.cwd(), 'templates');
 const REPORTS_BASE_PATH = path.join(process.cwd(), 'reports');
+const ORIGINAL_REPORTS_PATH = path.join(process.cwd(), 'public', 'reports');
+
+// Get master template path based on type
+function getMasterTemplatePath(templateType: TemplateType): string {
+  return path.join(TEMPLATES_PATH, `humanitarian-template-${templateType}.xlsx`);
+}
 
 export async function generateAllHumanitarianReports(
   month: number,
   year: number,
-  paymentType: string
+  paymentType: PaymentType,
+  templateType: TemplateType = 'telekom'
 ): Promise<ReportGenerationResult> {
   const generatedFiles: ReportGenerationResult['generatedFiles'] = [];
   const errors: string[] = [];
@@ -55,13 +67,13 @@ export async function generateAllHumanitarianReports(
   try {
     // Validate master template exists
     try {
-      await fs.access(MASTER_TEMPLATE_PATH);
+      await fs.access(getMasterTemplatePath(templateType));
     } catch {
       return {
         success: false,
         message: 'Master template fajl nije pronađen',
         processed: 0,
-        errors: ['Master template fajl nije dostupan na putanji: ' + MASTER_TEMPLATE_PATH]
+        errors: [`Master template fajl nije dostupan na putanji: ${getMasterTemplatePath(templateType)}`]
       };
     }
 
@@ -83,14 +95,15 @@ export async function generateAllHumanitarianReports(
           org,
           month,
           year,
-          paymentType
+          paymentType,
+          templateType
         );
-        
+
         generatedFiles.push(result);
       } catch (error) {
         const errorMsg = `Greška za ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`;
         errors.push(errorMsg);
-        
+
         generatedFiles.push({
           organizationName: org.name,
           fileName: '',
@@ -101,7 +114,7 @@ export async function generateAllHumanitarianReports(
     }
 
     const successCount = generatedFiles.filter(f => f.status === 'success').length;
-    
+
     return {
       success: successCount > 0,
       message: `Uspešno generisano ${successCount} od ${organizations.length} kompletnih izveštaja`,
@@ -109,10 +122,8 @@ export async function generateAllHumanitarianReports(
       errors: errors.length > 0 ? errors : undefined,
       generatedFiles
     };
-
   } catch (error) {
     console.error('Error in generateAllHumanitarianReports:', error);
-    
     return {
       success: false,
       message: 'Greška pri generisanju kompletnih izveštaja',
@@ -125,26 +136,19 @@ export async function generateAllHumanitarianReports(
 async function getOrganizationsWithReportData(
   month: number,
   year: number,
-  paymentType: string
+  paymentType: PaymentType
 ): Promise<OrganizationReportData[]> {
   const organizations = await db.humanitarianOrg.findMany({
     where: {
       isActive: true,
-      contracts: {
-  select: {
-    name: true,
-    contractNumber: true,
-    startDate: true,  // NEDOSTAJE
-    endDate: true     // NEDOSTAJE
-  }
-}
     },
     select: {
       id: true,
       name: true,
       accountNumber: true,
-      maticni_broj: true,
+      registrationNumber: true,
       pib: true,
+      shortNumber: true,
       contracts: {
         where: {
           status: 'ACTIVE',
@@ -152,7 +156,9 @@ async function getOrganizationsWithReportData(
           endDate: { gte: new Date() }
         },
         select: {
-          name: true
+          name: true,
+          contractNumber: true,
+          startDate: true,
         },
         take: 1
       }
@@ -163,10 +169,8 @@ async function getOrganizationsWithReportData(
   const enhancedOrganizations: OrganizationReportData[] = [];
 
   for (const org of organizations) {
-    // Get monthly revenue/transaction data from your database
-    // This is where you'd query your transaction/payment tables
-    const monthlyData = await getMonthlyDataForOrganization(org.id, month, year, paymentType);
-    
+    const monthlyData = await getMonthlyDataForOrganization(org.id, org.shortNumber || '', month, year, paymentType);
+
     enhancedOrganizations.push({
       ...org,
       monthlyRevenue: monthlyData.revenue,
@@ -180,46 +184,38 @@ async function getOrganizationsWithReportData(
 
 async function getMonthlyDataForOrganization(
   orgId: string,
+  shortNumber: string,
   month: number,
   year: number,
-  paymentType: string
+  paymentType: PaymentType
 ) {
-  // This would be replaced with actual queries to your payment/transaction tables
-  // Example implementation:
-  
   const startDate = startOfMonth(new Date(year, month - 1));
   const endDate = endOfMonth(new Date(year, month - 1));
 
   try {
-    // Example query structure - adapt to your actual database schema
     const transactions = await db.$queryRaw`
-      SELECT 
-        COUNT(*) as transaction_count,
+      SELECT
+        SUM(quantity) as transaction_count,
         SUM(amount) as total_amount,
-        service_type
-      FROM transactions 
-      WHERE organization_id = ${orgId}
-        AND payment_type = ${paymentType}
+        "group" as payment_group
+      FROM "vas_transactions"
+      WHERE service_code = ${shortNumber}
+        AND "group" = ${paymentType}
         AND created_at >= ${startDate}
         AND created_at <= ${endDate}
-      GROUP BY service_type
+      GROUP BY "group"
     ` as Array<{
-      transaction_count: bigint;
+      transaction_count: number | null;
       total_amount: number | null;
-      service_type: string;
+      payment_group: string;
     }>;
 
     const revenue = transactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
-    const transactionCount = transactions.reduce((sum, t) => sum + Number(t.transaction_count), 0);
-    
-    const serviceUsage = transactions.reduce((acc, t) => {
-      if (t.service_type === 'postpaid') {
-        acc.postpaid = Number(t.transaction_count);
-      } else if (t.service_type === 'prepaid') {
-        acc.prepaid = Number(t.transaction_count);
-      }
-      return acc;
-    }, { postpaid: 0, prepaid: 0 });
+    const transactionCount = transactions.reduce((sum, t) => sum + (t.transaction_count || 0), 0);
+
+    const serviceUsage = {
+      [paymentType]: transactionCount
+    };
 
     return {
       revenue,
@@ -240,21 +236,18 @@ async function generateCompleteReportForOrganization(
   org: OrganizationReportData,
   month: number,
   year: number,
-  paymentType: string
+  paymentType: PaymentType,
+  templateType: TemplateType
 ): Promise<NonNullable<ReportGenerationResult['generatedFiles']>[0]> {
-  
   try {
-    // Create organization folder structure
     const orgFolderPath = path.join(REPORTS_BASE_PATH, org.id, year.toString(), month.toString().padStart(2, '0'));
     await fs.mkdir(orgFolderPath, { recursive: true });
 
-    // Generate filename for complete report
     const fileName = `report_${org.name.replace(/[^a-zA-Z0-9]/g, '_')}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
     const filePath = path.join(orgFolderPath, fileName);
 
-    // Try different methods for generating the complete report
     try {
-      const result = await generateCompleteReportWithExcelJS(org, month, year, paymentType, filePath);
+      const result = await generateCompleteReportWithExcelJS(org, month, year, paymentType, templateType, filePath);
       if (result) {
         return {
           organizationName: org.name,
@@ -266,15 +259,13 @@ async function generateCompleteReportForOrganization(
       console.log('ExcelJS failed for complete report, trying fallback method:', error);
     }
 
-    // Fallback to basic template with additional data
-    await generateReportWithFallback(org, month, year, paymentType, filePath);
+    await generateReportWithFallback(org, month, year, paymentType, templateType, filePath);
 
     return {
       organizationName: org.name,
       fileName,
       status: 'success'
     };
-
   } catch (error) {
     throw new Error(`Greška za organizaciju ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`);
   }
@@ -284,56 +275,63 @@ async function generateCompleteReportWithExcelJS(
   org: OrganizationReportData,
   month: number,
   year: number,
-  paymentType: string,
+  paymentType: PaymentType,
+  templateType: TemplateType,
   filePath: string
 ): Promise<boolean> {
   try {
-    const ExcelJS = await import('exceljs');
-    
+    let ExcelJS;
+    try {
+      ExcelJS = await import('exceljs');
+    } catch (importError) {
+      console.log('ExcelJS not available:', importError);
+      return false;
+    }
+
+    const masterTemplatePath = getMasterTemplatePath(templateType);
+
+    try {
+      await fs.access(masterTemplatePath, fs.constants.R_OK);
+    } catch (accessError) {
+      console.log('Master template not accessible:', accessError);
+      return false;
+    }
+
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(MASTER_TEMPLATE_PATH);
-    
+    await workbook.xlsx.readFile(masterTemplatePath);
+
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) {
       throw new Error('Worksheet not found');
     }
 
-    // Get previous month data and current counter
-    const prevMonthValue = await getPreviousMonthData(org.id, month, year);
+    const reportValue = await getOriginalReportValue(org, month, year, paymentType);
+
     const currentCounter = await getCurrentMonthCounter(org.id, month, year);
-    
+    const nextCounter = reportValue > 0 ? currentCounter + 1 : currentCounter;
+
     const monthStart = startOfMonth(new Date(year, month - 1));
     const monthEnd = endOfMonth(new Date(year, month - 1));
-    const dateRange = `${format(monthStart, 'dd.MM.yyyy')} do ${format(monthEnd, 'dd.MM.yyyy')}`;
-
-    // Serbian month names
-    const monthNames = [
-      'јануару', 'фебруару', 'марту', 'априлу', 'мају', 'јуну',
-      'јулу', 'августу', 'септембру', 'октобру', 'новембру', 'децембру'
-    ];
-    const monthNameSr = monthNames[month - 1];
+    const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
 
     const activeContract = org.contracts && org.contracts.length > 0 ? org.contracts[0] : null;
+    const contractInfo = activeContract?.contractNumber && activeContract?.startDate
+      ? `Уговор бр ${activeContract.contractNumber} од ${format(activeContract.startDate, 'dd.MM.yyyy')}`
+      : '';
 
-    // Update cells with organization data and actual report data
     const updates = [
-      // Basic organization info
-      { cell: 'C19', value: activeContract?.name || '' },
-      { cell: 'D21', value: org.name },
-      { cell: 'D24', value: prevMonthValue + (org.monthlyRevenue || 0) }, // Add current month revenue
-      { cell: 'D27', value: org.accountNumber || '' },
-      { cell: 'D28', value: `Матични број ${org.registrationNumber || ''}` },
-      { cell: 'D29', value: `ПИБ ${org.pib || ''}` },
-      { cell: 'E39', value: dateRange },
-      { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у ${monthNameSr} периоду` },
+      { cell: 'D18', value: nextCounter },
       { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` },
-      { cell: 'D18', value: currentCounter },
-      
-      // Additional report data (adapt cell references to your template)
-      { cell: 'F24', value: org.monthlyRevenue || 0 }, // Current month revenue
-      { cell: 'G24', value: org.totalTransactions || 0 }, // Transaction count
-      
-      // Service usage breakdown if your template supports it
+      { cell: 'A19', value: contractInfo },
+      { cell: 'D21', value: org.name },
+      { cell: 'D24', value: reportValue },
+      { cell: 'E39', value: dateRange },
+      { cell: 'D29', value: `ПИБ ${org.pib || ''}` },
+      { cell: 'F29', value: `матични број ${org.registrationNumber || ''}` },
+      { cell: 'G40', value: org.shortNumber || '' },
+      { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у периоду` },
+      { cell: 'F24', value: org.monthlyRevenue || 0 },
+      { cell: 'G24', value: org.totalTransactions || 0 },
       ...(org.serviceUsage ? [
         { cell: 'H24', value: paymentType === 'postpaid' ? (org.serviceUsage.postpaid || 0) : (org.serviceUsage.prepaid || 0) }
       ] : [])
@@ -345,13 +343,12 @@ async function generateCompleteReportWithExcelJS(
         cellObj.value = value;
       } catch (error) {
         console.log(`Could not update cell ${cell}:`, error);
-        // Continue with other cells even if one fails
       }
     });
 
     await workbook.xlsx.writeFile(filePath);
-    await updateMonthCounter(org.id, month, year, currentCounter);
-    
+    await updateMonthCounter(org.id, month, year, reportValue);
+
     return true;
   } catch (error) {
     console.error('ExcelJS method failed for complete report:', error);
@@ -363,45 +360,39 @@ async function generateReportWithFallback(
   org: OrganizationReportData,
   month: number,
   year: number,
-  paymentType: string,
+  paymentType: PaymentType,
+  templateType: TemplateType,
   filePath: string
 ): Promise<void> {
-  // Copy template and create detailed JSON with all report data
-  await fs.copyFile(MASTER_TEMPLATE_PATH, filePath);
-  
-  const prevMonthValue = await getPreviousMonthData(org.id, month, year);
+  await fs.copyFile(getMasterTemplatePath(templateType), filePath);
+
+  const reportValue = await getOriginalReportValue(org, month, year, paymentType);
   const currentCounter = await getCurrentMonthCounter(org.id, month, year);
-  
+  const nextCounter = reportValue > 0 ? currentCounter + 1 : currentCounter;
+
   const monthStart = startOfMonth(new Date(year, month - 1));
   const monthEnd = endOfMonth(new Date(year, month - 1));
-  const dateRange = `${format(monthStart, 'dd.MM.yyyy')} do ${format(monthEnd, 'dd.MM.yyyy')}`;
-
-  const monthNames = [
-    'јануару', 'фебруару', 'марту', 'априлу', 'мају', 'јуну',
-    'јулу', 'августу', 'септембру', 'октобру', 'новембру', 'децембру'
-  ];
-  const monthNameSr = monthNames[month - 1];
+  const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
 
   const activeContract = org.contracts && org.contracts.length > 0 ? org.contracts[0] : null;
+  const contractInfo = activeContract?.contractNumber && activeContract?.startDate
+    ? `Уговор бр ${activeContract.contractNumber} од ${format(activeContract.startDate, 'dd.MM.yyyy')}`
+    : '';
 
   const completeReportData = {
-    // Basic template data
-    C19: activeContract?.name || '',
-    D21: org.name,
-    D24: prevMonthValue + (org.monthlyRevenue || 0),
-    D27: org.accountNumber || '',
-    D28: `Матични број ${org.registrationNumber || ''}`,
-    D29: `ПИБ ${org.pib || ''}`,
-    E39: dateRange,
-    D38: `Наплаћен износ у ${paymentType} саобраћају у ${monthNameSr} периоду`,
+    D18: nextCounter,
     E18: `/${month.toString().padStart(2, '0')}`,
-    D18: currentCounter,
-    
-    // Additional report data
+    A19: contractInfo,
+    D21: org.name,
+    D24: reportValue,
+    E39: dateRange,
+    D29: `ПИБ ${org.pib || ''}`,
+    F29: `матични број ${org.registrationNumber || ''}`,
+    G40: org.shortNumber || '',
+    D38: `Наплаћен износ у ${paymentType} саобраћају у периоду`,
     monthlyRevenue: org.monthlyRevenue || 0,
     totalTransactions: org.totalTransactions || 0,
     serviceUsage: org.serviceUsage || { postpaid: 0, prepaid: 0 },
-    
     _metadata: {
       organization: org.name,
       month: month,
@@ -412,68 +403,100 @@ async function generateReportWithFallback(
       note: 'Ove vrednosti treba uneti u odgovarajuće ćelije Excel fajla. Ovaj fajl sadrži kompletne podatke za izveštaj.'
     }
   };
-  
+
   const dataFilePath = path.join(path.dirname(filePath), 'complete_report_data.json');
   await fs.writeFile(dataFilePath, JSON.stringify(completeReportData, null, 2));
-  
-  await updateMonthCounter(org.id, month, year, currentCounter);
+
+  await updateMonthCounter(org.id, month, year, reportValue);
 }
 
-// Helper functions (reuse from the template generator)
-async function getPreviousMonthData(orgId: string, month: number, year: number): Promise<number> {
+async function getOriginalReportValue(
+  org: OrganizationReportData,
+  month: number,
+  year: number,
+  paymentType: PaymentType
+): Promise<number> {
   try {
-    let prevMonth = month - 1;
-    let prevYear = year;
-    
-    if (prevMonth === 0) {
-      prevMonth = 12;
-      prevYear = year - 1;
-    }
-
-    const prevReportPath = path.join(
-      REPORTS_BASE_PATH,
-      orgId,
-      prevYear.toString(),
-      prevMonth.toString().padStart(2, '0')
+    const orgFolderName = `${org.shortNumber} - ${org.name}`;
+    const originalReportPath = path.join(
+      ORIGINAL_REPORTS_PATH,
+      orgFolderName,
+      'originali',
+      year.toString(),
+      month.toString().padStart(2, '0'),
+      paymentType
     );
 
+    console.log(`Looking for original reports in: ${originalReportPath}`);
+
+    let files: string[] = [];
     try {
-      const files = await fs.readdir(prevReportPath);
-      const reportFile = files.find(f => f.endsWith('.xlsx') && (f.startsWith('template_') || f.startsWith('report_')));
-      
-      if (reportFile) {
-        try {
-          const ExcelJS = await import('exceljs');
-          const workbook = new ExcelJS.Workbook();
-          await workbook.xlsx.readFile(path.join(prevReportPath, reportFile));
-          const worksheet = workbook.getWorksheet(1);
-          const cell = worksheet?.getCell('D24');
-          
-          if (cell && cell.value !== null && cell.value !== undefined) {
-            return typeof cell.value === 'number' ? cell.value : parseFloat(cell.value as string) || 0;
+      files = await fs.readdir(originalReportPath);
+    } catch (error) {
+      console.log(`Original reports directory not found: ${originalReportPath}`);
+      return 0;
+    }
+
+    const xlsFile = files.find(f => f.toLowerCase().endsWith('.xls'));
+    if (!xlsFile) {
+      console.log(`No .xls file found in ${originalReportPath}`);
+      return 0;
+    }
+
+    const filePath = path.join(originalReportPath, xlsFile);
+    console.log(`Found original report: ${filePath}`);
+
+    try {
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+
+      await workbook.xlsx.readFile(filePath);
+
+      let value = 0;
+
+      if (paymentType === 'prepaid') {
+        const worksheet = workbook.getWorksheet(1);
+        if (worksheet) {
+          let lastRow = 1;
+          worksheet.eachRow((row, rowNumber) => {
+            const cellValue = row.getCell('C').value;
+            if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+              lastRow = rowNumber;
+            }
+          });
+
+          const lastCell = worksheet.getCell(`C${lastRow}`);
+          if (lastCell.value) {
+            value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
           }
-        } catch (excelJSError) {
-          // Check JSON data files as fallback
-          const dataFiles = ['complete_report_data.json', 'data_to_insert.json'];
-          for (const dataFile of dataFiles) {
-            try {
-              const dataFilePath = path.join(prevReportPath, dataFile);
-              const dataContent = await fs.readFile(dataFilePath, 'utf8');
-              const data = JSON.parse(dataContent);
-              if (typeof data.D24 === 'number') {
-                return data.D24;
-              }
-            } catch {}
+        }
+      } else {
+        const lastWorksheetIndex = workbook.worksheets.length;
+        const worksheet = workbook.getWorksheet(lastWorksheetIndex);
+        if (worksheet) {
+          let lastRow = 1;
+          worksheet.eachRow((row, rowNumber) => {
+            const cellValue = row.getCell('N').value;
+            if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+              lastRow = rowNumber;
+            }
+          });
+
+          const lastCell = worksheet.getCell(`N${lastRow}`);
+          if (lastCell.value) {
+            value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
           }
         }
       }
-    } catch (error) {
-      console.log(`No previous month data found for ${orgId}, using 0`);
-    }
 
-    return 0;
+      console.log(`Extracted value from original report: ${value}`);
+      return value;
+    } catch (excelError) {
+      console.log('ExcelJS failed to read .xls file, returning 0:', excelError);
+      return 0;
+    }
   } catch (error) {
-    console.error(`Error getting previous month data for ${orgId}:`, error);
+    console.error(`Error reading original report for ${org.name}:`, error);
     return 0;
   }
 }
@@ -490,37 +513,56 @@ async function getCurrentMonthCounter(orgId: string, month: number, year: number
 
     try {
       const counterData = await fs.readFile(counterFilePath, 'utf8');
-      const { counter } = JSON.parse(counterData);
-      return counter + 1;
+      const parsed = JSON.parse(counterData);
+      return parsed.validReportsCount || 0;
     } catch (error) {
-      return 1;
+      return 0;
     }
   } catch (error) {
     console.error(`Error getting counter for ${orgId}:`, error);
-    return 1;
+    return 0;
   }
 }
 
-async function updateMonthCounter(orgId: string, month: number, year: number, counter: number): Promise<void> {
+async function updateMonthCounter(
+  orgId: string,
+  month: number,
+  year: number,
+  reportValue: number
+): Promise<number> {
   try {
-    const counterFilePath = path.join(
+    const counterFolderPath = path.join(
       REPORTS_BASE_PATH,
       orgId,
       year.toString(),
-      month.toString().padStart(2, '0'),
-      'counter.json'
+      month.toString().padStart(2, '0')
     );
 
-    const counterData = {
-      counter,
-      lastUpdated: new Date().toISOString(),
-      month,
-      year,
-      organizationId: orgId
-    };
+    await fs.mkdir(counterFolderPath, { recursive: true });
 
-    await fs.writeFile(counterFilePath, JSON.stringify(counterData, null, 2));
+    const counterFilePath = path.join(counterFolderPath, 'counter.json');
+
+    let currentCount = 0;
+    try {
+      const counterData = await fs.readFile(counterFilePath, 'utf8');
+      const parsed = JSON.parse(counterData);
+      currentCount = parsed.validReportsCount || 0;
+    } catch (error) {
+      currentCount = 0;
+    }
+
+    if (reportValue > 0) {
+      currentCount += 1;
+    }
+
+    await fs.writeFile(counterFilePath, JSON.stringify({
+      validReportsCount: currentCount,
+      updatedAt: new Date().toISOString()
+    }, null, 2));
+
+    return currentCount;
   } catch (error) {
     console.error(`Error updating counter for ${orgId}:`, error);
+    return 0;
   }
 }
