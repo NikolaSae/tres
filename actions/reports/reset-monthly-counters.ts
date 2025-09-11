@@ -25,10 +25,20 @@ export async function resetMonthlyCounters(
   month: number,
   year: number
 ): Promise<CounterResetResult> {
-  const resetOrganizations: CounterResetResult['resetOrganizations'] = [];
+  const resetOrganizations: NonNullable<CounterResetResult['resetOrganizations']> = [];
   const errors: string[] = [];
 
   try {
+    // Validate input parameters
+    if (!month || !year || month < 1 || month > 12) {
+      return {
+        success: false,
+        message: 'Nevalidni parametri: mesec mora biti između 1 i 12',
+        processed: 0,
+        errors: ['Nevalidni parametri za mesec ili godinu']
+      };
+    }
+
     // Get all active humanitarian organizations
     const organizations = await db.humanitarianOrg.findMany({
       where: {
@@ -70,7 +80,9 @@ export async function resetMonthlyCounters(
 
     return {
       success: successCount > 0,
-      message: `Uspešno resetovano ${successCount} od ${organizations.length} brojača`,
+      message: successCount === organizations.length 
+        ? `Uspešno resetovano ${successCount} brojača` 
+        : `Uspešno resetovano ${successCount} od ${organizations.length} brojača`,
       processed: successCount,
       errors: errors.length > 0 ? errors : undefined,
       resetOrganizations
@@ -104,7 +116,7 @@ async function resetCounterForOrganization(
     // Create folder if it doesn't exist
     await fs.mkdir(counterFolderPath, { recursive: true });
 
-    // Reset oba brojača na 0
+    // Reset both counters to 0
     const counterData = {
       totalReports: 0,
       validReportsCount: 0,

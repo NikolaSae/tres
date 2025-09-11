@@ -10,23 +10,76 @@ import { HumanitarianTemplateGenerator } from "@/components/reports/Humanitarian
 import { HumanitarianFileUploader } from "@/components/reports/HumanitarianFileUploader";
 import { MonthlyCounterReset } from "@/components/reports/MonthlyCounterReset";
 import { TemplateValidator } from "@/components/reports/TemplateValidator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Reports | Dashboard",
   description: "Generate and manage custom reports",
 };
 
-export default async function ReportsPage() {
-  const recentReports = await getRecentReports();
+// Define the report interface to match what getRecentReports returns
+interface ReportFile {
+  id: string;
+  fileName: string;
+  filePath: string;
+  organizationId: string;
+  startDate: Date;
+  endDate: Date;
+  fileSize: number;
+  mimeType: string;
+  uploadedAt: Date;
+  organization: {
+    name: string;
+  };
+  // Add computed properties for backward compatibility
+  organizationName?: string;
+  status?: 'success' | 'error';
+}
 
-  const formatFileName = (report: any) => {
-    if (!report.fileName) return "";
-    const extension = report.fileName.split(".").pop();
-    const cleanName = report.organizationName
-      .replace(/[^a-zA-Z0-9А-Яа-яёЁ\s]/g, "_")
-      .replace(/\s+/g, "_");
-    const datePart = report.fileName.match(/\d{2}_\d{4}/)?.[0] || "";
-    return `${cleanName}_${datePart}.${extension}`;
+export default async function ReportsPage() {
+  let recentReports: ReportFile[] = [];
+  let error: string | null = null;
+
+  try {
+    recentReports = await getRecentReports();
+    // Add computed properties for backward compatibility
+    recentReports = recentReports.map(report => ({
+      ...report,
+      organizationName: report.organization?.name || 'Unknown Organization',
+      status: 'success' as const // Assume success if we can read the report
+    }));
+  } catch (err) {
+    console.error('Error fetching recent reports:', err);
+    error = err instanceof Error ? err.message : 'Failed to load recent reports';
+  }
+
+  const formatFileName = (report: ReportFile) => {
+    if (!report.fileName) return "Untitled Report";
+    
+    try {
+      const extension = report.fileName.split(".").pop() || '';
+      const cleanName = (report.organizationName || 'Unknown')
+        .replace(/[^a-zA-Z0-9А-Яа-яёЁ\s]/g, "_")
+        .replace(/\s+/g, "_");
+      
+      // Try to extract date from filename or use upload date
+      const datePart = report.fileName.match(/\d{2}_\d{4}/)?.[0] || 
+        report.uploadedAt.toLocaleDateString('sr-RS').replace(/\./g, '_');
+      
+      return extension ? `${cleanName}_${datePart}.${extension}` : `${cleanName}_${datePart}`;
+    } catch (err) {
+      console.error('Error formatting filename:', err);
+      return report.fileName;
+    }
+  };
+
+  const getFileUrl = (report: ReportFile) => {
+    // Ensure the file path is properly formatted for web access
+    if (report.filePath.startsWith('/reports/')) {
+      return report.filePath;
+    }
+    return `/reports/files/${report.fileName}`;
   };
 
   return (
@@ -68,6 +121,15 @@ export default async function ReportsPage() {
 
         {/* ---------------- Recent Reports ---------------- */}
         <TabsContent value="recent" className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {recentReports.length > 0 ? (
               recentReports.map((report) => (
@@ -92,12 +154,17 @@ export default async function ReportsPage() {
                         {formatFileName(report)}
                       </span>
                     )}
+                    <div className="text-xs text-muted-foreground">
+                      Size: {(report.fileSize / 1024).toFixed(1)} KB
+                      <br />
+                      Uploaded: {report.uploadedAt.toLocaleDateString('sr-RS')}
+                    </div>
                     <div className="flex gap-2 mt-2">
                       {report.fileName && (
                         <>
                           <Button size="sm" asChild variant="outline">
                             <Link
-                              href={`/reports/files/${report.fileName}`}
+                              href={getFileUrl(report)}
                               target="_blank"
                             >
                               View
@@ -105,8 +172,8 @@ export default async function ReportsPage() {
                           </Button>
                           <Button size="sm" asChild variant="outline">
                             <a
-                              href={`/reports/files/${report.fileName}`}
-                              download
+                              href={getFileUrl(report)}
+                              download={formatFileName(report)}
                             >
                               Download
                             </a>
@@ -116,10 +183,12 @@ export default async function ReportsPage() {
                             variant="outline"
                             onClick={() => {
                               const printWindow = window.open(
-                                `/reports/files/${report.fileName}`,
+                                getFileUrl(report),
                                 "_blank"
                               );
-                              printWindow?.print();
+                              if (printWindow) {
+                                printWindow.onload = () => printWindow.print();
+                              }
                             }}
                           >
                             Print
@@ -197,7 +266,7 @@ export default async function ReportsPage() {
                         <>
                           <Button size="sm" asChild variant="outline">
                             <Link
-                              href={`/reports/files/${report.fileName}`}
+                              href={getFileUrl(report)}
                               target="_blank"
                             >
                               View
@@ -205,8 +274,8 @@ export default async function ReportsPage() {
                           </Button>
                           <Button size="sm" asChild variant="outline">
                             <a
-                              href={`/reports/files/${report.fileName}`}
-                              download
+                              href={getFileUrl(report)}
+                              download={formatFileName(report)}
                             >
                               Download
                             </a>
@@ -216,10 +285,12 @@ export default async function ReportsPage() {
                             variant="outline"
                             onClick={() => {
                               const printWindow = window.open(
-                                `/reports/files/${report.fileName}`,
+                                getFileUrl(report),
                                 "_blank"
                               );
-                              printWindow?.print();
+                              if (printWindow) {
+                                printWindow.onload = () => printWindow.print();
+                              }
                             }}
                           >
                             Print
@@ -325,6 +396,10 @@ export default async function ReportsPage() {
             <p className="text-muted-foreground mb-4">
               Generate reports for revenue, payments, and financial performance
             </p>
+            <Button variant="outline">
+              <BarChart className="mr-2 h-4 w-4" />
+              Generate Financial Report
+            </Button>
           </Card>
         </TabsContent>
 
@@ -335,6 +410,10 @@ export default async function ReportsPage() {
             <p className="text-muted-foreground mb-4">
               Generate reports for services, complaints, and operational metrics
             </p>
+            <Button variant="outline">
+              <BarChart className="mr-2 h-4 w-4" />
+              Generate Operations Report
+            </Button>
           </Card>
         </TabsContent>
 
@@ -345,6 +424,10 @@ export default async function ReportsPage() {
             <p className="text-muted-foreground mb-4">
               Generate reports for contract status, expiration, and renewal tracking
             </p>
+            <Button variant="outline">
+              <BarChart className="mr-2 h-4 w-4" />
+              Generate Contract Report
+            </Button>
           </Card>
         </TabsContent>
       </Tabs>

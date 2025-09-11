@@ -61,10 +61,22 @@ export function MonthlyCounterReset() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleReset = async () => {
-    if (!selectedMonth || !selectedYear) {
+    // Input validation
+    if (!selectedMonth || !selectedYear || selectedMonth < 1 || selectedMonth > 12) {
       toast({
         title: "Greška",
-        description: "Molimo izaberite mesec i godinu",
+        description: "Molimo izaberite valjan mesec i godinu",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Additional validation - prevent invalid dates
+    const targetDate = new Date(selectedYear, selectedMonth - 1);
+    if (isNaN(targetDate.getTime())) {
+      toast({
+        title: "Greška",
+        description: "Nevaljan datum",
         variant: "destructive",
       });
       return;
@@ -79,9 +91,10 @@ export function MonthlyCounterReset() {
       setResult(result);
 
       if (result.success) {
+        const monthName = MONTHS.find(m => m.value === selectedMonth)?.label || selectedMonth.toString();
         toast({
           title: "Uspešno resetovano",
-          description: `Resetovani su brojači za ${result.processed} organizacija(e) za ${MONTHS.find(m => m.value === selectedMonth)?.label} ${selectedYear}`,
+          description: `Resetovani su brojači za ${result.processed} organizacija(e) za ${monthName} ${selectedYear}`,
         });
       } else {
         toast({
@@ -92,11 +105,15 @@ export function MonthlyCounterReset() {
       }
     } catch (error) {
       console.error('Error resetting counters:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Neočekivana greška';
       setResult({
         success: false,
-        message: 'Došlo je do neočekivane greške',
-        processed: 0
+        message: errorMessage,
+        processed: 0,
+        errors: [errorMessage]
       });
+      
       toast({
         title: "Greška",
         description: "Došlo je do neočekivane greške prilikom resetovanja brojača",
@@ -107,7 +124,7 @@ export function MonthlyCounterReset() {
     }
   };
 
-  const selectedMonthLabel = MONTHS.find(m => m.value === selectedMonth)?.label;
+  const selectedMonthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || selectedMonth.toString();
 
   return (
     <div className="space-y-4">
@@ -117,7 +134,12 @@ export function MonthlyCounterReset() {
           <Label htmlFor="reset-month">Mesec</Label>
           <Select
             value={selectedMonth.toString()}
-            onValueChange={(value) => setSelectedMonth(parseInt(value))}
+            onValueChange={(value) => {
+              const parsedValue = parseInt(value);
+              if (!isNaN(parsedValue) && parsedValue >= 1 && parsedValue <= 12) {
+                setSelectedMonth(parsedValue);
+              }
+            }}
             disabled={isResetting}
           >
             <SelectTrigger>
@@ -137,7 +159,12 @@ export function MonthlyCounterReset() {
           <Label htmlFor="reset-year">Godina</Label>
           <Select
             value={selectedYear.toString()}
-            onValueChange={(value) => setSelectedYear(parseInt(value))}
+            onValueChange={(value) => {
+              const parsedValue = parseInt(value);
+              if (!isNaN(parsedValue)) {
+                setSelectedYear(parsedValue);
+              }
+            }}
             disabled={isResetting}
           >
             <SelectTrigger>
@@ -193,7 +220,10 @@ export function MonthlyCounterReset() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Otkaži</AlertDialogCancel>
-              <AlertDialogAction onClick={handleReset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction 
+                onClick={handleReset} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 Da, resetuj brojače
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -221,13 +251,20 @@ export function MonthlyCounterReset() {
           {result.resetOrganizations && result.resetOrganizations.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium text-sm">Detalji resetovanja:</h4>
-              <div className="space-y-1">
+              <div className="space-y-1 max-h-60 overflow-y-auto">
                 {result.resetOrganizations.map((org, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 rounded border bg-card text-sm">
-                    <span className="font-medium">{org.organizationName}</span>
-                    <Badge variant={org.status === 'success' ? 'default' : 'destructive'}>
-                      {org.status === 'success' ? 'Resetovan' : 'Greška'}
-                    </Badge>
+                  <div key={org.organizationId || index} className="flex items-center justify-between p-2 rounded border bg-card text-sm">
+                    <span className="font-medium truncate mr-2">{org.organizationName}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge variant={org.status === 'success' ? 'default' : 'destructive'}>
+                        {org.status === 'success' ? 'Resetovan' : 'Greška'}
+                      </Badge>
+                      {org.message && org.status === 'error' && (
+                        <span className="text-xs text-red-600 max-w-40 truncate" title={org.message}>
+                          {org.message}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -238,7 +275,7 @@ export function MonthlyCounterReset() {
           {result.errors && result.errors.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium text-sm text-red-800">Greške:</h4>
-              <ul className="list-disc pl-5 space-y-1">
+              <ul className="list-disc pl-5 space-y-1 max-h-40 overflow-y-auto">
                 {result.errors.map((error, index) => (
                   <li key={index} className="text-xs text-red-700">
                     {error}
@@ -255,6 +292,7 @@ export function MonthlyCounterReset() {
         <AlertDescription className="text-xs">
           <strong>Napomena:</strong> Resetovanje brojača utiče na numeraciju template-a (kolona D18). 
           Koristiti pažljivo jer može dovesti do dupliciranja brojeva ako su već generirani template-i za dati mesec.
+          Ova akcija ne briše postojeće template-e, već samo resetuje brojače za buduće generiranje.
         </AlertDescription>
       </Alert>
     </div>

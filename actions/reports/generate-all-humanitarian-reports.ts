@@ -5,10 +5,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 interface ReportGenerationResult {
   success: boolean;
@@ -61,10 +57,20 @@ export async function generateAllHumanitarianReports(
   paymentType: PaymentType,
   templateType: TemplateType = 'telekom'
 ): Promise<ReportGenerationResult> {
-  const generatedFiles: ReportGenerationResult['generatedFiles'] = [];
+  const generatedFiles: NonNullable<ReportGenerationResult['generatedFiles']> = [];
   const errors: string[] = [];
 
   try {
+    // Validate input parameters
+    if (!month || !year || month < 1 || month > 12) {
+      return {
+        success: false,
+        message: 'Nevalidni parametri: mesec mora biti između 1 i 12',
+        processed: 0,
+        errors: ['Nevalidni parametri za mesec ili godinu']
+      };
+    }
+
     // Validate master template exists
     try {
       await fs.access(getMasterTemplatePath(templateType));
@@ -117,7 +123,9 @@ export async function generateAllHumanitarianReports(
 
     return {
       success: successCount > 0,
-      message: `Uspešno generisano ${successCount} od ${organizations.length} kompletnih izveštaja`,
+      message: successCount === organizations.length 
+        ? `Uspešno generisano ${successCount} kompletnih izveštaja`
+        : `Uspešno generisano ${successCount} od ${organizations.length} kompletnih izveštaja`,
       processed: successCount,
       errors: errors.length > 0 ? errors : undefined,
       generatedFiles
@@ -195,8 +203,8 @@ async function getMonthlyDataForOrganization(
   try {
     const transactions = await db.$queryRaw`
       SELECT
-        SUM(quantity) as transaction_count,
-        SUM(amount) as total_amount,
+        COALESCE(SUM(quantity), 0) as transaction_count,
+        COALESCE(SUM(amount), 0) as total_amount,
         "group" as payment_group
       FROM "vas_transactions"
       WHERE service_code = ${shortNumber}
@@ -205,13 +213,13 @@ async function getMonthlyDataForOrganization(
         AND created_at <= ${endDate}
       GROUP BY "group"
     ` as Array<{
-      transaction_count: number | null;
-      total_amount: number | null;
+      transaction_count: bigint;
+      total_amount: bigint;
       payment_group: string;
     }>;
 
-    const revenue = transactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
-    const transactionCount = transactions.reduce((sum, t) => sum + (t.transaction_count || 0), 0);
+    const revenue = transactions.reduce((sum, t) => sum + Number(t.total_amount), 0);
+    const transactionCount = transactions.reduce((sum, t) => sum + Number(t.transaction_count), 0);
 
     const serviceUsage = {
       [paymentType]: transactionCount

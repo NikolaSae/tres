@@ -5,10 +5,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 interface TemplateGenerationResult {
   success: boolean;
@@ -50,7 +46,7 @@ function getMasterTemplatePath(templateType: TemplateType): string {
   return path.join(TEMPLATES_PATH, `humanitarian-template-${templateType}.xlsx`);
 }
 
-// Validacija master template-a
+// Master template validation
 async function validateMasterTemplate(templateType: TemplateType): Promise<{ isValid: boolean; error?: string }> {
   try {
     const templatePath = getMasterTemplatePath(templateType);
@@ -69,7 +65,7 @@ async function validateMasterTemplate(templateType: TemplateType): Promise<{ isV
   }
 }
 
-// Čitanje originalnog izveštaja za dobijanje vrednosti D24
+// Reading original report to get D24 value
 async function getOriginalReportValue(
   orgData: OrganizationData,
   month: number,
@@ -89,7 +85,7 @@ async function getOriginalReportValue(
 
     console.log(`Looking for original reports in: ${originalReportPath}`);
 
-    // Pronađi .xls fajl u direktorijumu
+    // Find .xls file in directory
     let files: string[] = [];
     try {
       files = await fs.readdir(originalReportPath);
@@ -116,7 +112,7 @@ async function getOriginalReportValue(
       let value = 0;
 
       if (paymentType === 'prepaid') {
-        // Prvi sheet, poslednja vrednost u koloni C
+        // First sheet, last value in column C
         const worksheet = workbook.getWorksheet(1);
         if (worksheet) {
           let lastRow = 1;
@@ -133,7 +129,7 @@ async function getOriginalReportValue(
           }
         }
       } else {
-        // Postpaid: poslednji sheet, poslednja vrednost u koloni N
+        // Postpaid: last sheet, last value in column N
         const lastWorksheetIndex = workbook.worksheets.length;
         const worksheet = workbook.getWorksheet(lastWorksheetIndex);
         if (worksheet) {
@@ -165,7 +161,7 @@ async function getOriginalReportValue(
   }
 }
 
-// Broji samo izveštaje sa vrednošću > 0
+// Count only reports with value > 0
 async function getCurrentMonthCounter(orgId: string, month: number, year: number): Promise<number> {
   try {
     const counterFilePath = path.join(
@@ -189,7 +185,7 @@ async function getCurrentMonthCounter(orgId: string, month: number, year: number
   }
 }
 
-// Update counter sa proverom da li je vrednost > 0
+// Update counter with check if value > 0
 async function updateMonthCounter(
   orgId: string, 
   month: number, 
@@ -219,7 +215,7 @@ async function updateMonthCounter(
       const existingData = await fs.readFile(counterFilePath, 'utf8');
       counterData = { ...counterData, ...JSON.parse(existingData) };
     } catch (error) {
-      // fajl ne postoji
+      // file doesn't exist
     }
 
     counterData.totalReports += 1;
@@ -243,10 +239,20 @@ export async function generateHumanitarianTemplates(
   paymentType: PaymentType = 'prepaid',
   templateType: TemplateType = 'telekom'
 ): Promise<TemplateGenerationResult> {
-  const generatedFiles: TemplateGenerationResult['generatedFiles'] = [];
+  const generatedFiles: NonNullable<TemplateGenerationResult['generatedFiles']> = [];
   const errors: string[] = [];
 
   try {
+    // Validate input parameters
+    if (!month || !year || month < 1 || month > 12) {
+      return {
+        success: false,
+        message: 'Nevalidni parametri: mesec mora biti između 1 i 12',
+        processed: 0,
+        errors: ['Nevalidni parametri za mesec ili godinu']
+      };
+    }
+
     const templateValidation = await validateMasterTemplate(templateType);
     if (!templateValidation.isValid) {
       return {
@@ -324,12 +330,12 @@ export async function generateHumanitarianTemplates(
           templateType
         );
 
-        generatedFiles?.push(result);
+        generatedFiles.push(result);
       } catch (error) {
         const errorMsg = `Greška za ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`;
         errors.push(errorMsg);
 
-        generatedFiles?.push({
+        generatedFiles.push({
           organizationName: org.name,
           fileName: '',
           status: 'error',
@@ -338,11 +344,13 @@ export async function generateHumanitarianTemplates(
       }
     }
 
-    const successCount = generatedFiles?.filter(f => f.status === 'success').length || 0;
+    const successCount = generatedFiles.filter(f => f.status === 'success').length;
 
     return {
       success: successCount > 0,
-      message: `Uspešno generisano ${successCount} od ${organizations.length} ${paymentType} template(s)`,
+      message: successCount === organizations.length 
+        ? `Uspešno generisano ${successCount} ${paymentType} template(s)`
+        : `Uspešno generisano ${successCount} od ${organizations.length} ${paymentType} template(s)`,
       processed: successCount,
       errors: errors.length > 0 ? errors : undefined,
       generatedFiles
@@ -447,9 +455,9 @@ async function generateWithExcelJS(
     const monthEnd = endOfMonth(new Date(year, month - 1));
     const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
 
-    const contractInfo = org.activeContract?.contractNumber && org.activeContract?.startDate
-      ? `Уговор бр ${org.activeContract.contractNumber} од ${format(org.activeContract.startDate, 'dd.MM.yyyy')}`
-      : '';
+    const contractInfo = org.activeContract?.name
+  ? `Уговор ${org.activeContract.name}${org.activeContract.startDate ? ` од ${format(org.activeContract.startDate, 'dd.MM.yyyy')}` : ''}`
+  : '';
 
     const updates = [
       { cell: 'D18', value: counterValue },
@@ -465,7 +473,12 @@ async function generateWithExcelJS(
     ];
 
     updates.forEach(({ cell, value }) => {
-      worksheet.getCell(cell).value = value;
+      try {
+        const cellObj = worksheet.getCell(cell);
+        cellObj.value = value;
+      } catch (error) {
+        console.log(`Could not update cell ${cell}:`, error);
+      }
     });
 
     await workbook.xlsx.writeFile(filePath);

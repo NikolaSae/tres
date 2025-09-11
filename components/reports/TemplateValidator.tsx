@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertTriangle, FileText, Folder, Database } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, FileText, Folder, Database, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface ValidationResult {
@@ -32,7 +32,7 @@ export function TemplateValidator() {
     setValidationResult(null);
 
     try {
-      // Call a validation API endpoint
+      // Call the validation API endpoint
       const response = await fetch('/api/reports/validate-system', {
         method: 'POST',
         headers: {
@@ -41,23 +41,26 @@ export function TemplateValidator() {
       });
 
       if (!response.ok) {
-        throw new Error(`Validation API error: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Validation API error (${response.status}): ${errorText}`);
       }
 
-      const result = await response.json();
+      const result: ValidationResult = await response.json();
       setValidationResult(result);
 
+      // Count critical issues
       const criticalIssues = [
         !result.templateExists,
         !result.templateReadable,
         !result.reportsDirectoryExists,
+        !result.reportsDirectoryWritable,
         !result.databaseConnection
       ].filter(Boolean).length;
 
       if (criticalIssues === 0) {
         toast({
           title: "Validacija uspešna",
-          description: "Svi kritični komponenti su dostupni",
+          description: "Svi kritični komponenti su dostupni i funkcionalni",
         });
       } else {
         toast({
@@ -69,12 +72,15 @@ export function TemplateValidator() {
 
     } catch (error) {
       console.error('Validation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Neočekivana greška validacije';
+      
       toast({
         title: "Greška validacije",
         description: "Ne mogu da pokretnem validaciju sistema",
         variant: "destructive",
       });
       
+      // Set fallback result with error
       setValidationResult({
         templateExists: false,
         templateReadable: false,
@@ -85,7 +91,7 @@ export function TemplateValidator() {
         pythonAvailable: false,
         databaseConnection: false,
         organizationCount: 0,
-        errors: [error instanceof Error ? error.message : 'Nepoznata greška']
+        errors: [errorMessage]
       });
     } finally {
       setIsValidating(false);
@@ -94,15 +100,32 @@ export function TemplateValidator() {
 
   const getStatusBadge = (status: boolean, criticalIssue: boolean = true) => {
     if (status) {
-      return <Badge variant="default" className="bg-green-600"><CheckCircle className="w-3 h-3 mr-1" />OK</Badge>;
+      return (
+        <Badge variant="default" className="bg-green-600">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          OK
+        </Badge>
+      );
     } else {
       return (
         <Badge variant="destructive" className={criticalIssue ? "bg-red-600" : "bg-yellow-600"}>
-          {criticalIssue ? <XCircle className="w-3 h-3 mr-1" /> : <AlertTriangle className="w-3 h-3 mr-1" />}
+          {criticalIssue ? (
+            <XCircle className="w-3 h-3 mr-1" />
+          ) : (
+            <AlertTriangle className="w-3 h-3 mr-1" />
+          )}
           {criticalIssue ? 'GREŠKA' : 'UPOZORENJE'}
         </Badge>
       );
     }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (
@@ -123,7 +146,14 @@ export function TemplateValidator() {
             disabled={isValidating}
             variant="outline"
           >
-            {isValidating ? 'Validiram...' : 'Pokretni Validaciju'}
+            {isValidating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Validiram...
+              </>
+            ) : (
+              'Pokreni Validaciju'
+            )}
           </Button>
         </div>
 
@@ -142,7 +172,7 @@ export function TemplateValidator() {
                     {getStatusBadge(validationResult.templateExists, true)}
                     {validationResult.templateSize > 0 && (
                       <span className="text-xs text-muted-foreground">
-                        ({(validationResult.templateSize / 1024).toFixed(1)} KB)
+                        ({formatFileSize(validationResult.templateSize)})
                       </span>
                     )}
                   </div>
@@ -179,7 +209,7 @@ export function TemplateValidator() {
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(validationResult.databaseConnection, true)}
-                    {validationResult.organizationCount > 0 && (
+                    {validationResult.databaseConnection && validationResult.organizationCount >= 0 && (
                       <span className="text-xs text-muted-foreground">
                         ({validationResult.organizationCount} org.)
                       </span>
@@ -218,7 +248,7 @@ export function TemplateValidator() {
                 <AlertDescription>
                   <div className="space-y-1">
                     <strong>Pronađene greške:</strong>
-                    <ul className="list-disc pl-5 text-sm">
+                    <ul className="list-disc pl-5 text-sm space-y-1 max-h-40 overflow-y-auto">
                       {validationResult.errors.map((error, index) => (
                         <li key={index}>{error}</li>
                       ))}
@@ -233,24 +263,66 @@ export function TemplateValidator() {
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-2">
-                  <strong>Preporuke:</strong>
+                  <strong>Preporuke za rešavanje:</strong>
                   <ul className="list-disc pl-5 text-sm space-y-1">
                     {!validationResult.templateExists && (
-                      <li>Postavite master template fajl u: <code>/templates/humanitarian-template.xlsx</code></li>
+                      <li>
+                        Postavite master template fajl u: {' '}
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                          /templates/humanitarian-template.xlsx
+                        </code>
+                      </li>
+                    )}
+                    {!validationResult.reportsDirectoryExists && (
+                      <li>Kreiraće se reports direktorijum automatski pri prvom generisanju</li>
+                    )}
+                    {!validationResult.reportsDirectoryWritable && (
+                      <li>Proverite dozvole za pisanje u reports direktorijum</li>
                     )}
                     {!validationResult.excelJSAvailable && (
-                      <li>Instalirajte ExcelJS: <code>npm install exceljs</code></li>
+                      <li>
+                        Instalirajte ExcelJS: {' '}
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                          npm install exceljs
+                        </code>
+                      </li>
                     )}
                     {!validationResult.pythonAvailable && (
-                      <li>Instalirajte Python dependencies: <code>pip install openpyxl</code></li>
+                      <li>
+                        Instalirajte Python dependencies: {' '}
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                          pip install openpyxl
+                        </code>
+                      </li>
                     )}
-                    {validationResult.organizationCount === 0 && (
+                    {validationResult.organizationCount === 0 && validationResult.databaseConnection && (
                       <li>Dodajte humanitarne organizacije sa aktivnim ugovorima u bazu</li>
+                    )}
+                    {!validationResult.databaseConnection && (
+                      <li>Proverite konekciju sa bazom podataka i konfiguraciju</li>
                     )}
                   </ul>
                 </div>
               </AlertDescription>
             </Alert>
+
+            {/* Success Summary */}
+            {validationResult.templateExists && 
+             validationResult.templateReadable && 
+             validationResult.reportsDirectoryExists && 
+             validationResult.reportsDirectoryWritable && 
+             validationResult.databaseConnection && 
+             validationResult.organizationCount > 0 && (
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  <strong>Sistem je spreman za generisanje template-a!</strong>
+                  <br />
+                  Svi kritični komponenti su dostupni i funkcionalni. 
+                  Možete da započnete generisanje template-a za {validationResult.organizationCount} organizacija.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
       </CardContent>
