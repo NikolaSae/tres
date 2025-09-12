@@ -400,7 +400,7 @@ export function HumanitarianTemplateGenerator() {
             </>
           )}
           <code className="ml-1 text-sm bg-muted px-1 py-0.5 rounded">
-            /reports/[organizacija-id]/{selectedYear}/{selectedMonth.toString().padStart(2, '0')}/
+            /reports/[kratki_broj]-organization-name/{selectedYear}/{selectedMonth.toString().padStart(2, '0')}/
           </code>
           {!generateForAll && (
             <>

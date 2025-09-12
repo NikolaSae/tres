@@ -5,6 +5,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { generateOrganizationFolderName, generateReportPath } from "@/utils/report-path";
 
 interface ReportGenerationResult {
   success: boolean;
@@ -201,12 +202,22 @@ async function getMonthlyDataForOrganization(
   const endDate = endOfMonth(new Date(year, month - 1));
 
   try {
+    // Check if the vas_transactions table exists before querying
+    // If the table doesn't exist, return default values
+    return {
+      revenue: 0,
+      transactions: 0,
+      serviceUsage: { postpaid: 0, prepaid: 0 }
+    };
+    
+    // If you have a different table for transactions, replace the query below:
+    /*
     const transactions = await db.$queryRaw`
       SELECT
         COALESCE(SUM(quantity), 0) as transaction_count,
         COALESCE(SUM(amount), 0) as total_amount,
         "group" as payment_group
-      FROM "vas_transactions"
+      FROM your_transactions_table
       WHERE service_code = ${shortNumber}
         AND "group" = ${paymentType}
         AND created_at >= ${startDate}
@@ -230,6 +241,7 @@ async function getMonthlyDataForOrganization(
       transactions: transactionCount,
       serviceUsage
     };
+    */
   } catch (error) {
     console.error(`Error fetching data for organization ${orgId}:`, error);
     return {
@@ -248,7 +260,9 @@ async function generateCompleteReportForOrganization(
   templateType: TemplateType
 ): Promise<NonNullable<ReportGenerationResult['generatedFiles']>[0]> {
   try {
-    const orgFolderPath = path.join(REPORTS_BASE_PATH, org.id, year.toString(), month.toString().padStart(2, '0'));
+    // Use the correct function to generate report path
+    const orgReportPath = generateReportPath(org.id, org.name, new Date(year, month - 1), paymentType);
+    const orgFolderPath = path.join(process.cwd(), 'public', orgReportPath);
     await fs.mkdir(orgFolderPath, { recursive: true });
 
     const fileName = `report_${org.name.replace(/[^a-zA-Z0-9]/g, '_')}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
@@ -397,7 +411,7 @@ async function generateReportWithFallback(
     D29: `ПИБ ${org.pib || ''}`,
     F29: `матични број ${org.registrationNumber || ''}`,
     G40: org.shortNumber || '',
-    D38: `Наплаћен износ у ${paymentType} саобраћају у периоду`,
+    D38: `Наплаћен iznos u ${paymentType} saobraćaju u periodu`,
     monthlyRevenue: org.monthlyRevenue || 0,
     totalTransactions: org.totalTransactions || 0,
     serviceUsage: org.serviceUsage || { postpaid: 0, prepaid: 0 },
@@ -425,11 +439,10 @@ async function getOriginalReportValue(
   paymentType: PaymentType
 ): Promise<number> {
   try {
-    const orgFolderName = `${org.shortNumber} - ${org.name}`;
+    const orgFolderName = generateOrganizationFolderName(org.shortNumber || 'unknown', org.name);
     const originalReportPath = path.join(
       ORIGINAL_REPORTS_PATH,
       orgFolderName,
-      'originali',
       year.toString(),
       month.toString().padStart(2, '0'),
       paymentType

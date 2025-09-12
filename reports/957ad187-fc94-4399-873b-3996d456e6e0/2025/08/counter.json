@@ -1,9 +1,4 @@
 {
-  "counter": 0,
-  "lastUpdated": "2025-09-01T07:14:51.931Z",
-  "lastReset": "2025-09-01T07:14:51.931Z",
-  "month": 8,
-  "year": 2025,
-  "organizationId": "957ad187-fc94-4399-873b-3996d456e6e0",
-  "resetReason": "Manual reset via admin panel"
+  "validReportsCount": 0,
+  "updatedAt": "2025-09-12T12:50:57.608Z"
 }

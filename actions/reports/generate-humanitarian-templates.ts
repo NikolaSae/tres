@@ -5,6 +5,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { generateOrganizationFolderName } from "@/utils/report-path";
 
 interface TemplateGenerationResult {
   success: boolean;
@@ -73,11 +74,12 @@ async function getOriginalReportValue(
   paymentType: PaymentType
 ): Promise<number> {
   try {
-    const orgFolderName = `${orgData.shortNumber} - ${orgData.name}`;
+
+    const orgFolderName = generateOrganizationFolderName(orgData.shortNumber || 'unknown', orgData.name);
+    
     const originalReportPath = path.join(
       ORIGINAL_REPORTS_PATH,
       orgFolderName,
-      'originali',
       year.toString(),
       month.toString().padStart(2, '0'),
       paymentType
@@ -236,8 +238,8 @@ async function updateMonthCounter(
 export async function generateHumanitarianTemplates(
   month: number,
   year: number,
-  paymentType: PaymentType = 'prepaid',
-  templateType: TemplateType = 'telekom'
+  paymentType: 'prepaid' | 'postpaid',
+  templateType: 'telekom' | 'globaltel'
 ): Promise<TemplateGenerationResult> {
   const generatedFiles: NonNullable<TemplateGenerationResult['generatedFiles']> = [];
   const errors: string[] = [];
@@ -321,7 +323,7 @@ export async function generateHumanitarianTemplates(
           shortNumber: org.shortNumber,
           activeContract: org.contracts[0] || null
         };
-
+        
         const result = await generateTemplateForOrganization(
           orgData,
           month,

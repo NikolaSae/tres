@@ -4,8 +4,8 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRecentReports } from "@/actions/reports/get-recent-reports";
-import { CalendarIcon, FileText, Clock, BarChart, Building2, Download, RotateCcw, Users, Upload, Settings } from "lucide-react";
+import { getRecentReports, getGeneratedHumanitarianReports } from "@/actions/reports/get-recent-reports";
+import { CalendarIcon, FileText, Clock, BarChart, Building2, Download, RotateCcw, Users, Upload, Settings, Eye, Printer, FileIcon } from "lucide-react";
 import { HumanitarianTemplateGenerator } from "@/components/reports/HumanitarianTemplateGenerator";
 import { HumanitarianFileUploader } from "@/components/reports/HumanitarianFileUploader";
 import { MonthlyCounterReset } from "@/components/reports/MonthlyCounterReset";
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description: "Generate and manage custom reports",
 };
 
-// Define the report interface to match what getRecentReports returns
+// Interface for file uploads (Recent Reports tab)
 interface ReportFile {
   id: string;
   fileName: string;
@@ -32,54 +32,90 @@ interface ReportFile {
   organization: {
     name: string;
   };
-  // Add computed properties for backward compatibility
   organizationName?: string;
   status?: 'success' | 'error';
 }
 
+// Interface for generated humanitarian reports
+interface GeneratedHumanitarianReport {
+  id: string;
+  organizationName: string;
+  status: string;
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  generatedAt: Date;
+  reportType: string;
+  month?: number;
+  year?: number;
+}
+
 export default async function ReportsPage() {
   let recentReports: ReportFile[] = [];
+  let generatedReports: GeneratedHumanitarianReport[] = [];
   let error: string | null = null;
 
   try {
+    // Dobijamo file uploads za Recent Reports tab
     recentReports = await getRecentReports();
-    // Add computed properties for backward compatibility
     recentReports = recentReports.map(report => ({
       ...report,
       organizationName: report.organization?.name || 'Unknown Organization',
-      status: 'success' as const // Assume success if we can read the report
+      status: 'success' as const
     }));
+
+    // Dobijamo generisane humanitarian izveštaje
+    generatedReports = await getGeneratedHumanitarianReports();
   } catch (err) {
-    console.error('Error fetching recent reports:', err);
-    error = err instanceof Error ? err.message : 'Failed to load recent reports';
+    console.error('Error fetching reports:', err);
+    error = err instanceof Error ? err.message : 'Failed to load reports';
   }
 
-  const formatFileName = (report: ReportFile) => {
-    if (!report.fileName) return "Untitled Report";
+  const formatFileName = (fileName: string, organizationName: string, generatedAt: Date) => {
+    if (!fileName) return "Untitled Report";
     
     try {
-      const extension = report.fileName.split(".").pop() || '';
-      const cleanName = (report.organizationName || 'Unknown')
+      const extension = fileName.split(".").pop() || '';
+      const cleanName = organizationName
         .replace(/[^a-zA-Z0-9А-Яа-яёЁ\s]/g, "_")
         .replace(/\s+/g, "_");
       
-      // Try to extract date from filename or use upload date
-      const datePart = report.fileName.match(/\d{2}_\d{4}/)?.[0] || 
-        report.uploadedAt.toLocaleDateString('sr-RS').replace(/\./g, '_');
+      const datePart = generatedAt.toLocaleDateString('sr-RS').replace(/\./g, '_');
       
       return extension ? `${cleanName}_${datePart}.${extension}` : `${cleanName}_${datePart}`;
     } catch (err) {
       console.error('Error formatting filename:', err);
-      return report.fileName;
+      return fileName;
     }
   };
 
-  const getFileUrl = (report: ReportFile) => {
-    // Ensure the file path is properly formatted for web access
-    if (report.filePath.startsWith('/reports/')) {
-      return report.filePath;
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getFileUrl = (filePath: string, fileName: string) => {
+    if (filePath && filePath.startsWith('/reports/')) {
+      return filePath;
     }
-    return `/reports/files/${report.fileName}`;
+    return `/reports/generated/${fileName}`;
+  };
+
+  const handlePreview = (fileUrl: string, fileName: string) => {
+    const previewWindow = window.open(fileUrl, '_blank');
+    if (previewWindow) {
+      previewWindow.document.title = fileName;
+    }
+  };
+
+  const handlePrint = (fileUrl: string) => {
+    const printWindow = window.open(fileUrl, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
   };
 
   return (
@@ -119,7 +155,7 @@ export default async function ReportsPage() {
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
         </TabsList>
 
-        {/* ---------------- Recent Reports ---------------- */}
+        {/* ---------------- Recent Reports (File Uploads) ---------------- */}
         <TabsContent value="recent" className="space-y-4">
           {error && (
             <Alert variant="destructive">
@@ -151,11 +187,11 @@ export default async function ReportsPage() {
                   <CardContent className="flex flex-col gap-2">
                     {report.fileName && (
                       <span className="text-sm text-muted-foreground">
-                        {formatFileName(report)}
+                        {report.fileName}
                       </span>
                     )}
                     <div className="text-xs text-muted-foreground">
-                      Size: {(report.fileSize / 1024).toFixed(1)} KB
+                      Size: {formatFileSize(report.fileSize)}
                       <br />
                       Uploaded: {report.uploadedAt.toLocaleDateString('sr-RS')}
                     </div>
@@ -164,34 +200,21 @@ export default async function ReportsPage() {
                         <>
                           <Button size="sm" asChild variant="outline">
                             <Link
-                              href={getFileUrl(report)}
+                              href={report.filePath}
                               target="_blank"
                             >
+                              <Eye className="mr-1 h-3 w-3" />
                               View
                             </Link>
                           </Button>
                           <Button size="sm" asChild variant="outline">
                             <a
-                              href={getFileUrl(report)}
-                              download={formatFileName(report)}
+                              href={report.filePath}
+                              download={report.fileName}
                             >
+                              <Download className="mr-1 h-3 w-3" />
                               Download
                             </a>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const printWindow = window.open(
-                                getFileUrl(report),
-                                "_blank"
-                              );
-                              if (printWindow) {
-                                printWindow.onload = () => printWindow.print();
-                              }
-                            }}
-                          >
-                            Print
                           </Button>
                         </>
                       )}
@@ -205,11 +228,8 @@ export default async function ReportsPage() {
                   <BarChart className="h-8 w-8 text-muted-foreground" />
                   <div className="text-xl font-medium">No recent reports</div>
                   <div className="text-muted-foreground">
-                    Generate a new report to see it here.
+                    Upload a report to see it here.
                   </div>
-                  <Button className="mt-4" asChild>
-                    <Link href="/reports/generate">Create Report</Link>
-                  </Button>
                 </div>
               </Card>
             )}
@@ -233,76 +253,109 @@ export default async function ReportsPage() {
             </CardContent>
           </Card>
 
+          {/* Generated Humanitarian Reports Section */}
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle>Generated Humanitarian Reports</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileIcon className="h-5 w-5" />
+                Generated Humanitarian Reports
+                {generatedReports.length > 0 && (
+                  <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-sm font-normal">
+                    {generatedReports.length}
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Recently generated humanitarian report templates
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {recentReports.length > 0 ? (
-                recentReports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex items-center justify-between p-2 border rounded hover:bg-muted/20 transition"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{report.organizationName}</span>
-                      <span
-                        className={`text-sm font-medium ${
-                          report.status === "success"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {report.status === "success" ? "Uspešno" : "Greška"}
-                      </span>
-                      {report.fileName && (
-                        <span className="text-xs text-muted-foreground">
-                          {formatFileName(report)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {report.fileName && (
-                        <>
-                          <Button size="sm" asChild variant="outline">
-                            <Link
-                              href={getFileUrl(report)}
-                              target="_blank"
+            <CardContent className="space-y-3">
+              {generatedReports.length > 0 ? (
+                generatedReports.map((report) => {
+                  const fileUrl = getFileUrl(report.filePath, report.fileName);
+                  const formattedFileName = formatFileName(report.fileName, report.organizationName, report.generatedAt);
+                  
+                  return (
+                    <div
+                      key={report.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/20 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          <FileText className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-foreground truncate">
+                            {report.organizationName}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                                report.status === "success"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
                             >
-                              View
-                            </Link>
-                          </Button>
-                          <Button size="sm" asChild variant="outline">
-                            <a
-                              href={getFileUrl(report)}
-                              download={formatFileName(report)}
-                            >
-                              Download
-                            </a>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const printWindow = window.open(
-                                getFileUrl(report),
-                                "_blank"
-                              );
-                              if (printWindow) {
-                                printWindow.onload = () => printWindow.print();
-                              }
-                            }}
+                              {report.status === "success" ? "✓ Generisan" : "✗ Greška"}
+                            </span>
+                            {report.month && report.year && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                {report.month}/{report.year}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {formattedFileName} • {formatFileSize(report.fileSize)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Generated: {report.generatedAt.toLocaleDateString('sr-RS')} {report.generatedAt.toLocaleTimeString('sr-RS')}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handlePreview(fileUrl, formattedFileName)}
+                          className="flex items-center gap-1"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Preview
+                        </Button>
+                        <Button size="sm" asChild variant="outline">
+                          <a
+                            href={fileUrl}
+                            download={formattedFileName}
+                            className="flex items-center gap-1"
                           >
-                            Print
-                          </Button>
-                        </>
-                      )}
+                            <Download className="h-3 w-3" />
+                            Download
+                          </a>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePrint(fileUrl)}
+                          className="flex items-center gap-1"
+                        >
+                          <Printer className="h-3 w-3" />
+                          Print
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <div className="text-sm text-muted-foreground">
-                  No reports generated yet.
+                <div className="flex flex-col items-center justify-center text-center py-8 space-y-3">
+                  <FileIcon className="h-12 w-12 text-muted-foreground/50" />
+                  <div className="text-lg font-medium text-muted-foreground">
+                    No reports generated yet
+                  </div>
+                  <div className="text-sm text-muted-foreground max-w-sm">
+                    Use the template generator above to create humanitarian organization reports. 
+                    Generated reports will appear here with options to preview, download, and print.
+                  </div>
                 </div>
               )}
             </CardContent>

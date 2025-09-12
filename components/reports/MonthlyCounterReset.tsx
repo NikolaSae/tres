@@ -1,5 +1,4 @@
 // components/reports/MonthlyCounterReset.tsx
-
 'use client';
 
 import { useState } from 'react';
@@ -209,14 +208,15 @@ export function MonthlyCounterReset() {
               <AlertDialogDescription>
                 Da li ste sigurni da želite da resetujete mesečne brojače za sve humanitarne organizacije 
                 za <strong>{selectedMonthLabel} {selectedYear}</strong>?
-                <br /><br />
-                Ova akcija će:
+              </AlertDialogDescription>
+              <div className="text-sm text-muted-foreground">
+                <p>Ova akcija će:</p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
                   <li>Resetovati sve postojeće brojače na 0</li>
                   <li>Uticati na numeraciju budućih template-a</li>
                   <li>Ne može biti poništena</li>
                 </ul>
-              </AlertDialogDescription>
+              </div>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Otkaži</AlertDialogCancel>
