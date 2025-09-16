@@ -6,6 +6,7 @@ import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { generateOrganizationFolderName, generateReportPath } from "@/utils/report-path";
+import * as XLSX from 'xlsx';
 
 interface ReportGenerationResult {
   success: boolean;
@@ -260,12 +261,21 @@ async function generateCompleteReportForOrganization(
   templateType: TemplateType
 ): Promise<NonNullable<ReportGenerationResult['generatedFiles']>[0]> {
   try {
-    // Use the correct function to generate report path
-    const orgReportPath = generateReportPath(org.id, org.name, new Date(year, month - 1), paymentType);
-    const orgFolderPath = path.join(process.cwd(), 'public', orgReportPath);
+    // Use the correct public/reports/ path structure with organization folder name AND paymentType
+    const orgFolderName = generateOrganizationFolderName(org.shortNumber, org.name);
+    const orgFolderPath = path.join(
+      process.cwd(), 
+      'public',
+      'reports',
+      orgFolderName,
+      year.toString(),
+      month.toString().padStart(2, '0'),
+      paymentType  // Add paymentType to the path
+    );
+    
     await fs.mkdir(orgFolderPath, { recursive: true });
 
-    const fileName = `report_${org.name.replace(/[^a-zA-Z0-9]/g, '_')}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
+    const fileName = `complete_report_${org.name.replace(/[^a-zA-Z0-9]/g, '_')}_${paymentType}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
     const filePath = path.join(orgFolderPath, fileName);
 
     try {
@@ -281,6 +291,7 @@ async function generateCompleteReportForOrganization(
       console.log('ExcelJS failed for complete report, trying fallback method:', error);
     }
 
+    // Fallback method if ExcelJS fails
     await generateReportWithFallback(org, month, year, paymentType, templateType, filePath);
 
     return {
@@ -292,6 +303,8 @@ async function generateCompleteReportForOrganization(
     throw new Error(`Greška za organizaciju ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`);
   }
 }
+
+    
 
 async function generateCompleteReportWithExcelJS(
   org: OrganizationReportData,
@@ -432,14 +445,20 @@ async function generateReportWithFallback(
   await updateMonthCounter(org.id, month, year, reportValue);
 }
 
+// Popravljena funkcija koja može da čita .xls fajlove
 async function getOriginalReportValue(
-  org: OrganizationReportData,
+  orgData: OrganizationData,
   month: number,
   year: number,
   paymentType: PaymentType
 ): Promise<number> {
   try {
-    const orgFolderName = generateOrganizationFolderName(org.shortNumber || 'unknown', org.name);
+    console.log('=== DEBUG getOriginalReportValue ===');
+    console.log('Input params:', { orgData, month, year, paymentType });
+
+    const orgFolderName = generateOrganizationFolderName(orgData.shortNumber || 'unknown', orgData.name);
+    console.log('Generated folder name:', orgFolderName);
+    
     const originalReportPath = path.join(
       ORIGINAL_REPORTS_PATH,
       orgFolderName,
@@ -453,71 +472,164 @@ async function getOriginalReportValue(
     let files: string[] = [];
     try {
       files = await fs.readdir(originalReportPath);
+      console.log('Files in directory:', files);
     } catch (error) {
-      console.log(`Original reports directory not found: ${originalReportPath}`);
+      console.log(`❌ Original reports directory not found: ${originalReportPath}`);
       return 0;
     }
 
-    const xlsFile = files.find(f => f.toLowerCase().endsWith('.xls'));
+    const xlsFile = files.find(f => f.toLowerCase().endsWith('.xls') || f.toLowerCase().endsWith('.xlsx'));
     if (!xlsFile) {
-      console.log(`No .xls file found in ${originalReportPath}`);
+      console.log(`❌ No Excel file found in ${originalReportPath}`);
       return 0;
     }
 
     const filePath = path.join(originalReportPath, xlsFile);
     console.log(`Found original report: ${filePath}`);
 
+    // Try to read the file
     try {
-      const ExcelJS = await import('exceljs');
-      const workbook = new ExcelJS.Workbook();
+      let workbook;
+      
+      // Check if it's .xls or .xlsx
+      if (xlsFile.toLowerCase().endsWith('.xls')) {
+        console.log('Reading .xls file with SheetJS...');
+        
+        // Use SheetJS for .xls files
+        const XLSX = await import('xlsx');
+        const fileBuffer = await fs.readFile(filePath);
+        workbook = XLSX.read(fileBuffer, { 
+          type: 'buffer',
+          cellText: false,
+          cellNF: false,
+          cellHTML: false 
+        });
+        console.log('✓ Successfully read .xls file with SheetJS');
+        console.log('Sheet names:', workbook.SheetNames);
 
-      await workbook.xlsx.readFile(filePath);
+        let value = 0;
 
-      let value = 0;
-
-      if (paymentType === 'prepaid') {
-        const worksheet = workbook.getWorksheet(1);
-        if (worksheet) {
-          let lastRow = 1;
-          worksheet.eachRow((row, rowNumber) => {
-            const cellValue = row.getCell('C').value;
-            if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
-              lastRow = rowNumber;
+        if (paymentType === 'prepaid') {
+          console.log('Processing PREPAID - looking at first sheet, column C');
+          
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          if (worksheet) {
+            console.log('Processing sheet:', firstSheetName);
+            
+            // Convert to JSON to find last value in column C
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+              header: 1, 
+              defval: '', 
+              raw: false 
+            });
+            
+            console.log('Total rows:', jsonData.length);
+            
+            // Find last non-empty value in column C (index 2)
+            for (let i = jsonData.length - 1; i >= 0; i--) {
+              const row = jsonData[i] as any[];
+              if (row && row[2] !== undefined && row[2] !== null && row[2] !== '') {
+                console.log(`Last value found in row ${i + 1}, column C:`, row[2]);
+                value = typeof row[2] === 'number' ? row[2] : parseFloat(row[2]) || 0;
+                break;
+              }
             }
-          });
-
-          const lastCell = worksheet.getCell(`C${lastRow}`);
-          if (lastCell.value) {
-            value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
+          }
+        } else {
+          console.log('Processing POSTPAID - looking at last sheet, column N');
+          
+          const lastSheetName = workbook.SheetNames[workbook.SheetNames.length - 1];
+          const worksheet = workbook.Sheets[lastSheetName];
+          
+          if (worksheet) {
+            console.log('Processing sheet:', lastSheetName);
+            
+            // Convert to JSON to find last value in column N
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+              header: 1, 
+              defval: '', 
+              raw: false 
+            });
+            
+            console.log('Total rows:', jsonData.length);
+            
+            // Find last non-empty value in column N (index 13)
+            for (let i = jsonData.length - 1; i >= 0; i--) {
+              const row = jsonData[i] as any[];
+              if (row && row[13] !== undefined && row[13] !== null && row[13] !== '') {
+                console.log(`Last value found in row ${i + 1}, column N:`, row[13]);
+                value = typeof row[13] === 'number' ? row[13] : parseFloat(row[13]) || 0;
+                break;
+              }
+            }
           }
         }
+
+        console.log(`Final extracted value: ${value}`);
+        return value;
+
       } else {
-        const lastWorksheetIndex = workbook.worksheets.length;
-        const worksheet = workbook.getWorksheet(lastWorksheetIndex);
-        if (worksheet) {
-          let lastRow = 1;
-          worksheet.eachRow((row, rowNumber) => {
-            const cellValue = row.getCell('N').value;
-            if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
-              lastRow = rowNumber;
-            }
-          });
+        console.log('Reading .xlsx file with ExcelJS...');
+        
+        // Use ExcelJS for .xlsx files
+        const ExcelJS = await import('exceljs');
+        workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(filePath);
+        console.log('✓ Successfully read .xlsx file with ExcelJS');
 
-          const lastCell = worksheet.getCell(`N${lastRow}`);
-          if (lastCell.value) {
-            value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
+        let value = 0;
+
+        if (paymentType === 'prepaid') {
+          console.log('Processing PREPAID - looking at first worksheet, column C');
+          const worksheet = workbook.getWorksheet(1);
+          
+          if (worksheet) {
+            let lastRow = 1;
+            worksheet.eachRow((row, rowNumber) => {
+              const cellValue = row.getCell('C').value;
+              if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                lastRow = rowNumber;
+              }
+            });
+
+            const lastCell = worksheet.getCell(`C${lastRow}`);
+            if (lastCell.value) {
+              value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
+            }
+          }
+        } else {
+          console.log('Processing POSTPAID - looking at last worksheet, column N');
+          const lastWorksheetIndex = workbook.worksheets.length;
+          const worksheet = workbook.getWorksheet(lastWorksheetIndex);
+          
+          if (worksheet) {
+            let lastRow = 1;
+            worksheet.eachRow((row, rowNumber) => {
+              const cellValue = row.getCell('N').value;
+              if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                lastRow = rowNumber;
+              }
+            });
+
+            const lastCell = worksheet.getCell(`N${lastRow}`);
+            if (lastCell.value) {
+              value = typeof lastCell.value === 'number' ? lastCell.value : parseFloat(lastCell.value as string) || 0;
+            }
           }
         }
+
+        console.log(`Final extracted value: ${value}`);
+        return value;
       }
 
-      console.log(`Extracted value from original report: ${value}`);
-      return value;
-    } catch (excelError) {
-      console.log('ExcelJS failed to read .xls file, returning 0:', excelError);
+    } catch (readError) {
+      console.log('❌ Failed to read Excel file:', readError);
       return 0;
     }
   } catch (error) {
-    console.error(`Error reading original report for ${org.name}:`, error);
+    console.error(`❌ Error reading original report for ${orgData.name}:`, error);
     return 0;
   }
 }

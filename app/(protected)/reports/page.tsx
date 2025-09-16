@@ -10,6 +10,7 @@ import { HumanitarianTemplateGenerator } from "@/components/reports/Humanitarian
 import { HumanitarianFileUploader } from "@/components/reports/HumanitarianFileUploader";
 import { MonthlyCounterReset } from "@/components/reports/MonthlyCounterReset";
 import { TemplateValidator } from "@/components/reports/TemplateValidator";
+import  ReportScanner  from "@/components/reports/ReportScanner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
@@ -358,6 +359,22 @@ export default async function ReportsPage() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* All Reports Scanner Section */}
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart className="h-5 w-5" />
+                All Humanitarian Reports Archive
+              </CardTitle>
+              <CardDescription>
+                Browse and filter all reports stored in the public/reports directory
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ReportScanner />
             </CardContent>
           </Card>
 
