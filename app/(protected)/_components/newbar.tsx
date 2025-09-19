@@ -32,7 +32,9 @@ export const Newbar = () => {
           <Link href="/dashboard/import">import</Link>
         </Button>
       </div>
-
+<Link href="/chat">
+  AI Asistent
+</Link>
       <UserButton />
     </nav>
   );
