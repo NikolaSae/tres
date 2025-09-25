@@ -1,0 +1,46 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "prism",
+  "name": "Fin App Hub Dokumentacija",
+  "root": "docs",
+  "colors": {
+    "primary": "#2563eb"
+  },
+  "navigation": [
+  {
+    "group": "Početak",
+    "pages": ["index"]
+  },
+  {
+    "group": "Struktura projekta",
+    "pages": [
+      "struktura",
+      "arhitektura",
+      "baza-podataka"
+    ]
+  },
+  {
+    "group": "Razvoj",
+    "pages": [
+      "instalacija",
+      "konfiguracija",
+      "testiranje"
+    ]
+  }
+],
+  "logo": {
+    "light": "/logo-light.png",
+    "dark": "/logo-dark.png"
+  },
+  "favicon": "/favicon.ico",
+  "appearance": {
+    "default": "light",
+    "strict": true
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/nikolasae/tres",
+      "twitter": "https://x.com/dedina_maza"
+    }
+  }
+}

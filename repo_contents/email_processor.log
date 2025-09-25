@@ -1,0 +1,8 @@
+2025-04-13 11:34:56,929 - INFO - Starting email processing for file: E:/xampp-8-telekom/htdocs/fin-app-hub/data/emails/nekifajl.eml
+2025-04-13 11:34:56,937 - DEBUG - No embedded emails, treating as single message.
+2025-04-13 11:34:56,939 - INFO - Extracted email: Nikola, your profile is getting hits...
+2025-04-13 11:34:56,939 - INFO - Successfully parsed 1 valid emails.
+2025-04-13 11:34:56,939 - INFO - Extracted Data:
+from, to, cc, subject, body
+2025-04-13 11:34:56,939 - INFO - LinkedIn <linkedin@e.linkedin.com> | jov.nikola.333@gmail.com | No CC | Nikola, your profile is getting hits | <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "ht...
+2025-04-13 11:34:56,939 - INFO - Processing complete.

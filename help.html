@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fin App Hub Dokumentacija</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #2563eb);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: #2563eb;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+        }
+        
+        .logo {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .logo-placeholder {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content {
+            display: flex;
+            padding: 30px;
+            gap: 30px;
+        }
+        
+        .problems-section, .solutions-section {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        h2 {
+            color: #2563eb;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2563eb;
+        }
+        
+        .problem, .solution {
+            background: #f8f9fa;
+            border-left: 4px solid #dc3545;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .solution {
+            border-left-color: #28a745;
+        }
+        
+        h3 {
+            margin-bottom: 10px;
+            color: #212529;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+        }
+        
+        .file-structure {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: 'Consolas', monospace;
+        }
+        
+        .footer {
+            background: #343a40;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 30px;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .social-link {
+            color: #2563eb;
+            background: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-decoration: none;
+            transition: transform 0.3s;
+        }
+        
+        .social-link:hover {
+            transform: translateY(-5px);
+        }
+        
+        .legal-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .legal-link {
+            color: #adb5bd;
+            text-decoration: none;
+        }
+        
+        .legal-link:hover {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .logo {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-placeholder">Logo (svetli režim)</div>
+                <div class="logo-placeholder">Logo (tamni režim)</div>
+            </div>
+            <h1>Fin App Hub Dokumentacija</h1>
+            <p class="subtitle">Rešavanje problema sa Mintlify greškama: Invalid image buffer i nedostajućim fajlovima</p>
+        </header>
+        
+        <div class="content">
+            <section class="problems-section">
+                <h2>Identifikovani problemi</h2>
+                
+                <div class="problem">
+                    <h3>1. Greška: "Invalid image buffer"</h3>
+                    <p>Ova greška se javlja kada Mintlify ne može da pročita slike koje koristite za favicon ili logo.</p>
+                    <p>Mogući uzroci:</p>
+                    <ul>
+                        <li>Nevalidan format slike</li>
+                        <li>Prevelika veličina slike</li>
+                        <li>Oštećen fajl</li>
+                        <li>Nepodržani tip slike</li>
+                    </ul>
+                </div>
+                
+                <div class="problem">
+                    <h3>2. Upozorenja o nedostajućim fajlovima</h3>
+                    <pre>warning - "index" is referenced in the docs.json navigation but the file does not exist.
+warning - "struktura" is referenced in the docs.json navigation but the file does not exist.</pre>
+                    <p>Ova upozorenja znače da fajlovi navedeni u navigaciji ne postoje u docs folderu.</p>
+                </div>
+                
+                <div class="problem">
+                    <h3>3. Konfiguracioni fajl (docs.json)</h3>
+                    <pre>{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Fin App Hub Dokumentacija",
+  "root": "docs",
+  "colors": {
+    "primary": "#2563eb"
+  },
+  "navigation": {
+    "pages": [
+      "index",
+      "struktura"
+    ]
+  },
+  "logo": {
+    "light": "/logo-light.png",
+    "dark": "/logo-dark.png"
+  },
+  "favicon": {
+    "light": "/favicon-light.png",
+    "dark": "/favicon-dark.png"
+  },
+  // ... ostatak konfiguracije
+}</pre>
+                </div>
+            </section>
+            
+            <section class="solutions-section">
+                <h2>Rešenja za probleme</h2>
+                
+                <div class="solution">
+                    <h3>Rešenje za "Invalid image buffer"</h3>
+                    <p>Korak po korak:</p>
+                    <ol>
+                        <li>Koristi online alat za generisanje favicona (npr. <a href="https://www.favicon-generator.org/" target="_blank">Favicon Generator</a>)</li>
+                        <li>Generiši PNG favicone u dve verzije (svetlu i tamnu)</li>
+                        <li>Snimi ih u korenu projekta kao:
+                            <ul>
+                                <li><code>favicon-light.png</code> (16x16 ili 32x32 piksela)</li>
+                                <li><code>favicon-dark.png</code> (16x16 ili 32x32 piksela)</li>
+                            </ul>
+                        </li>
+                        <li>Uradi isto i za logo fajlove ako je potrebno</li>
+                        <li>Proveri da li se fajlovi nalaze u ispravnom folderu</li>
+                    </ol>
+                </div>
+                
+                <div class="solution">
+                    <h3>Rešenje za nedostajuće fajlove</h3>
+                    <p>Kreiraj sledeće fajlove u <code>/docs</code> folderu:</p>
+                    
+                    <p><strong>index.md</strong> (početna strana):</p>
+                    <pre># Dobrodošli u Fin App Hub dokumentaciju
+
+Ovo je početna strana vaše dokumentacije. Ovde možete opisati:
+
+- Opis projekta
+- Glavne karakteristike
+- Kako početi sa korišćenjem</pre>
+                    
+                    <p><strong>struktura.md</strong> (struktura projekta):</p>
+                    <pre># Struktura projekta
+
+## Direktorijumi
+
+- `docs/` - Dokumentacija
+- `src/` - Izvorni kod aplikacije
+- `public/` - Statički fajlovi
+- `config/` - Konfiguracioni fajlovi
+
+## Glavni fajlovi
+
+- `package.json` - Zavisnosti projekta
+- `README.md` - Osnovne informacije
+- `docs.json` - Konfiguracija dokumentacije</pre>
+                </div>
+                
+                <div class="solution">
+                    <h3>Preporučena struktura projekta</h3>
+                    <div class="file-structure">
+                        fin-app-hub/<br>
+                        ├── docs/<br>
+                        │   ├── index.md<br>
+                        │   ├── struktura.md<br>
+                        │   └── ... (ostali dokumenti)<br>
+                        ├── public/<br>
+                        ├── src/<br>
+                        ├── favicon-light.png<br>
+                        ├── favicon-dark.png<br>
+                        ├── logo-light.png<br>
+                        ├── logo-dark.png<br>
+                        ├── docs.json<br>
+                        └── package.json
+                    </div>
+                </div>
+                
+                <div class="solution">
+                    <h3>Finalni koraci</h3>
+                    <ol>
+                        <li>Proveri sve putanje u <code>docs.json</code></li>
+                        <li>Pokreni <code>npx mintlify dev</code> ponovo</li>
+                        <li>Ako problemi i dalje postoje, pokušaj sa <code>npx mintlify clear-cache</code></li>
+                    </ol>
+                </div>
+            </section>
+        </div>
+        
+        <footer class="footer">
+            <div class="social-links">
+                <a href="https://github.com/nikolasae/tres" class="social-link">GH</a>
+                <a href="https://x.com/dedina_maza" class="social-link">X</a>
+            </div>
+            
+            <div class="legal-links">
+                <a href="https://example.com/privacy" class="legal-link">Privacy Policy</a>
+                <a href="https://example.com/terms" class="legal-link">Terms of Service</a>
+            </div>
+            
+            <p style="margin-top: 20px;">© 2023 Fin App Hub Dokumentacija. Sva prava zadržana.</p>
+        </footer>
+    </div>
+</body>
+</html>

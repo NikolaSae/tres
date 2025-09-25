@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================= */
+/* Prevent flash during theme transitions */
+html {
+  transition: background-color 0.15s ease, color 0.15s ease;
+  background-color: white;
+  color: black;
+}
+
+html.dark {
+  background-color: #0a0a0a;
+  color: white;
+}
+
+html.theme-transitioning * {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html, html.theme-transitioning *, .hover-tilt {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+html, body, :root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+@layer base {
+  :root {
+    /* Light mode variables */
+    --background: 0 0% 98%;
+    --foreground: 220 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+    --primary: 231 80% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 60% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 15% 90%;
+    --muted-foreground: 220 15% 50%;
+    --accent: 280 60% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 85%;
+    --input: 0 0% 100%;
+    --ring: 231 80% 60%;
+    --radius: 0.75rem;
+    --shadow-color: 0 0% 0%;
+    --shadow-strength: 1;
+
+    /* Gradients */
+    --background-gradient: linear-gradient(to bottom, #ffffff, #f0f0f0);
+    --card-gradient: linear-gradient(to bottom, #ffffff, #f9f9f9);
+  }
+
+  .dark {
+    /* Dark mode variables */
+    --background: 220 15% 10%;
+    --foreground: 0 0% 98%;
+    --card: 220 15% 15%;
+    --card-foreground: 0 0% 98%;
+    --popover: 220 15% 15%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 231 80% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 60% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 15% 20%;
+    --muted-foreground: 220 15% 70%;
+    --accent: 280 60% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 30%;
+    --input: 220 15% 15%;
+    --ring: 231 80% 60%;
+    --shadow-color: 0 0% 100%;
+    --shadow-strength: 0.5;
+
+    --background-gradient: linear-gradient(180deg, #1a1a1a, #111827, #0a0a0a);
+    --card-gradient: linear-gradient(135deg, #1f1f1f, #111827, #0a0a0a);
+  }
+  .dark .shadow-sm {
+  --tw-shadow: 1px 1px 2px 1px rgba(255, 255, 255, 0.4);
+  --tw-shadow-colored: 1px 1px 2px 1px var(--tw-shadow-color);
+}
+
+.dark .shadow-md {
+  --tw-shadow: 1px 4px 6px -1px rgba(255, 255, 255, 0.25),
+               1px 2px 4px -2px rgba(255, 255, 255, 0.25);
+  --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color),
+                       0 2px 4px -2px var(--tw-shadow-color);
+}
+
+.dark .shadow-lg {
+  --tw-shadow: 0 10px 15px -3px rgba(255, 255, 255, 0.3),
+               0 4px 6px -4px rgba(255, 255, 255, 0.3);
+}
+
+.dark .shadow-xl {
+  --tw-shadow: 0 20px 25px -5px rgba(255, 255, 255, 0.35),
+               0 10px 10px -5px rgba(255, 255, 255, 0.35);
+}
+
+  body {
+    @apply bg-background text-foreground;
+    background: var(--background-gradient);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .card {
+    background: var(--card-gradient);
+    color: var(--card-foreground);
+    border-radius: var(--radius);
+  }
+}
+
+/* ============================= */
+/* Utilities & Components */
+@layer utilities {
+  .hover-tilt {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+  .hover-tilt:hover {
+    transform: perspective(1000px) rotateX(2deg) rotateY(2deg) scale(1.02);
+  }
+}
+
+@layer components {
+  /* Light mode senke */
+  .shadow-container {
+  transform: translateZ(0);
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 18px -1px hsl(var(--shadow-color) / calc(var(--shadow-strength) * 0.1));
+}
+
+.shadow-hover {
+  box-shadow: 0 15px 25px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength) * 0.15));
+}
+}
+
