@@ -1,0 +1,17 @@
+{
+  "totalReports": 1,
+  "validReportsCount": 1,
+  "createdAt": "2025-09-26T12:37:26.539Z",
+  "lastUpdated": "2025-09-26T12:37:26.542Z",
+  "month": 8,
+  "year": 2025,
+  "generationType": "complete-reports",
+  "processedOrganizations": [
+    {
+      "name": "Eparhija raško-prizrenska",
+      "timestamp": "2025-09-26T12:37:26.542Z",
+      "value": 159200,
+      "counterAssigned": 1
+    }
+  ]
+}

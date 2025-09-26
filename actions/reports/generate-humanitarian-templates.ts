@@ -1,4 +1,4 @@
-// actions/reports/generate-humanitarian-templates.ts - POPRAVLJENA VERZIJA
+// actions/reports/generate-humanitarian-templates.ts - FINALNO ISPRAVLJENA VERZIJA
 'use server';
 
 import { promises as fs } from 'fs';
@@ -43,105 +43,111 @@ const REPORTS_BASE_PATH = path.join(process.cwd(), 'reports');
 const ORIGINAL_REPORTS_PATH = path.join(process.cwd(), 'public', 'reports');
 
 // ============================================
-// GLOBALNI COUNTER FUNKCIJE
+// THREAD-SAFE GLOBALNI COUNTER FUNKCIJE
 // ============================================
 
 /**
- * Čita trenutni globalni counter za mesec/godinu
+ * Thread-safe increment globalnog countera
+ * Koristi file locking mehanizam da spreči race conditions
  */
-async function getCurrentMonthGlobalCounter(month: number, year: number): Promise<number> {
-  try {
-    const counterFilePath = path.join(
-      REPORTS_BASE_PATH,
-      'global-counters',
-      year.toString(),
-      month.toString().padStart(2, '0'),
-      'counter.json'
-    );
+class GlobalCounterManager {
+  private static lockFiles = new Map<string, Promise<void>>();
 
-    try {
-      const counterData = await fs.readFile(counterFilePath, 'utf8');
-      const parsed = JSON.parse(counterData);
-      return parsed.validReportsCount || 0;
-    } catch (error) {
-      return 0;
-    }
-  } catch (error) {
-    console.error(`Error getting global counter for ${month}/${year}:`, error);
-    return 0;
-  }
-}
-
-/**
- * Uvećava globalni counter SAMO ako je reportValue > 0
- * Vraća novi counter broj ili null ako se counter ne uvećava
- */
-async function incrementGlobalCounterIfValid(
-  month: number,
-  year: number,
-  reportValue: number,
-  organizationName: string
-): Promise<number | null> {
-  if (reportValue <= 0) {
-    console.log(`${organizationName}: reportValue=${reportValue}, counter se ne uvećava`);
-    return null; // Ne uvećavaj counter za prazne izveštaje
-  }
-
-  try {
-    const counterFolderPath = path.join(
-      REPORTS_BASE_PATH,
-      'global-counters',
-      year.toString(),
-      month.toString().padStart(2, '0')
-    );
-    await fs.mkdir(counterFolderPath, { recursive: true });
-
-    const counterFilePath = path.join(counterFolderPath, 'counter.json');
-
-    let counterData = {
-      totalReports: 0,
-      validReportsCount: 0,
-      lastUpdated: new Date().toISOString(),
-      month,
-      year,
-      processedOrganizations: [] as Array<{
-        name: string,
-        timestamp: string,
-        value: number,
-        counterAssigned: number | null
-      }>
-    };
-
-    try {
-      const existingData = await fs.readFile(counterFilePath, 'utf8');
-      counterData = { ...counterData, ...JSON.parse(existingData) };
-    } catch (error) {
-      // fajl ne postoji, koristi default
+  static async incrementIfValid(
+    month: number,
+    year: number,
+    reportValue: number,
+    organizationName: string
+  ): Promise<number | null> {
+    if (reportValue <= 0) {
+      console.log(`${organizationName}: reportValue=${reportValue}, counter se ne uvećava`);
+      return null;
     }
 
-    counterData.totalReports += 1;
+    const lockKey = `${year}-${month.toString().padStart(2, '0')}`;
     
-    // ✅ KLJUČNO: Uvećaj validReportsCount SAMO ako je reportValue > 0
-    counterData.validReportsCount += 1;
-    const newCounterValue = counterData.validReportsCount;
+    // Čekaj da se oslobodi lock za ovaj mesec/godinu
+    while (this.lockFiles.has(lockKey)) {
+      await this.lockFiles.get(lockKey);
+    }
 
-    // Dodaj organizaciju u log
-    counterData.processedOrganizations.push({
-      name: organizationName,
-      timestamp: new Date().toISOString(),
-      value: reportValue,
-      counterAssigned: newCounterValue
-    });
+    // Kreiraj novi lock
+    const lockPromise = this._performIncrement(month, year, reportValue, organizationName);
+    this.lockFiles.set(lockKey, lockPromise);
 
-    counterData.lastUpdated = new Date().toISOString();
+    try {
+      const result = await lockPromise;
+      return result;
+    } finally {
+      // Ukloni lock
+      this.lockFiles.delete(lockKey);
+    }
+  }
 
-    await fs.writeFile(counterFilePath, JSON.stringify(counterData, null, 2));
+  private static async _performIncrement(
+    month: number,
+    year: number,
+    reportValue: number,
+    organizationName: string
+  ): Promise<number | null> {
+    try {
+      const counterFolderPath = path.join(
+        REPORTS_BASE_PATH,
+        'global-counters',
+        year.toString(),
+        month.toString().padStart(2, '0')
+      );
+      await fs.mkdir(counterFolderPath, { recursive: true });
 
-    console.log(`${organizationName}: Dodeljeni counter broj ${newCounterValue} (reportValue=${reportValue})`);
-    return newCounterValue;
-  } catch (error) {
-    console.error(`Error updating global counter for ${month}/${year}:`, error);
-    return null;
+      const counterFilePath = path.join(counterFolderPath, 'counter.json');
+
+      let counterData = {
+        totalReports: 0,
+        validReportsCount: 0,
+        lastUpdated: new Date().toISOString(),
+        month,
+        year,
+        processedOrganizations: [] as Array<{
+          name: string,
+          timestamp: string,
+          value: number,
+          counterAssigned: number | null
+        }>
+      };
+
+      // Čitaj postojeći counter
+      try {
+        const existingData = await fs.readFile(counterFilePath, 'utf8');
+        counterData = { ...counterData, ...JSON.parse(existingData) };
+      } catch (error) {
+        // fajl ne postoji, koristi default
+      }
+
+      counterData.totalReports += 1;
+      
+      // ✅ KLJUČNO: Uvećaj validReportsCount i dodeli novi broj
+      counterData.validReportsCount += 1;
+      const newCounterValue = counterData.validReportsCount;
+
+      // Dodaj organizaciju u log
+      counterData.processedOrganizations.push({
+        name: organizationName,
+        timestamp: new Date().toISOString(),
+        value: reportValue,
+        counterAssigned: newCounterValue
+      });
+
+      counterData.lastUpdated = new Date().toISOString();
+
+      // Atomski upis fajla
+      await fs.writeFile(counterFilePath, JSON.stringify(counterData, null, 2));
+
+      console.log(`${organizationName}: Dodeljen counter broj ${newCounterValue} (reportValue=${reportValue})`);
+      return newCounterValue;
+    } catch (error) {
+      console.error(`Error updating global counter for ${month}/${year}:`, error);
+      return null;
+    }
   }
 }
 
@@ -523,9 +529,10 @@ export async function generateHumanitarianTemplates(
       };
     }
 
-    // ✅ KLJUČNA IZMENA: Sortiranje organizacija po imenu za konzistentan redosled
+    // ✅ KLJUČNO: Sortiranje organizacija po imenu za konzistentan redosled
     organizations.sort((a, b) => a.name.localeCompare(b.name));
 
+    // ✅ SEKVENCIJALNO procesiranje da bi counter bio tačan
     for (const org of organizations) {
       try {
         const orgData: OrganizationData = {
@@ -601,8 +608,8 @@ async function generateTemplateForOrganization(
     const reportValue = await getOriginalReportValue(org, month, year, paymentType);
     console.log(`>>> ${org.name}: reportValue = ${reportValue}`);
     
-    // ✅ NOVA LOGIKA: Koristi globalni counter
-    const counterValue = await incrementGlobalCounterIfValid(month, year, reportValue, org.name);
+    // ✅ THREAD-SAFE counter increment
+    const counterValue = await GlobalCounterManager.incrementIfValid(month, year, reportValue, org.name);
 
     const fileName = `template_${org.name.replace(/[^a-zA-Z0-9]/g, '_')}_${paymentType}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
     const filePath = path.join(orgFolderPath, fileName);
@@ -675,8 +682,8 @@ async function generateWithExcelJS(
       ? `Уговор ${org.activeContract.name}${org.activeContract.startDate ? ` од ${format(org.activeContract.startDate, 'dd.MM.yyyy')}` : ''}`
       : '';
 
+    // ✅ PAMETNO: Uključi D18 SAMO ako ima counterValue
     const updates = [
-      // ✅ Counter se postavlja SAMO ako ima vrednost, inače se preskače
       ...(counterValue !== null ? [{ cell: 'D18', value: counterValue }] : []),
       { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` },
       { cell: 'A19', value: contractInfo },
@@ -689,7 +696,7 @@ async function generateWithExcelJS(
       { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у периоду` }
     ];
 
-    // Postavi sve vrednosti iz updates
+    // Postavi sve vrednosti
     updates.forEach(({ cell, value }) => {
       try {
         worksheet.getCell(cell).value = value;
@@ -698,13 +705,15 @@ async function generateWithExcelJS(
       }
     });
 
-    // ✅ KLJUČNO: Ako nema counter vrednosti, ostavi D18 prazan
+    // ✅ EKSPLICITNO: Ako nema counter vrednosti, ostavi D18 prazan
     if (counterValue === null) {
       worksheet.getCell('D18').value = null;
+      console.log(`${org.name}: D18 ostavljen prazan (reportValue=${reportValue})`);
+    } else {
+      console.log(`${org.name}: D18 postavljen na ${counterValue} (reportValue=${reportValue})`);
     }
 
-    // Posebno očisti F24-H24 i postavi D24
-    worksheet.getCell('D24').value = reportValue;
+    // Očisti dodatne ćelije
     ['F24', 'G24', 'H24'].forEach(cell => worksheet.getCell(cell).value = null);
 
     await workbook.xlsx.writeFile(filePath);

@@ -3,6 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
+import * as XLSX from 'xlsx';
 
 export interface ScannedReport {
   id: string;
@@ -18,6 +19,9 @@ export interface ScannedReport {
   fileSize: number;
   lastModified: Date;
   reportType: 'template' | 'complete' | 'original';
+  // New fields for account number (D18) and sum (D24)
+  accountNumber?: number | null;
+  totalSum?: number | null;
 }
 
 export interface ScanResult {
@@ -181,6 +185,57 @@ export async function scanAllReports(): Promise<ScanResult> {
   }
 }
 
+/**
+ * Extract data from Excel file cells D18 and D24
+ */
+async function extractExcelData(filePath: string): Promise<{ accountNumber?: number | null; totalSum?: number | null }> {
+  try {
+    const fileBuffer = await fs.readFile(filePath);
+    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    
+    // Get the first worksheet
+    const worksheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[worksheetName];
+    
+    // Extract account number from D18
+    let accountNumber: number | null = null;
+    const d18Cell = worksheet['D18'];
+    if (d18Cell && d18Cell.v !== undefined) {
+      const value = d18Cell.v;
+      if (typeof value === 'number') {
+        accountNumber = Math.round(value);
+      } else if (typeof value === 'string') {
+        const parsed = parseInt(value.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(parsed)) {
+          accountNumber = parsed;
+        }
+      }
+    }
+    
+    // Extract total sum from D24
+    let totalSum: number | null = null;
+    const d24Cell = worksheet['D24'];
+    if (d24Cell && d24Cell.v !== undefined) {
+      const value = d24Cell.v;
+      if (typeof value === 'number') {
+        totalSum = value;
+      } else if (typeof value === 'string') {
+        // Try to parse string as number, removing any non-numeric characters except decimal points
+        const cleanValue = value.replace(/[^\d.-]/g, '');
+        const parsed = parseFloat(cleanValue);
+        if (!isNaN(parsed)) {
+          totalSum = parsed;
+        }
+      }
+    }
+    
+    return { accountNumber, totalSum };
+  } catch (error) {
+    console.warn(`Failed to extract Excel data from ${filePath}:`, error);
+    return { accountNumber: null, totalSum: null };
+  }
+}
+
 async function createScannedReport(
   fileName: string,
   filePath: string,
@@ -215,6 +270,16 @@ async function createScannedReport(
     const relativePath = path.relative(path.join(process.cwd(), 'public'), filePath);
     const publicUrl = `/${relativePath.replace(/\\/g, '/')}`;
 
+    // Extract Excel data if it's an Excel file
+    let excelData: { accountNumber?: number | null; totalSum?: number | null } = {
+      accountNumber: null,
+      totalSum: null
+    };
+    
+    if (lowerFileName.endsWith('.xlsx') || lowerFileName.endsWith('.xls')) {
+      excelData = await extractExcelData(filePath);
+    }
+
     const report: ScannedReport = {
       id: `${orgFolderName}-${year}-${month}-${paymentType}-${fileName}`,
       fileName,
@@ -228,7 +293,9 @@ async function createScannedReport(
       templateType,
       fileSize: stats.size,
       lastModified: stats.mtime,
-      reportType
+      reportType,
+      accountNumber: excelData.accountNumber,
+      totalSum: excelData.totalSum
     };
 
     return report;

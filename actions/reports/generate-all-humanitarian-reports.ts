@@ -1,11 +1,11 @@
-// actions/reports/generate-all-humanitarian-reports.ts
+// actions/reports/generate-all-humanitarian-reports.ts - FIXED VERSION WITH SIMPLIFIED COUNTER
 'use server';
 
 import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { generateOrganizationFolderName, generateReportPath } from "@/utils/report-path";
+import { generateOrganizationFolderName } from "@/utils/report-path";
 import * as XLSX from 'xlsx';
 
 interface ReportGenerationResult {
@@ -20,6 +20,7 @@ interface ReportGenerationResult {
     message?: string;
   }[];
 }
+
 interface OrganizationData {
   id: string;
   name: string;
@@ -34,6 +35,7 @@ interface OrganizationData {
     endDate?: Date;
   } | null;
 }
+
 interface OrganizationReportData {
   id: string;
   name: string;
@@ -61,31 +63,279 @@ const TEMPLATES_PATH = path.join(process.cwd(), 'templates');
 const REPORTS_BASE_PATH = path.join(process.cwd(), 'reports');
 const ORIGINAL_REPORTS_PATH = path.join(process.cwd(), 'public', 'reports');
 
+// ============================================
+// SIMPLIFIED COUNTER SYSTEM - SVAKO GENERISANJE KREIRA NOVI FAJL
+// ============================================
+
+/**
+ * SIMPLIFIED: Thread-safe counter manager - svako generisanje kreira novi counter fajl
+ */
+class GlobalCounterManager {
+  private static lockFiles = new Map<string, Promise<void>>();
+  private static currentCounterPath: string | null = null;
+
+  /**
+   * Generiše naziv fajla sa timestamp-om
+   */
+  private static generateCounterFileName(): string {
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/[:.]/g, '-')
+      .replace('T', '_')
+      .substring(0, 19); // YYYY-MM-DD_HH-MM-SS
+    
+    return `counter_${timestamp}.json`;
+  }
+
+  /**
+   * Kreira novi counter fajl za novo generisanje
+   */
+  private static async createNewCounterFile(
+    month: number,
+    year: number,
+    generationType: 'templates' | 'complete-reports'
+  ): Promise<string> {
+    const counterFolderPath = path.join(
+      REPORTS_BASE_PATH,
+      'global-counters',
+      year.toString(),
+      month.toString().padStart(2, '0')
+    );
+    
+    await fs.mkdir(counterFolderPath, { recursive: true });
+
+    const fileName = this.generateCounterFileName();
+    const filePath = path.join(counterFolderPath, fileName);
+
+    const initialData = {
+      totalReports: 0,
+      validReportsCount: 0,
+      createdAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      month,
+      year,
+      generationType,
+      processedOrganizations: [] as Array<{
+        name: string,
+        timestamp: string,
+        value: number,
+        counterAssigned: number | null
+      }>
+    };
+
+    await fs.writeFile(filePath, JSON.stringify(initialData, null, 2));
+    console.log(`✅ Created NEW counter file: ${fileName} for ${generationType}`);
+    
+    return filePath;
+  }
+
+  /**
+   * POČETAK novog generisanja - resetuje currentCounterPath
+   */
+  static startNewGeneration(): void {
+    this.currentCounterPath = null;
+    console.log('🔄 Started new generation - counter will be created on first increment');
+  }
+
+  /**
+   * KRAJ generisanja - eksplicitno resetuje currentCounterPath
+   */
+  static finishGeneration(): void {
+    if (this.currentCounterPath) {
+      console.log(`✅ Finished generation using: ${path.basename(this.currentCounterPath)}`);
+      this.currentCounterPath = null;
+    }
+  }
+
+  /**
+   * Glavna funkcija za increment
+   */
+  static async incrementIfValid(
+    month: number,
+    year: number,
+    reportValue: number,
+    organizationName: string,
+    generationType: 'templates' | 'complete-reports' = 'templates'
+  ): Promise<number | null> {
+    if (reportValue <= 0) {
+      console.log(`${organizationName}: reportValue=${reportValue}, counter se ne uvećava`);
+      return null;
+    }
+
+    const lockKey = `${year}-${month.toString().padStart(2, '0')}-${generationType}`;
+    
+    // Thread-safe locking
+    while (this.lockFiles.has(lockKey)) {
+      await this.lockFiles.get(lockKey);
+    }
+
+    const lockPromise = this._performIncrement(month, year, reportValue, organizationName, generationType);
+    this.lockFiles.set(lockKey, lockPromise);
+
+    try {
+      const result = await lockPromise;
+      return result;
+    } finally {
+      this.lockFiles.delete(lockKey);
+    }
+  }
+
+  private static async _performIncrement(
+    month: number,
+    year: number,
+    reportValue: number,
+    organizationName: string,
+    generationType: 'templates' | 'complete-reports'
+  ): Promise<number | null> {
+    try {
+      // Ako je PRVI poziv u ovom generisanju → kreira novi fajl
+      if (!this.currentCounterPath) {
+        this.currentCounterPath = await this.createNewCounterFile(month, year, generationType);
+        console.log(`🆕 NEW GENERATION: Created ${path.basename(this.currentCounterPath)}`);
+      }
+
+      // Čitaj trenutni fajl
+      const fileContent = await fs.readFile(this.currentCounterPath, 'utf8');
+      const counterData = JSON.parse(fileContent);
+
+      counterData.totalReports += 1;
+      counterData.validReportsCount += 1;
+      const newCounterValue = counterData.validReportsCount;
+
+      // Dodaj organizaciju u log
+      counterData.processedOrganizations.push({
+        name: organizationName,
+        timestamp: new Date().toISOString(),
+        value: reportValue,
+        counterAssigned: newCounterValue
+      });
+
+      counterData.lastUpdated = new Date().toISOString();
+
+      // Atomski upis
+      await fs.writeFile(this.currentCounterPath, JSON.stringify(counterData, null, 2));
+
+      console.log(`${organizationName}: Dodeljen counter broj ${newCounterValue} (reportValue=${reportValue}) [${generationType}] -> ${path.basename(this.currentCounterPath)}`);
+      return newCounterValue;
+    } catch (error) {
+      console.error(`Error updating global counter for ${month}/${year}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Dobija trenutni counter bez increment-a (za read-only operacije)
+   */
+  static async getCurrentCounter(month: number, year: number): Promise<number> {
+    try {
+      if (this.currentCounterPath) {
+        const fileContent = await fs.readFile(this.currentCounterPath, 'utf8');
+        const counterData = JSON.parse(fileContent);
+        return counterData.validReportsCount || 0;
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  }
+}
+
+/**
+ * Poboljšana funkcija za kreiranje bezbednih imena fajlova
+ * Podržava ćirilična slova i bolje rukovanje specijalnim karakterima
+ */
+function sanitizeFileName(orgName: string, maxLength: number = 50): string {
+  if (!orgName || typeof orgName !== 'string') {
+    return 'unknown_org';
+  }
+
+  let sanitized = orgName
+    // Ukloni leading/trailing spaces
+    .trim()
+    // Zameni multiple spaces sa jednim
+    .replace(/\s+/g, ' ')
+    // Transliteracija ćiriličnih slova u latinicu
+    .replace(/[а]/g, 'a').replace(/[А]/g, 'A')
+    .replace(/[б]/g, 'b').replace(/[Б]/g, 'B')
+    .replace(/[в]/g, 'v').replace(/[В]/g, 'V')
+    .replace(/[г]/g, 'g').replace(/[Г]/g, 'G')
+    .replace(/[д]/g, 'd').replace(/[Д]/g, 'D')
+    .replace(/[ђ]/g, 'dj').replace(/[Ђ]/g, 'Dj')
+    .replace(/[е]/g, 'e').replace(/[Е]/g, 'E')
+    .replace(/[ж]/g, 'z').replace(/[Ж]/g, 'Z')
+    .replace(/[з]/g, 'z').replace(/[З]/g, 'Z')
+    .replace(/[и]/g, 'i').replace(/[И]/g, 'I')
+    .replace(/[ј]/g, 'j').replace(/[Ј]/g, 'J')
+    .replace(/[к]/g, 'k').replace(/[К]/g, 'K')
+    .replace(/[л]/g, 'l').replace(/[Л]/g, 'L')
+    .replace(/[љ]/g, 'lj').replace(/[Љ]/g, 'Lj')
+    .replace(/[м]/g, 'm').replace(/[М]/g, 'M')
+    .replace(/[н]/g, 'n').replace(/[Н]/g, 'N')
+    .replace(/[њ]/g, 'nj').replace(/[Њ]/g, 'Nj')
+    .replace(/[о]/g, 'o').replace(/[О]/g, 'O')
+    .replace(/[п]/g, 'p').replace(/[П]/g, 'P')
+    .replace(/[р]/g, 'r').replace(/[Р]/g, 'R')
+    .replace(/[с]/g, 's').replace(/[С]/g, 'S')
+    .replace(/[т]/g, 't').replace(/[Т]/g, 'T')
+    .replace(/[ћ]/g, 'c').replace(/[Ћ]/g, 'C')
+    .replace(/[у]/g, 'u').replace(/[У]/g, 'U')
+    .replace(/[ф]/g, 'f').replace(/[Ф]/g, 'F')
+    .replace(/[х]/g, 'h').replace(/[Х]/g, 'H')
+    .replace(/[ц]/g, 'c').replace(/[Ц]/g, 'C')
+    .replace(/[ч]/g, 'c').replace(/[Ч]/g, 'C')
+    .replace(/[џ]/g, 'dz').replace(/[Џ]/g, 'Dz')
+    .replace(/[ш]/g, 's').replace(/[Ш]/g, 'S')
+    // Zameni spaces sa underscores
+    .replace(/\s/g, '_')
+    // Ukloni ili zameni problematične karaktere za fajl sistem
+    .replace(/[<>:"/\\|?*]/g, '') // Windows problematični karakteri
+    .replace(/[„"""'']/g, '') // Različiti quote karakteri
+    .replace(/[–—]/g, '-') // En-dash, em-dash → hyphen
+    .replace(/[•]/g, '_') // Bullet point
+    .replace(/[…]/g, '') // Ellipsis
+    // Zameni ostale specijalne karaktere sa underscores, ali zadrži alphanumeric i basic punctuation
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    // Ukloni multiple underscores
+    .replace(/_+/g, '_')
+    // Ukloni leading/trailing underscores
+    .replace(/^_+|_+$/g, '');
+
+  // Ograniči dužinu
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength).replace(/_+$/, '');
+  }
+
+  // Fallback ako je ime prazno nakon sanitizacije
+  if (!sanitized) {
+    sanitized = 'org';
+  }
+
+  return sanitized;
+}
+
 // Get master template path based on type
 function getMasterTemplatePath(templateType: TemplateType): string {
   return path.join(TEMPLATES_PATH, `humanitarian-template-${templateType}.xlsx`);
 }
-function extractDatesFromFileName(fileName) {
+
+function extractDatesFromFileName(fileName: string) {
   console.log('Parsing filename:', fileName);
   
-  // Regex za format __YYYYMMDD_HHMM__YYYYMMDD_HHMM
   const datePattern = /__(\d{8}_\d{4})__(\d{8}_\d{4})\./;
   const match = fileName.match(datePattern);
   
   if (match) {
-    const startDateStr = match[1]; // 20250601_0000
-    const endDateStr = match[2];   // 20250630_2359
+    const startDateStr = match[1];
+    const endDateStr = match[2];
     
     console.log('Found date strings:', { startDateStr, endDateStr });
     
-    // Parse start date
     const startYear = parseInt(startDateStr.substr(0, 4));
     const startMonth = parseInt(startDateStr.substr(4, 2));
     const startDay = parseInt(startDateStr.substr(6, 2));
     const startHour = parseInt(startDateStr.substr(9, 2));
     const startMin = parseInt(startDateStr.substr(11, 2));
     
-    // Parse end date
     const endYear = parseInt(endDateStr.substr(0, 4));
     const endMonth = parseInt(endDateStr.substr(4, 2));
     const endDay = parseInt(endDateStr.substr(6, 2));
@@ -120,7 +370,8 @@ function extractDatesFromFileName(fileName) {
     isValid: false
   };
 }
-function isFileForPeriod(fileName, targetMonth, targetYear) {
+
+function isFileForPeriod(fileName: string, targetMonth: number, targetYear: number) {
   const dates = extractDatesFromFileName(fileName);
   
   if (!dates.isValid) {
@@ -133,6 +384,7 @@ function isFileForPeriod(fileName, targetMonth, targetYear) {
   
   return fileMatches;
 }
+
 export async function generateAllHumanitarianReports(
   month: number,
   year: number,
@@ -143,6 +395,10 @@ export async function generateAllHumanitarianReports(
   const errors: string[] = [];
 
   try {
+    // 🔄 POČETAK novog generisanja
+    GlobalCounterManager.startNewGeneration();
+    console.log(`🔄 Started NEW generation for ${month}/${year} complete-reports`);
+
     // Validate input parameters
     if (!month || !year || month < 1 || month > 12) {
       return {
@@ -176,7 +432,10 @@ export async function generateAllHumanitarianReports(
       };
     }
 
-    // Process each organization
+    // KLJUČNO: Sortiranje organizacija po imenu za konzistentan redosled
+    organizations.sort((a, b) => a.name.localeCompare(b.name));
+
+    // SEKVENCIJALNO procesiranje organizacija
     for (const org of organizations) {
       try {
         const result = await generateCompleteReportForOrganization(
@@ -203,6 +462,9 @@ export async function generateAllHumanitarianReports(
 
     const successCount = generatedFiles.filter(f => f.status === 'success').length;
 
+    // 🏁 KRAJ generisanja
+    GlobalCounterManager.finishGeneration();
+
     return {
       success: successCount > 0,
       message: successCount === organizations.length 
@@ -213,6 +475,9 @@ export async function generateAllHumanitarianReports(
       generatedFiles
     };
   } catch (error) {
+    // 🏁 KRAJ generisanja čak i pri grešci
+    GlobalCounterManager.finishGeneration();
+    
     console.error('Error in generateAllHumanitarianReports:', error);
     return {
       success: false,
@@ -355,7 +620,7 @@ async function generateCompleteReportForOrganization(
     
     await fs.mkdir(orgFolderPath, { recursive: true });
 
-    const fileName = `complete_report_${org.name.replace(/[^a-zA-Z0-9]/g, '_')}_${paymentType}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
+    const fileName = `complete_report_${sanitizeFileName(org.name)}_${paymentType}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
     const filePath = path.join(orgFolderPath, fileName);
 
     try {
@@ -383,8 +648,6 @@ async function generateCompleteReportForOrganization(
     throw new Error(`Greška za organizaciju ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`);
   }
 }
-
-    
 
 async function generateCompleteReportWithExcelJS(
   org: OrganizationReportData,
@@ -422,20 +685,33 @@ async function generateCompleteReportWithExcelJS(
     const reportValue = await getOriginalReportValue(org, month, year, paymentType);
     console.log(`>>> ${org.name}: reportValue = ${reportValue}`);
 
-    // ✅ NOVA LOGIKA: Koristi globalni counter
-    const counterValue = await incrementGlobalCounterIfValid(month, year, reportValue, org.name);
+    // SIMPLIFIED COUNTER - koristi complete-reports tip
+    const counterValue = await GlobalCounterManager.incrementIfValid(
+      month, 
+      year, 
+      reportValue, 
+      org.name,
+      'complete-reports'
+    );
     
     const monthStart = startOfMonth(new Date(year, month - 1));
     const monthEnd = endOfMonth(new Date(year, month - 1));
     const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
 
-    const activeContract = org.contracts && org.contracts.length > 0 ? org.contracts[0] : null;
-    const contractInfo = activeContract?.name && activeContract?.startDate
-      ? `Уговор бр ${activeContract.name} од ${format(activeContract.startDate, 'dd.MM.yyyy')}`
-      : '';
+    let contractInfo = '';
+if (org.contracts && org.contracts.length > 0) {
+  const activeContract = org.contracts[0];
+  const startDate = activeContract.startDate ? new Date(activeContract.startDate) : null;
+  if (activeContract.name && startDate) {
+    contractInfo = `Уговор бр ${activeContract.name} од ${format(startDate, 'dd.MM.yyyy')}`;
+  } else if (activeContract.name) {
+    contractInfo = `Уговор бр ${activeContract.name}`;
+  }
+}
+
 
     const updates = [
-      // ✅ Counter se postavlja SAMO ako ima vrednost
+      // Counter se postavlja SAMO ako ima vrednost
       ...(counterValue !== null ? [{ cell: 'D18', value: counterValue }] : []),
       { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` },
       { cell: 'A19', value: contractInfo },
@@ -462,19 +738,22 @@ async function generateCompleteReportWithExcelJS(
       }
     });
 
-    // ✅ Ako nema counter, ostavi D18 prazno
+    // Eksplicitno postavljanje D18 i D24
     if (counterValue === null) {
       worksheet.getCell('D18').value = null;
+      console.log(`${org.name}: D18 ostavljen prazan (reportValue=${reportValue})`);
+    } else {
+      console.log(`${org.name}: D18 postavljen na ${counterValue} (reportValue=${reportValue})`);
     }
 
-    // Postavi D24 eksplicitno
     worksheet.getCell('D24').value = reportValue;
 
     await workbook.xlsx.writeFile(filePath);
-
+    console.log(`✅ Complete report generated for ${org.name}: ${path.basename(filePath)}`);
+    
     return true;
   } catch (error) {
-    console.error('ExcelJS method failed for complete report:', error);
+    console.error(`Error in generateCompleteReportWithExcelJS for ${org.name}:`, error);
     return false;
   }
 }
@@ -487,57 +766,85 @@ async function generateReportWithFallback(
   templateType: TemplateType,
   filePath: string
 ): Promise<void> {
-  await fs.copyFile(getMasterTemplatePath(templateType), filePath);
+  try {
+    const masterTemplatePath = getMasterTemplatePath(templateType);
+    const templateBuffer = await fs.readFile(masterTemplatePath);
+    
+    const workbook = XLSX.read(templateBuffer, { type: 'buffer' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-  const reportValue = await getOriginalReportValue(org, month, year, paymentType);
-  
-  // ✅ NOVA LOGIKA: Koristi globalni counter
-  const counterValue = await incrementGlobalCounterIfValid(month, year, reportValue, org.name);
+    const reportValue = await getOriginalReportValue(org, month, year, paymentType);
+    console.log(`>>> FALLBACK ${org.name}: reportValue = ${reportValue}`);
 
-  const monthStart = startOfMonth(new Date(year, month - 1));
-  const monthEnd = endOfMonth(new Date(year, month - 1));
-  const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
+    // SIMPLIFIED COUNTER - koristi complete-reports tip
+    const counterValue = await GlobalCounterManager.incrementIfValid(
+      month, 
+      year, 
+      reportValue, 
+      org.name,
+      'complete-reports'
+    );
 
-  const activeContract = org.contracts && org.contracts.length > 0 ? org.contracts[0] : null;
-  const contractInfo = activeContract?.name && activeContract?.startDate
-    ? `Уговор бр ${activeContract.name} од ${format(activeContract.startDate, 'dd.MM.yyyy')}`
-    : '';
+    const monthStart = startOfMonth(new Date(year, month - 1));
+    const monthEnd = endOfMonth(new Date(year, month - 1));
+    const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
 
-  const completeReportData = {
-    // ✅ Counter se upisuje SAMO ako ima vrednost
-    ...(counterValue !== null ? { D18: counterValue } : { D18: null }),
-    E18: `/${month.toString().padStart(2, '0')}`,
-    A19: contractInfo,
-    D21: org.name,
-    D24: reportValue,
-    E39: dateRange,
-    D29: `ПИБ ${org.pib || ''}`,
-    F29: `матични број ${org.registrationNumber || ''}`,
-    G40: org.shortNumber || '',
-    D38: `Наплаћен iznos u ${paymentType} saobraćaju u periodu`,
-    monthlyRevenue: org.monthlyRevenue || 0,
-    totalTransactions: org.totalTransactions || 0,
-    serviceUsage: org.serviceUsage || { postpaid: 0, prepaid: 0 },
-    _metadata: {
-      organization: org.name,
-      month: month,
-      year: year,
-      paymentType: paymentType,
-      reportType: 'complete',
-      generatedAt: new Date().toISOString(),
-      counterAssigned: counterValue,
-      note: counterValue === null ? 
-        'Izveštaj nema vrednost u D24, pa ne dobija redni broj.' :
-        `Izveštaj dobija redni broj ${counterValue} jer ima vrednost ${reportValue} u D24.`
-    }
-  };
-
-  const dataFilePath = path.join(path.dirname(filePath), 'complete_report_data.json');
-  await fs.writeFile(dataFilePath, JSON.stringify(completeReportData, null, 2));
+    let contractInfo = '';
+if (org.contracts && org.contracts.length > 0) {
+  const activeContract = org.contracts[0];
+  const startDate = activeContract.startDate ? new Date(activeContract.startDate) : null;
+  if (activeContract.name && startDate) {
+    contractInfo = `Уговор бр ${activeContract.name} од ${format(startDate, 'dd.MM.yyyy')}`;
+  } else if (activeContract.name) {
+    contractInfo = `Уговор бр ${activeContract.name}`;
+  }
 }
 
 
-// Popravljena funkcija koja može da čita .xls fajlove
+    // Ažuriranje ćelija u worksheet-u
+    const updates: { cell: string; value: any }[] = [
+      ...(counterValue !== null ? [{ cell: 'D18', value: counterValue }] : []),
+      { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` },
+      { cell: 'A19', value: contractInfo },
+      { cell: 'D21', value: org.name },
+      { cell: 'D24', value: reportValue },
+      { cell: 'E39', value: dateRange },
+      { cell: 'D29', value: `ПИБ ${org.pib || ''}` },
+      { cell: 'F29', value: `матични број ${org.registrationNumber || ''}` },
+      { cell: 'G40', value: org.shortNumber || '' },
+      { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у периоду` },
+      { cell: 'F24', value: org.monthlyRevenue || 0 },
+      { cell: 'G24', value: org.totalTransactions || 0 },
+      ...(org.serviceUsage ? [
+        { cell: 'H24', value: paymentType === 'postpaid' ? (org.serviceUsage.postpaid || 0) : (org.serviceUsage.prepaid || 0) }
+      ] : [])
+    ];
+
+    // Apply updates to worksheet
+    updates.forEach(({ cell, value }) => {
+  try {
+    if (typeof value === 'number') {
+      worksheet[cell] = { t: 'n', v: value }; // broj
+    } else {
+      worksheet[cell] = { t: 's', v: value?.toString() || '' }; // string
+    }
+  } catch (error) {
+    console.log(`Could not update cell ${cell}:`, error);
+  }
+});
+
+    // Sačuvaj fajl
+    XLSX.writeFile(workbook, filePath);
+    console.log(`✅ Fallback complete report generated for ${org.name}: ${path.basename(filePath)}`);
+    
+  } catch (error) {
+    console.error(`❌ Error generating fallback report for ${org.name}:`, error);
+    throw new Error(`Fallback report generation failed for ${org.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+      
+// Reading original report to get D24 value - IDENTIČNA FUNKCIJA KAO U PRVOM FAJLU
 async function getOriginalReportValue(
   orgData: OrganizationData,
   month: number,
@@ -746,4 +1053,3 @@ async function getOriginalReportValue(
     return 0;
   }
 }
-

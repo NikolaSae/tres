@@ -20,7 +20,9 @@ import {
   RefreshCw,
   Filter,
   X,
-  PrinterIcon
+  PrinterIcon,
+  Hash,
+  Banknote
 } from 'lucide-react';
 
 // Import types from the server action
@@ -38,6 +40,9 @@ interface ScannedReport {
   fileSize: number;
   lastModified: Date;
   reportType: 'template' | 'complete' | 'original';
+  // New fields for account number (D18) and sum (D24)
+  accountNumber?: number | null;
+  totalSum?: number | null;
 }
 
 interface ScanResult {
@@ -156,6 +161,15 @@ const ReportScanner = () => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('sr-RS', {
+      style: 'currency',
+      currency: 'RSD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(amount);
   };
 
   const getMonthName = (month: number) => {
@@ -510,8 +524,25 @@ const ReportScanner = () => {
                             )}
                           </div>
                           
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {formatFileSize(report.fileSize)} • Modified: {new Date(report.lastModified).toLocaleDateString('sr-RS')}
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
+                            <span>{formatFileSize(report.fileSize)}</span>
+                            <span>Modified: {new Date(report.lastModified).toLocaleDateString('sr-RS')}</span>
+                            
+                            {/* Account Number (from D18) */}
+                            {report.accountNumber && (
+                              <span className="flex items-center gap-1 text-blue-600">
+                                <Hash className="h-3 w-3" />
+                                Broj naloga: {report.accountNumber}
+                              </span>
+                            )}
+                            
+                            {/* Total Sum (from D24) */}
+                            {report.totalSum && (
+                              <span className="flex items-center gap-1 text-green-600 font-medium">
+                                <Banknote className="h-3 w-3" />
+                                Suma: {formatCurrency(report.totalSum)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
