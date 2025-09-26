@@ -22,7 +22,9 @@ import {
   X,
   PrinterIcon,
   Hash,
-  Banknote
+  Banknote,
+  Check,
+  ChevronDown
 } from 'lucide-react';
 
 // Import types from the server action
@@ -53,6 +55,104 @@ interface ScanResult {
   error?: string;
 }
 
+// MultiSelect Component
+interface MultiSelectOption {
+  value: string;
+  label: string;
+}
+
+interface MultiSelectProps {
+  value: string[];
+  onValueChange: (value: string[]) => void;
+  options: MultiSelectOption[];
+  placeholder?: string;
+  maxDisplay?: number;
+}
+
+  const MultiSelect: React.FC<MultiSelectProps> = ({ 
+    value, 
+    onValueChange, 
+    options, 
+    placeholder = "Select...",
+    maxDisplay = 3 
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = () => {
+        setIsOpen(false);
+      };
+
+      if (isOpen) {
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+      }
+    }, [isOpen]);
+
+    const handleToggle = (optionValue: string) => {
+      if (optionValue === 'all') {
+        onValueChange(['all']);
+      } else {
+        const newValue = value.includes('all') ? [] : [...value];
+        
+        if (newValue.includes(optionValue)) {
+          const filtered = newValue.filter(v => v !== optionValue);
+          onValueChange(filtered.length === 0 ? ['all'] : filtered);
+        } else {
+          onValueChange([...newValue, optionValue]);
+        }
+      }
+    };
+
+    const displayValue = () => {
+      if (value.includes('all') || value.length === 0) {
+        return 'All months';
+      }
+      
+      if (value.length <= maxDisplay) {
+        return value
+          .map(v => options.find(opt => opt.value === v)?.label)
+          .filter(Boolean)
+          .join(', ');
+      }
+      
+      return `${value.length} months selected`;
+    };
+
+    return (
+      <div className="relative" onClick={(e) => e.stopPropagation()}>
+        <Button
+          variant="outline"
+          className="w-full justify-between"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="truncate">{displayValue()}</span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </Button>
+        
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {options.map((option) => (
+              <div
+                key={option.value}
+                className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => handleToggle(option.value)}
+              >
+                <div className="flex items-center justify-center w-4 h-4 mr-2 border border-gray-300 rounded">
+                  {(value.includes(option.value) || (option.value === 'all' && (value.includes('all') || value.length === 0))) && (
+                    <Check className="h-3 w-3 text-blue-600" />
+                  )}
+                </div>
+                <span className="flex-1">{option.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
 const ReportScanner = () => {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,11 +161,12 @@ const ReportScanner = () => {
   
   // Filter states
   const [selectedOrganization, setSelectedOrganization] = useState<string>('all');
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedMonths, setSelectedMonths] = useState<string[]>(['all']);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedPaymentType, setSelectedPaymentType] = useState<string>('all');
   const [selectedTemplateType, setSelectedTemplateType] = useState<string>('all');
   const [selectedReportType, setSelectedReportType] = useState<string>('all');
+  const [sumFilter, setSumFilter] = useState<"all" | "zero" | "positive">("all");
 
   const scanReports = async () => {
     setLoading(true);
@@ -116,8 +217,8 @@ const ReportScanner = () => {
         return false;
       }
       
-      // Month filter
-      if (selectedMonth !== 'all' && report.month.toString() !== selectedMonth) {
+      // Month filter - updated for multi-select
+      if (!selectedMonths.includes('all') && !selectedMonths.includes(report.month.toString())) {
         return false;
       }
       
@@ -140,10 +241,18 @@ const ReportScanner = () => {
       if (selectedReportType !== 'all' && report.reportType !== selectedReportType) {
         return false;
       }
+
+      // Sum filter - ISPRAVKA: Premestio sam ovu logiku unutar glavnog filtera
+      if (sumFilter === "zero" && report.totalSum !== 0) {
+        return false;
+      }
+      if (sumFilter === "positive" && (!report.totalSum || report.totalSum <= 0)) {
+        return false;
+      }
       
       return true;
     });
-  }, [scanResult, searchTerm, selectedOrganization, selectedMonth, selectedYear, selectedPaymentType, selectedTemplateType, selectedReportType]);
+  }, [scanResult, searchTerm, selectedOrganization, selectedMonths, selectedYear, selectedPaymentType, selectedTemplateType, selectedReportType, sumFilter]); // Updated dependency
 
   // Group reports by organization
   const groupedReports = useMemo(() => {
@@ -252,11 +361,12 @@ const ReportScanner = () => {
 
   const clearAllFilters = () => {
     setSelectedOrganization('all');
-    setSelectedMonth('all');
+    setSelectedMonths(['all']); // Updated for multi-select
     setSelectedYear('all');
     setSelectedPaymentType('all');
     setSelectedTemplateType('all');
     setSelectedReportType('all');
+    setSumFilter('all');
     setSearchTerm('');
   };
 
@@ -374,19 +484,19 @@ const ReportScanner = () => {
 
             <div>
               <label className="text-sm font-medium mb-2 block">Month</label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All months" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All months</SelectItem>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                    <SelectItem key={month} value={month.toString()}>
-                      {getMonthName(month)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                value={selectedMonths}
+                onValueChange={setSelectedMonths}
+                options={[
+                  { value: 'all', label: 'All months' },
+                  ...Array.from({ length: 12 }, (_, i) => ({
+                    value: (i + 1).toString(),
+                    label: getMonthName(i + 1)
+                  }))
+                ]}
+                placeholder="Select months..."
+                maxDisplay={2}
+              />
             </div>
 
             <div>
@@ -446,6 +556,49 @@ const ReportScanner = () => {
                   <SelectItem value="original">Original</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* Sum Filter - ISPRAVKA: Premestio sam u CardContent i poboljšao styling */}
+          <div className="border-t pt-4">
+            <div className="flex items-center gap-4">
+              <span className="font-medium text-sm">Sum Filter:</span>
+              
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sumFilter"
+                  value="all"
+                  checked={sumFilter === "all"}
+                  onChange={() => setSumFilter("all")}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                />
+                <span className="text-sm">All</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sumFilter"
+                  value="zero"
+                  checked={sumFilter === "zero"}
+                  onChange={() => setSumFilter("zero")}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                />
+                <span className="text-sm">Sum = 0</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sumFilter"
+                  value="positive"
+                  checked={sumFilter === "positive"}
+                  onChange={() => setSumFilter("positive")}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                />
+                <span className="text-sm">Sum &gt; 0</span>
+              </label>
             </div>
           </div>
 
@@ -529,7 +682,7 @@ const ReportScanner = () => {
                             <span>Modified: {new Date(report.lastModified).toLocaleDateString('sr-RS')}</span>
                             
                             {/* Account Number (from D18) */}
-                            {report.accountNumber && (
+                            {report.accountNumber != null && (
                               <span className="flex items-center gap-1 text-blue-600">
                                 <Hash className="h-3 w-3" />
                                 Broj naloga: {report.accountNumber}
@@ -537,7 +690,7 @@ const ReportScanner = () => {
                             )}
                             
                             {/* Total Sum (from D24) */}
-                            {report.totalSum && (
+                            {report.totalSum != null && (
                               <span className="flex items-center gap-1 text-green-600 font-medium">
                                 <Banknote className="h-3 w-3" />
                                 Suma: {formatCurrency(report.totalSum)}

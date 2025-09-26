@@ -1,0 +1,77 @@
+{
+  "totalReports": 11,
+  "validReportsCount": 11,
+  "createdAt": "2025-09-26T17:37:31.926Z",
+  "lastUpdated": "2025-09-26T17:37:33.301Z",
+  "month": 8,
+  "year": 2025,
+  "generationType": "complete-reports",
+  "processedOrganizations": [
+    {
+      "name": "Humanitarna fondacija ZA NAŠE HEROJE",
+      "timestamp": "2025-09-26T17:37:31.929Z",
+      "value": 200,
+      "counterAssigned": 1
+    },
+    {
+      "name": "Блиц Фондација",
+      "timestamp": "2025-09-26T17:37:32.208Z",
+      "value": 1300,
+      "counterAssigned": 2
+    },
+    {
+      "name": "Верско добротворно старатељство Архиепископије београдско-карловачке СПЦ",
+      "timestamp": "2025-09-26T17:37:32.299Z",
+      "value": 153300,
+      "counterAssigned": 3
+    },
+    {
+      "name": "Добро памтим све",
+      "timestamp": "2025-09-26T17:37:32.444Z",
+      "value": 200,
+      "counterAssigned": 4
+    },
+    {
+      "name": "Епархија нишка „Добри Самарјанин“",
+      "timestamp": "2025-09-26T17:37:32.523Z",
+      "value": 600,
+      "counterAssigned": 5
+    },
+    {
+      "name": "Национално удружење родитеља деце оболеле од рака-НУРДОР",
+      "timestamp": "2025-09-26T17:37:32.696Z",
+      "value": 3900,
+      "counterAssigned": 6
+    },
+    {
+      "name": "Удружење „Српска Солидарност“",
+      "timestamp": "2025-09-26T17:37:32.779Z",
+      "value": 1500,
+      "counterAssigned": 7
+    },
+    {
+      "name": "Удружење Подели радост",
+      "timestamp": "2025-09-26T17:37:32.865Z",
+      "value": 1600,
+      "counterAssigned": 8
+    },
+    {
+      "name": "Удружење ТЕЛОК",
+      "timestamp": "2025-09-26T17:37:32.939Z",
+      "value": 800,
+      "counterAssigned": 9
+    },
+    {
+      "name": "УНИЦЕФ",
+      "timestamp": "2025-09-26T17:37:33.034Z",
+      "value": 20800,
+      "counterAssigned": 10
+    },
+    {
+      "name": "Фондација – Хуманост без граница",
+      "timestamp": "2025-09-26T17:37:33.301Z",
+      "value": 181100,
+      "counterAssigned": 11
+    }
+  ]
+}
