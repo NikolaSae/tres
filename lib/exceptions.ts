@@ -13,7 +13,7 @@ export class ServerError extends Error {
     this.statusCode = statusCode; // Postavlja status kod
 
     // Opcionalno: Dodaj ovo ako želiš da očuvaš ispravan stack trace
-    // Error.captureStackTrace(this, ServerError);
+    Error.captureStackTrace(this, ServerError);
   }
 }
 
