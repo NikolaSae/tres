@@ -33,6 +33,7 @@ interface OrganizationData {
   registrationNumber: string | null;
   shortNumber: string | null;
   mission: string | null;
+  bank: string | null;
   activeContract?: {
     name: string;
     contractNumber?: string;
@@ -465,6 +466,7 @@ async function getOrganizationsWithReportData(
       pib: true,
       shortNumber: true,
       mission: true,
+      bank: true,
       contracts: {
         where: {
           status: 'ACTIVE',
@@ -877,6 +879,7 @@ async function generateCompleteReportWithExcelJS(
       { cell: 'G40', value: org.shortNumber || '' },
       { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у периоду` },
       { cell: 'D33', value: org.mission },
+      { cell: 'D27', value: `Банка: ${org.bank}  Рачун: ${org.accountNumber}`},
     ];
 
     updates.forEach(({ cell, value }) => {
@@ -951,6 +954,7 @@ async function generateReportWithFallback(
       { cell: 'G40', value: org.shortNumber || '' },
       { cell: 'D38', value: `Наплаћен износ у ${paymentType} саобраћају у периоду` },
       { cell: 'D33', value: org.mission },
+      { cell: 'D27', value: `Банка: ${org.bank}  Рачун: ${org.accountNumber}`},
     ];
 
     updates.forEach(({ cell, value }) => {
