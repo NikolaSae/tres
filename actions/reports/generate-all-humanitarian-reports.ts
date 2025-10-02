@@ -411,19 +411,76 @@ function isFileForPeriodAndPaymentType(
 }
 
 function formatContractInfo(contracts: OrganizationReportData['contracts']): string {
-  if (!contracts?.length) return '';
+  console.log('\n🔍 === formatContractInfo DEBUG ===');
+  console.log('Input contracts:', JSON.stringify(contracts, null, 2));
+  console.log('Contracts type:', typeof contracts);
+  console.log('Is array:', Array.isArray(contracts));
+  console.log('Length:', contracts?.length);
+  
+  if (!contracts || !Array.isArray(contracts) || contracts.length === 0) {
+    console.log('❌ No contracts array or empty array');
+    return '';
+  }
   
   const activeContract = contracts[0];
-  const startDate = activeContract.startDate ? new Date(activeContract.startDate) : null;
+  console.log('\n📄 Active contract object:', activeContract);
+  console.log('   - name:', activeContract.name, '(type:', typeof activeContract.name, ')');
+  console.log('   - startDate:', activeContract.startDate, '(type:', typeof activeContract.startDate, ')');
+  console.log('   - startDate instanceof Date:', activeContract.startDate instanceof Date);
   
+  // Check if name exists
+  if (!activeContract.name) {
+    console.log('❌ Contract name is missing');
+    return '';
+  }
+  
+  // Robust date parsing
+  let startDate: Date | null = null;
+  if (activeContract.startDate) {
+    try {
+      console.log('   Attempting to parse startDate...');
+      
+      if (activeContract.startDate instanceof Date) {
+        console.log('   ✓ Already a Date object');
+        startDate = activeContract.startDate;
+      } else {
+        console.log('   Converting to Date from:', typeof activeContract.startDate);
+        startDate = new Date(activeContract.startDate as any);
+      }
+      
+      // Validate date
+      if (isNaN(startDate.getTime())) {
+        console.log('   ❌ Invalid date (NaN):', activeContract.startDate);
+        startDate = null;
+      } else {
+        console.log('   ✅ Valid date parsed:', startDate.toISOString());
+      }
+    } catch (error) {
+      console.error('   ❌ Error parsing startDate:', error);
+      startDate = null;
+    }
+  } else {
+    console.log('   ⚠️ startDate is null/undefined');
+  }
+  
+  // Build contract info string
   if (activeContract.name && startDate) {
-    return `Уговор бр ${activeContract.name} од ${format(startDate, 'dd.MM.yyyy')}`;
+    const formattedDate = format(startDate, 'dd.MM.yyyy');
+    const result = `Уговор бр ${activeContract.name} од ${formattedDate}`;
+    console.log('✅ SUCCESS: Contract info with date:', result);
+    console.log('=== formatContractInfo END ===\n');
+    return result;
   }
   
   if (activeContract.name) {
-    return `Уговор бр ${activeContract.name}`;
+    const result = `Уговор бр ${activeContract.name}`;
+    console.log('⚠️ PARTIAL: Contract info without date:', result);
+    console.log('=== formatContractInfo END ===\n');
+    return result;
   }
   
+  console.log('❌ FAILED: No contract name found');
+  console.log('=== formatContractInfo END ===\n');
   return '';
 }
 
@@ -454,6 +511,12 @@ async function getOrganizationsWithReportData(
   year: number,
   paymentType: PaymentType
 ): Promise<OrganizationReportData[]> {
+  const currentDate = new Date();
+  console.log(`\n🔍 Fetching organizations with contracts where:`);
+  console.log(`   - status = 'ACTIVE'`);
+  console.log(`   - startDate <= ${currentDate.toISOString()}`);
+  console.log(`   - endDate >= ${currentDate.toISOString()}`);
+  
   const organizations = await db.humanitarianOrg.findMany({
     where: {
       isActive: true,
@@ -470,32 +533,135 @@ async function getOrganizationsWithReportData(
       contracts: {
         where: {
           status: 'ACTIVE',
-          startDate: { lte: new Date() },
-          endDate: { gte: new Date() }
+          startDate: { lte: currentDate },
+          endDate: { gte: currentDate }
         },
         select: {
           name: true,
           contractNumber: true,
           startDate: true,
         },
+        orderBy: {
+          startDate: 'desc'
+        },
         take: 1
       }
     }
   });
 
+  console.log(`\n=== FETCHED ${organizations.length} ORGANIZATIONS ===\n`);
+
   const enhancedOrganizations: OrganizationReportData[] = [];
 
   for (const org of organizations) {
-    const monthlyData = await getMonthlyDataForOrganization(org.id, org.shortNumber || '', month, year, paymentType);
+    console.log(`\n📋 Processing: ${org.name}`);
+    console.log(`   Contracts in DB result: ${org.contracts?.length || 0}`);
+    
+    // CRITICAL DEBUGGING: Check ALL contracts for this org (not just active ones)
+    if (org.contracts.length === 0) {
+      console.log(`   ⚠️ NO ACTIVE CONTRACTS - Fetching most recent contract as fallback...`);
+      try {
+        const fallbackContract = await db.contract.findFirst({
+          where: { 
+            humanitarianOrgId: org.id,
+            status: 'ACTIVE'  // Mora biti aktivan status, ali ignorišemo datume
+          },
+          select: {
+            name: true,
+            contractNumber: true,
+            startDate: true,
+          },
+          orderBy: { startDate: 'desc' }  // Uzmi najnoviji
+        });
+        
+        if (fallbackContract) {
+          console.log(`   ✅ FALLBACK: Using most recent contract: ${fallbackContract.name}`);
+          org.contracts = [fallbackContract];
+        } else {
+          console.log(`   ❌ No contracts found at all for ${org.name}`);
+        }
+      } catch (debugError) {
+        console.error(`   ❌ Error fetching fallback contract:`, debugError);
+      }
+    }
+    
+    if (org.contracts && org.contracts.length > 0) {
+      const rawContract = org.contracts[0];
+      console.log(`   RAW contract data:`, JSON.stringify(rawContract, null, 2));
+      console.log(`   - name: "${rawContract.name}" (type: ${typeof rawContract.name})`);
+      console.log(`   - startDate: ${rawContract.startDate} (type: ${typeof rawContract.startDate})`);
+      console.log(`   - startDate instanceof Date: ${rawContract.startDate instanceof Date}`);
+    } else {
+      console.log(`   ⚠️ NO CONTRACTS FOUND FOR ${org.name}`);
+    }
+
+    const monthlyData = await getMonthlyDataForOrganization(
+      org.id, 
+      org.shortNumber || '', 
+      month, 
+      year, 
+      paymentType
+    );
+
+    // CRITICAL FIX: Force proper date conversion
+    const serializedContracts = (org.contracts || []).map(contract => {
+      let parsedDate: Date | null = null;
+      
+      if (contract.startDate) {
+        try {
+          // MORE ROBUST date parsing
+          let dateToConvert = contract.startDate;
+          
+          // Handle Prisma Date objects that might be strings
+          if (typeof dateToConvert === 'string') {
+            console.log(`   📅 ${org.name}: startDate is string: "${dateToConvert}"`);
+            parsedDate = new Date(dateToConvert);
+          } else if (dateToConvert instanceof Date) {
+            console.log(`   📅 ${org.name}: startDate is Date object`);
+            parsedDate = new Date(dateToConvert.getTime()); // Clone to avoid mutations
+          } else if (dateToConvert && typeof dateToConvert === 'object') {
+            // Handle cases where Prisma returns Date-like objects
+            console.log(`   📅 ${org.name}: startDate is object, attempting conversion`);
+            parsedDate = new Date(dateToConvert.toString());
+          }
+          
+          // Verify it's a valid date
+          if (!parsedDate || isNaN(parsedDate.getTime())) {
+            console.error(`   ❌ Invalid date for ${org.name}: ${contract.startDate} (type: ${typeof contract.startDate})`);
+            console.error(`   💡 DEBUGGING: Check if contract.startDate is null in database!`);
+            parsedDate = null;
+          } else {
+            console.log(`   ✅ Parsed startDate for ${org.name}: ${parsedDate.toISOString()} (original: ${contract.startDate})`);
+          }
+        } catch (err) {
+          console.error(`   ❌ Date parsing error for ${org.name}:`, err);
+          console.error(`   📝 Original value: ${contract.startDate} (type: ${typeof contract.startDate})`);
+          parsedDate = null;
+        }
+      } else {
+        console.warn(`   ⚠️ ${org.name}: contract.startDate is NULL or UNDEFINED in database!`);
+      }
+      
+      return {
+        name: contract.name,
+        contractNumber: contract.contractNumber,
+        startDate: parsedDate,
+      };
+    });
+
+    console.log(`   Final serialized contracts for ${org.name}:`, 
+      JSON.stringify(serializedContracts, null, 2));
 
     enhancedOrganizations.push({
       ...org,
+      contracts: serializedContracts,
       monthlyRevenue: monthlyData.revenue,
       totalTransactions: monthlyData.transactions,
       serviceUsage: monthlyData.serviceUsage
     });
   }
 
+  console.log(`\n=== FINISHED PROCESSING ALL ORGANIZATIONS ===\n`);
   return enhancedOrganizations;
 }
 
@@ -554,7 +720,6 @@ async function getMonthlyDataForOrganization(
     };
   }
 }
-
 // ============================================
 // EXCEL READING FUNCTIONS
 // ============================================
@@ -865,12 +1030,17 @@ async function generateCompleteReportWithExcelJS(
     const monthStart = startOfMonth(new Date(year, month - 1));
     const monthEnd = endOfMonth(new Date(year, month - 1));
     const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
+    
+    // CRITICAL: Call formatContractInfo with logging
+    console.log(`Generating contractInfo for ${org.name}...`);
+    console.log(`  - Contracts available:`, org.contracts);
     const contractInfo = formatContractInfo(org.contracts);
+    console.log(`  - Generated contractInfo: "${contractInfo}"`);
 
     const updates: CellUpdate[] = [
       ...(counterValue !== null ? [{ cell: 'D18', value: counterValue }] : []),
       { cell: 'E18', value: `/${month.toString().padStart(2, '0')}` },
-      { cell: 'A19', value: contractInfo },
+      { cell: 'A19', value: contractInfo }, // This should now have value
       { cell: 'D21', value: org.name },
       { cell: 'D24', value: reportValue },
       { cell: 'E39', value: dateRange },
@@ -882,10 +1052,18 @@ async function generateCompleteReportWithExcelJS(
       { cell: 'D27', value: `Банка: ${org.bank}  Рачун: ${org.accountNumber}`},
     ];
 
+    // Log what we're writing to A19
+    const a19Update = updates.find(u => u.cell === 'A19');
+    console.log(`Setting cell A19 to: "${a19Update?.value}" (type: ${typeof a19Update?.value})`);
+
     updates.forEach(({ cell, value }) => {
       try {
         const cellObj = worksheet.getCell(cell);
         cellObj.value = value;
+        
+        if (cell === 'A19') {
+          console.log(`✓ Successfully set A19 to: "${value}"`);
+        }
       } catch (error) {
         console.log(`Could not update cell ${cell}:`, error);
       }
@@ -940,7 +1118,11 @@ async function generateReportWithFallback(
     const monthStart = startOfMonth(new Date(year, month - 1));
     const monthEnd = endOfMonth(new Date(year, month - 1));
     const dateRange = `${format(monthStart, 'd.MM.yyyy')} do ${format(monthEnd, 'd.MM.yyyy')}`;
+    
+    // CRITICAL: Same improvement
+    console.log(`[FALLBACK] Generating contractInfo for ${org.name}...`);
     const contractInfo = formatContractInfo(org.contracts);
+    console.log(`[FALLBACK] Generated contractInfo: "${contractInfo}"`);
 
     const updates: CellUpdate[] = [
       ...(counterValue !== null ? [{ cell: 'D18', value: counterValue }] : []),
@@ -963,6 +1145,10 @@ async function generateReportWithFallback(
           worksheet[cell] = { t: 'n', v: value };
         } else {
           worksheet[cell] = { t: 's', v: value?.toString() || '' };
+        }
+        
+        if (cell === 'A19') {
+          console.log(`[FALLBACK] ✓ Set A19 to: "${value}"`);
         }
       } catch (error) {
         console.log(`Could not update cell ${cell}:`, error);
