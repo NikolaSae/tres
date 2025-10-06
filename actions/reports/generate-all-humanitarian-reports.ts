@@ -84,6 +84,7 @@ interface DateParseResult {
   endDate: Date | null;
   month: number | null;
   year: number | null;
+  dayOfMonth?: number;  // Dodato za određivanje tipa plaćanja
   isValid: boolean;
 }
 
@@ -303,7 +304,7 @@ function getMasterTemplatePath(templateType: TemplateType): string {
   return path.join(TEMPLATES_PATH, `humanitarian-template-${templateType}.xlsx`);
 }
 
-function extractDatesFromFileName(fileName: string): DateParseResult {
+function extractDatesFromFileName(fileName: string): DateParseResult & { dayOfMonth?: number } {
   console.log('Parsing filename:', fileName);
 
   // Pattern 1: full datetime range __YYYYMMDD_HHMM__YYYYMMDD_HHMM__
@@ -325,35 +326,39 @@ function extractDatesFromFileName(fileName: string): DateParseResult {
 
     const startDate = parseDateTime(startDateStr);
     const endDate = parseDateTime(endDateStr);
+    const dayOfMonth = parseInt(startDateStr.substr(6, 2));
 
     return {
       startDate,
       endDate,
       month: startDate.getMonth() + 1,
       year: startDate.getFullYear(),
+      dayOfMonth,
       isValid: true
     };
   }
 
-  // Pattern 2: YYYYMMDD
-  const datePatternDay = /(\d{8})/;
-  const matchDay = fileName.match(datePatternDay);
+  // Pattern 2: Single date YYYYMMDD (common for postpaid reports)
+  const datePatternSingle = /(\d{8})(?:[_\.]|$)/;
+  const matchSingle = fileName.match(datePatternSingle);
 
-  if (matchDay) {
-    const dateStr = matchDay[1];
+  if (matchSingle) {
+    const dateStr = matchSingle[1];
     const year = parseInt(dateStr.substr(0, 4));
     const month = parseInt(dateStr.substr(4, 2));
+    const day = parseInt(dateStr.substr(6, 2));
 
-    const startDate = new Date(year, month - 1, 1, 0, 0);
-    const endDate = new Date(year, month, 0, 23, 59);
+    const startDate = new Date(year, month - 1, day, 0, 0);
+    const endDate = new Date(year, month - 1, day, 23, 59);
 
-    console.log('Found day pattern:', { year, month, startDate, endDate });
+    console.log('Found single date pattern:', { year, month, day, startDate, endDate });
 
     return {
       startDate,
       endDate,
       month,
       year,
+      dayOfMonth: day,
       isValid: true
     };
   }
@@ -364,29 +369,48 @@ function extractDatesFromFileName(fileName: string): DateParseResult {
     endDate: null,
     month: null,
     year: null,
+    dayOfMonth: undefined,
     isValid: false
   };
 }
 
-// NOVA FUNKCIJA - Provera da li fajl odgovara određenom tipu plaćanja
-function isFileForPaymentType(fileName: string, paymentType: PaymentType): boolean {
+// AŽURIRANA FUNKCIJA - Sada prima dateInfo umesto da ponovo parsira
+function isFileForPaymentType(fileName: string, paymentType: PaymentType, dateInfo?: ReturnType<typeof extractDatesFromFileName>): boolean {
   const lowerFileName = fileName.toLowerCase();
   
-  if (paymentType === 'postpaid') {
-    // Postpaid fajlovi uvek imaju "postpaid" u imenu
-    const hasPostpaid = lowerFileName.includes('postpaid');
-    console.log(`File ${fileName} - contains 'postpaid': ${hasPostpaid}`);
-    return hasPostpaid;
-  } else {
-    // Prepaid fajlovi su svi ostali (koji nemaju "postpaid" u imenu)
-    const hasPostpaid = lowerFileName.includes('postpaid');
-    const isPrepaid = !hasPostpaid;
-    console.log(`File ${fileName} - is prepaid (no 'postpaid'): ${isPrepaid}`);
-    return isPrepaid;
+  // Prvo proveri eksplicitne oznake u imenu fajla
+  if (lowerFileName.includes('postpaid')) {
+    console.log(`File ${fileName} - explicitly marked as 'postpaid': true`);
+    return paymentType === 'postpaid';
   }
+  
+  if (lowerFileName.includes('prepaid')) {
+    console.log(`File ${fileName} - explicitly marked as 'prepaid': true`);
+    return paymentType === 'prepaid';
+  }
+  
+  // Ako dateInfo nije prosleđen, parsiramo sami
+  if (!dateInfo) {
+    dateInfo = extractDatesFromFileName(fileName);
+  }
+  
+  if (dateInfo.isValid && dateInfo.dayOfMonth !== undefined) {
+    // Pravilo: Dan >= 5 u mesecu = postpaid, Dan 1-4 = prepaid
+    const isPostpaid = dateInfo.dayOfMonth >= 5;
+    const matches = (paymentType === 'postpaid' && isPostpaid) || 
+                   (paymentType === 'prepaid' && !isPostpaid);
+    
+    console.log(`File ${fileName} - day ${dateInfo.dayOfMonth}, inferred type: ${isPostpaid ? 'postpaid' : 'prepaid'}, matches ${paymentType}: ${matches}`);
+    return matches;
+  }
+  
+  // Fallback: ako nema datuma i nema oznake, pretpostavi da je prepaid (najčešći slučaj)
+  const assumePrepaid = paymentType === 'prepaid';
+  console.log(`File ${fileName} - no date or explicit marker, assuming prepaid: ${assumePrepaid}`);
+  return assumePrepaid;
 }
 
-// AŽURIRANA FUNKCIJA - Sada proverava i datum i tip plaćanja
+// AŽURIRANA FUNKCIJA - Koristi dateInfo iz prethodnog parsiranja
 function isFileForPeriodAndPaymentType(
   fileName: string, 
   targetMonth: number, 
@@ -401,7 +425,7 @@ function isFileForPeriodAndPaymentType(
   }
   
   const dateMatches = dates.month === targetMonth && dates.year === targetYear;
-  const paymentMatches = isFileForPaymentType(fileName, paymentType);
+  const paymentMatches = isFileForPaymentType(fileName, paymentType, dates); // ← Prosleđujemo dates!
   
   const overallMatch = dateMatches && paymentMatches;
   
@@ -720,6 +744,7 @@ async function getMonthlyDataForOrganization(
     };
   }
 }
+
 // ============================================
 // EXCEL READING FUNCTIONS
 // ============================================
