@@ -93,31 +93,36 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color = "default" }: {
   );
 };
 
-const ChatMessage = ({ message, index }: { message: { role: string; content: string }, index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, x: message.role === 'user' ? 20 : -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ duration: 0.3, delay: index * 0.1 }}
-    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
-  >
-    <div className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
-      message.role === 'user' 
-        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white' 
-        : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 text-foreground border'
-    }`}>
-      <div className="flex items-start gap-3">
-        {message.role === 'assistant' && (
-          <div className="p-1.5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-white">
-            <Bot className="h-4 w-4" />
+const ChatMessage = ({ message, index }: { message?: { role?: string; content?: string }, index: number }) => {
+  if (!message || !message.role) return null; // sigurnosna zaštita
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: message.role === 'user' ? 20 : -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.1 }}
+      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
+    >
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
+        message.role === 'user' 
+          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white' 
+          : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 text-foreground border'
+      }`}>
+        <div className="flex items-start gap-3">
+          {message.role === 'assistant' && (
+            <div className="p-1.5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+              <Bot className="h-4 w-4" />
+            </div>
+          )}
+          <div className="flex-1">
+            <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
           </div>
-        )}
-        <div className="flex-1">
-          <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
         </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
+
 
 export default function AiDashboard() {
   const [stats, setStats] = useState<McpStats | null>(null);
@@ -220,54 +225,75 @@ export default function AiDashboard() {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || chatLoading) return;
+  if (!inputMessage.trim() || chatLoading) return;
 
-    const newMessages = [...messages, { role: 'user', content: inputMessage }];
-    setMessages(newMessages);
-    setInputMessage('');
-    setChatLoading(true);
+  const userMessage = inputMessage;
+  const newMessages = [...messages, { role: 'user', content: userMessage }];
+  setMessages(newMessages);
+  setInputMessage('');
+  setChatLoading(true);
 
-    try {
-      const lowerInput = inputMessage.toLowerCase();
-      if (lowerInput.includes('humanitarne') || lowerInput.includes('kratki brojevi')) {
-        const response = await fetch(`/api/admin/mcp/search-humanitarian-orgs?q=&limit=50`);
-        if (response.ok) {
-          const data = await response.json();
-          const results = data.results || [];
-          const content = results.length
-            ? results
-                .map(
-                  (org: any, idx: number) =>
-                    `${idx + 1}. ${org.name} - Kratki broj: ${org.shortNumber || 'N/A'}${
-                      org.phone ? ` - Telefon: ${org.phone}` : ''
-                    }`
-                )
-                .join('\n')
-            : 'Nema pronađenih humanitarnih organizacija sa kratkim brojevima.';
-          setMessages([...newMessages, { role: 'assistant', content }]);
-        } else {
-          setMessages([...newMessages, { role: 'assistant', content: 'Greška pri dohvaćanju humanitarnih organizacija.' }]);
-        }
+  try {
+    const lowerInput = userMessage.toLowerCase();
+    
+    // Special handling za humanitarne organizacije
+    if (lowerInput.includes('humanitarne') || lowerInput.includes('kratki brojevi')) {
+      const response = await fetch(`/api/admin/mcp/search-humanitarian-orgs?q=&limit=50`);
+      if (response.ok) {
+        const data = await response.json();
+        const results = data.results || [];
+        const content = results.length
+          ? results
+              .map(
+                (org: any, idx: number) =>
+                  `${idx + 1}. ${org.name} - Kratki broj: ${org.shortNumber || 'N/A'}${
+                    org.phone ? ` - Telefon: ${org.phone}` : ''
+                  }`
+              )
+              .join('\n')
+          : 'Nema pronađenih humanitarnih organizacija sa kratkim brojevima.';
+        setMessages([...newMessages, { role: 'assistant', content }]);
       } else {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: newMessages })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setMessages([...newMessages, data.message]);
-        } else {
-          setMessages([...newMessages, { role: 'assistant', content: 'Greška, pokušajte ponovo.' }]);
-        }
+        setMessages([...newMessages, { role: 'assistant', content: 'Greška pri dohvaćanju humanitarnih organizacija.' }]);
       }
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages([...newMessages, { role: 'assistant', content: 'Greška u komunikaciji.' }]);
-    } finally {
-      setChatLoading(false);
+    } else {
+      // ✅ OVDE JE POPRAVKA - šalji 'message' umesto 'messages'
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: userMessage  // ✅ Promenjena linija
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Chat API response:', data); // Debug log
+        
+        // ✅ API vraća { response: string, timestamp: string }
+        setMessages([...newMessages, { 
+          role: 'assistant', 
+          content: data.response || 'Nema odgovora' 
+        }]);
+      } else {
+        const errorData = await response.text();
+        console.error('Chat API error:', response.status, errorData);
+        setMessages([...newMessages, { 
+          role: 'assistant', 
+          content: 'Greška, pokušajte ponovo.' 
+        }]);
+      }
     }
-  };
+  } catch (error) {
+    console.error('Chat error:', error);
+    setMessages([...newMessages, { 
+      role: 'assistant', 
+      content: 'Greška u komunikaciji.' 
+    }]);
+  } finally {
+    setChatLoading(false);
+  }
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

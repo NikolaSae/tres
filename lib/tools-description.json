@@ -1,0 +1,267 @@
+{
+  "tools": {
+    "get_contracts": {
+      "purpose": "Retrieve contracts with advanced filters, pagination, and summaries.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "description": "Filter by contract status (e.g., ACTIVE, EXPIRED)" },
+          "type": { "type": "string", "description": "Filter by contract type" },
+          "limit": { "type": "number", "default": 10, "description": "Number of contracts to return" },
+          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+        }
+      },
+      "commands": [
+        { "command": "get_contracts(status: 'ACTIVE')", "description": "Fetch all active contracts." },
+        { "command": "get_contracts(type: 'PREPAID', limit: 20)", "description": "Fetch up to 20 prepaid contracts." }
+      ],
+      "edge_cases": "Returns empty list if no contracts match the filters."
+    },
+    "get_providers": {
+      "purpose": "Retrieve providers with filtering and pagination.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "isActive": { "type": "boolean", "description": "Filter by active/inactive providers" },
+          "name": { "type": "string", "description": "Filter by provider name (partial match)" },
+          "limit": { "type": "number", "default": 10, "description": "Number of providers to return" },
+          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+        }
+      },
+      "commands": [
+        { "command": "get_providers(isActive: true)", "description": "Fetch all active providers." },
+        { "command": "get_providers(name: 'Telekom')", "description": "Search for providers named 'Telekom'." }
+      ],
+      "edge_cases": "Returns empty list if no providers match the filters."
+    },
+    "get_complaints": {
+      "purpose": "Retrieve customer complaints with filters.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "description": "Filter by complaint status (e.g., NEW, IN_PROGRESS)" },
+          "priority": { "type": "number", "description": "Filter by complaint priority" },
+          "assignedAgentId": { "type": "string", "description": "Filter by assigned agent ID" },
+          "limit": { "type": "number", "default": 10, "description": "Number of complaints to return" },
+          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+        }
+      },
+      "commands": [
+        { "command": "get_complaints(status: 'NEW')", "description": "Fetch all new complaints." },
+        { "command": "get_complaints(priority: 1)", "description": "Fetch high-priority complaints." }
+      ],
+      "edge_cases": "Restricted to ADMIN, MANAGER, AGENT roles. AGENT role limits to assigned or submitted complaints."
+    },
+    "search_entities": {
+      "purpose": "Search across multiple entities (contracts, providers, complaints, humanitarian orgs).",
+      "input": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Search term" },
+          "entities": { "type": "array", "items": { "type": "string" }, "description": "Entities to search (e.g., ['contracts', 'providers'])" },
+          "limit": { "type": "number", "default": 20, "description": "Total results to return" },
+          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+        }
+      },
+      "commands": [
+        { "command": "search_entities(query: 'Telekom')", "description": "Search for 'Telekom' across all entities." },
+        { "command": "search_entities(query: '123', entities: ['contracts'])", "description": "Search for contract number '123'." }
+      ],
+      "edge_cases": "Restricted to ADMIN, MANAGER roles."
+    },
+    "get_user_stats": {
+      "purpose": "Get user activity stats for a specified period.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string", "default": "month", "description": "Period for stats (week, month, year)" }
+        }
+      },
+      "commands": [
+        { "command": "get_user_stats(period: 'month')", "description": "Fetch user stats for the current month." }
+      ],
+      "edge_cases": "Returns zeroed stats if no activity exists for the period."
+    },
+    "get_activity_overview": {
+      "purpose": "Overview of new contracts, complaints, and system activity.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string", "default": "week", "description": "Period for overview (today, week, month)" }
+        }
+      },
+      "commands": [
+        { "command": "get_activity_overview(period: 'today')", "description": "Fetch today’s system activity." }
+      ],
+      "edge_cases": "Restricted to ADMIN, MANAGER, AGENT roles."
+    },
+    "get_financial_summary": {
+      "purpose": "Financial summary of active contracts.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string", "default": "month", "description": "Period for summary" },
+          "contractType": { "type": "string", "description": "Filter by contract type" }
+        }
+      },
+      "commands": [
+        { "command": "get_financial_summary(period: 'month')", "description": "Fetch financial summary for the current month." }
+      ],
+      "edge_cases": "Restricted to ADMIN, MANAGER roles."
+    },
+    "get_system_health": {
+      "purpose": "Get system health metrics.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "includeDetails": { "type": "boolean", "default": false, "description": "Include detailed metrics" }
+        }
+      },
+      "commands": [
+        { "command": "get_system_health()", "description": "Fetch system health metrics." }
+      ],
+      "edge_cases": "Restricted to ADMIN role."
+    },
+    "create_complaint": {
+      "purpose": "Create a new complaint.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "description": "Complaint title" },
+          "description": { "type": "string", "description": "Complaint description" },
+          "priority": { "type": "number", "description": "Priority level" }
+        }
+      },
+      "commands": [
+        { "command": "create_complaint(title: 'Issue', description: 'Details')", "description": "Create a new complaint." }
+      ],
+      "edge_cases": "Returns error if required fields are missing."
+    },
+    "update_complaint": {
+      "purpose": "Update an existing complaint.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Complaint ID" },
+          "status": { "type": "string", "description": "New status" }
+        }
+      },
+      "commands": [
+        { "command": "update_complaint(id: '123', status: 'RESOLVED')", "description": "Update complaint status." }
+      ],
+      "edge_cases": "Returns error if complaint ID doesn’t exist."
+    },
+    "add_complaint_comment": {
+      "purpose": "Add a comment to a complaint.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "complaintId": { "type": "string", "description": "Complaint ID" },
+          "comment": { "type": "string", "description": "Comment text" }
+        }
+      },
+      "commands": [
+        { "command": "add_complaint_comment(complaintId: '123', comment: 'Note')", "description": "Add a comment to a complaint." }
+      ],
+      "edge_cases": "Returns error if complaint ID doesn’t exist."
+    },
+    "create_contract": {
+      "purpose": "Create a new contract.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Contract name" },
+          "providerId": { "type": "string", "description": "Provider ID" },
+          "status": { "type": "string", "description": "Contract status" }
+        }
+      },
+      "commands": [
+        { "command": "create_contract(name: 'Contract A', providerId: '123')", "description": "Create a new contract." }
+      ],
+      "edge_cases": "Returns error if required fields are missing."
+    },
+    "update_contract": {
+      "purpose": "Update an existing contract.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Contract ID" },
+          "status": { "type": "string", "description": "New status" }
+        }
+      },
+      "commands": [
+        { "command": "update_contract(id: '123', status: 'ACTIVE')", "description": "Update contract status." }
+      ],
+      "edge_cases": "Returns error if contract ID doesn’t exist."
+    },
+    "delete_contract": {
+      "purpose": "Delete a contract.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Contract ID" }
+        }
+      },
+      "commands": [
+        { "command": "delete_contract(id: '123')", "description": "Delete a contract." }
+      ],
+      "edge_cases": "Returns error if contract ID doesn’t exist."
+    },
+    "bulk_update_contracts": {
+      "purpose": "Bulk update contracts.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "ids": { "type": "array", "items": { "type": "string" }, "description": "List of contract IDs" },
+          "status": { "type": "string", "description": "New status" }
+        }
+      },
+      "commands": [
+        { "command": "bulk_update_contracts(ids: ['123', '456'], status: 'EXPIRED')", "description": "Update multiple contracts." }
+      ],
+      "edge_cases": "Skips invalid IDs."
+    },
+    "create_provider": {
+      "purpose": "Create a new provider.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Provider name" },
+          "email": { "type": "string", "description": "Provider email" }
+        }
+      },
+      "commands": [
+        { "command": "create_provider(name: 'Telekom', email: 'contact@telekom.com')", "description": "Create a new provider." }
+      ],
+      "edge_cases": "Returns error if required fields are missing."
+    },
+    "update_provider": {
+      "purpose": "Update provider data.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Provider ID" },
+          "name": { "type": "string", "description": "New provider name" }
+        }
+      },
+      "commands": [
+        { "command": "update_provider(id: '123', name: 'New Name')", "description": "Update provider details." }
+      ],
+      "edge_cases": "Returns error if provider ID doesn’t exist."
+    },
+    "create_humanitarian_org": {
+      "purpose": "Create a humanitarian organization.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Organization name" },
+          "shortNumber": { "type": "string", "description": "Shortcode for SMS donations" }
+        }
+      },
+      "commands": [
+        { "command": "create_humanitarian_org(name: 'Charity', shortNumber: '12345')", "description": "Create a humanitarian organization." }
+      ],
+      "edge_cases": "Restricted to ADMIN role."
+    }
+  }
+}

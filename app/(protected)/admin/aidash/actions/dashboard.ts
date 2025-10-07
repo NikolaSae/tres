@@ -1,3 +1,5 @@
+// app/(protected)/admin/aidash/actions/dashboard.tsx
+
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import type { DashboardData, ChatMessage } from '@/lib/types/dashboard';
