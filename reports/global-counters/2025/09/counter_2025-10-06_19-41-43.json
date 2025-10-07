@@ -1,0 +1,173 @@
+{
+  "totalReports": 27,
+  "validReportsCount": 27,
+  "createdAt": "2025-10-06T19:41:43.243Z",
+  "lastUpdated": "2025-10-06T19:41:46.331Z",
+  "month": 9,
+  "year": 2025,
+  "generationType": "complete-reports",
+  "processedOrganizations": [
+    {
+      "name": "Humanitarna fondacija ZA NAŠE HEROJE",
+      "timestamp": "2025-10-06T19:41:43.245Z",
+      "value": 800,
+      "counterAssigned": 1
+    },
+    {
+      "name": "Udruženje UVEK SA DECOM",
+      "timestamp": "2025-10-06T19:41:43.780Z",
+      "value": 2700,
+      "counterAssigned": 2
+    },
+    {
+      "name": "Блиц Фондација",
+      "timestamp": "2025-10-06T19:41:43.854Z",
+      "value": 2100,
+      "counterAssigned": 3
+    },
+    {
+      "name": "Верско добротворно старатељство Архиепископије београдско-карловачке СПЦ",
+      "timestamp": "2025-10-06T19:41:43.931Z",
+      "value": 22700,
+      "counterAssigned": 4
+    },
+    {
+      "name": "Добро памтим све",
+      "timestamp": "2025-10-06T19:41:44.009Z",
+      "value": 200,
+      "counterAssigned": 5
+    },
+    {
+      "name": "Епархија нишка „Добри Самарјанин“",
+      "timestamp": "2025-10-06T19:41:44.085Z",
+      "value": 400,
+      "counterAssigned": 6
+    },
+    {
+      "name": "Национално удружење родитеља деце оболеле од рака-НУРДОР",
+      "timestamp": "2025-10-06T19:41:44.252Z",
+      "value": 11400,
+      "counterAssigned": 7
+    },
+    {
+      "name": "Удружење „Српска Солидарност“",
+      "timestamp": "2025-10-06T19:41:44.339Z",
+      "value": 1500,
+      "counterAssigned": 8
+    },
+    {
+      "name": "Удружење Подели радост",
+      "timestamp": "2025-10-06T19:41:44.403Z",
+      "value": 200,
+      "counterAssigned": 9
+    },
+    {
+      "name": "Удружење ТЕЛОК",
+      "timestamp": "2025-10-06T19:41:44.484Z",
+      "value": 86800,
+      "counterAssigned": 10
+    },
+    {
+      "name": "УНИЦЕФ",
+      "timestamp": "2025-10-06T19:41:44.548Z",
+      "value": 22000,
+      "counterAssigned": 11
+    },
+    {
+      "name": "Фондација – Хуманост без граница",
+      "timestamp": "2025-10-06T19:41:44.764Z",
+      "value": 196600,
+      "counterAssigned": 12
+    },
+    {
+      "name": "Фондација „ Буди хуман - Александар Шапић“",
+      "timestamp": "2025-10-06T19:41:45.210Z",
+      "value": 1050300,
+      "counterAssigned": 13
+    },
+    {
+      "name": "Фондација „Подржи живот“",
+      "timestamp": "2025-10-06T19:41:45.272Z",
+      "value": 7800,
+      "counterAssigned": 14
+    },
+    {
+      "name": "Фондација „ХЕРОЈИ БЕОГРАДСКОГ МАРАТОНА“",
+      "timestamp": "2025-10-06T19:41:45.334Z",
+      "value": 3200,
+      "counterAssigned": 15
+    },
+    {
+      "name": "Фондација ДЕЛИЈЕ",
+      "timestamp": "2025-10-06T19:41:45.408Z",
+      "value": 1400,
+      "counterAssigned": 16
+    },
+    {
+      "name": "Фондација Заједно за младе ",
+      "timestamp": "2025-10-06T19:41:45.480Z",
+      "value": 200,
+      "counterAssigned": 17
+    },
+    {
+      "name": "Фондација Једро",
+      "timestamp": "2025-10-06T19:41:45.542Z",
+      "value": 58200,
+      "counterAssigned": 18
+    },
+    {
+      "name": "Фондација српских бораца",
+      "timestamp": "2025-10-06T19:41:45.604Z",
+      "value": 100,
+      "counterAssigned": 19
+    },
+    {
+      "name": "Фондација Тамара Мисирлић",
+      "timestamp": "2025-10-06T19:41:45.683Z",
+      "value": 11600,
+      "counterAssigned": 20
+    },
+    {
+      "name": "Фондација ТАТЕ НОВОСАЂАНИ",
+      "timestamp": "2025-10-06T19:41:45.749Z",
+      "value": 1400,
+      "counterAssigned": 21
+    },
+    {
+      "name": "Хуманитарна организација  „Покрени живот“",
+      "timestamp": "2025-10-06T19:41:45.932Z",
+      "value": 414400,
+      "counterAssigned": 22
+    },
+    {
+      "name": "Хуманитарна организација „Срби за Србе“",
+      "timestamp": "2025-10-06T19:41:46.060Z",
+      "value": 36600,
+      "counterAssigned": 23
+    },
+    {
+      "name": "Хуманитарна организација Принцип",
+      "timestamp": "2025-10-06T19:41:46.128Z",
+      "value": 1200,
+      "counterAssigned": 24
+    },
+    {
+      "name": "Хуманитарна организација Сви за Космет",
+      "timestamp": "2025-10-06T19:41:46.193Z",
+      "value": 3700,
+      "counterAssigned": 25
+    },
+    {
+      "name": "Хуманитарно удружење Дечији осмех",
+      "timestamp": "2025-10-06T19:41:46.262Z",
+      "value": 200,
+      "counterAssigned": 26
+    },
+    {
+      "name": "Чеп за хендикеп - Зрењанин",
+      "timestamp": "2025-10-06T19:41:46.331Z",
+      "value": 100,
+      "counterAssigned": 27
+    }
+  ]
+}

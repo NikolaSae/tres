@@ -1,5 +1,4 @@
-//  \app\(protected)\reports\page.tsx
-
+// app/(protected)/reports/page.tsx
 "use client";
 
 import React from "react";
@@ -9,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, FileText, Clock, BarChart, Building2, Download, Eye, FileIcon } from "lucide-react";
+
 import { HumanitarianTemplateGenerator } from "@/components/reports/HumanitarianTemplateGenerator";
 import HumanitarianFileUploader from "@/components/reports/HumanitarianFileUploader";
 import { TemplateValidator } from "@/components/reports/TemplateValidator";
 import ReportScanner from "@/components/reports/ReportScanner";
+import UnifiedReportsScanner from "@/components/reports/UnifiedReportsScanner";
 import { ClientGeneratedReport } from "@/components/reports/ClientGeneratedReport";
 import { getRecentReports, getGeneratedHumanitarianReports } from "@/actions/reports/get-recent-reports";
 
@@ -26,9 +27,7 @@ interface ReportFile {
   fileSize: number;
   mimeType: string;
   uploadedAt: Date;
-  organization?: {
-    name: string;
-  };
+  organization?: { name: string };
   organizationName?: string;
   status?: "success" | "error";
   data?: any;
@@ -99,6 +98,7 @@ export default function ReportsPage() {
         <title>Reports | Dashboard</title>
         <meta name="description" content="Generate and manage custom reports" />
       </Head>
+
       <div className="flex flex-col gap-5">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -145,10 +145,7 @@ export default function ReportsPage() {
                   recentReports
                     .filter((r) => r.fileName.endsWith(".json"))
                     .map((report) => (
-                      <div
-                        key={report.id}
-                        className="border rounded-lg p-4 hover:bg-muted/20 transition-colors"
-                      >
+                      <div key={report.id} className="border rounded-lg p-4 hover:bg-muted/20 transition-colors">
                         <div className="flex justify-between items-center mb-2">
                           <span className="font-semibold text-foreground">{report.fileName}</span>
                           <div className="flex gap-2">
@@ -165,8 +162,7 @@ export default function ReportsPage() {
                           </div>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          Size: {formatFileSize(report.fileSize)} • Uploaded:{" "}
-                          {new Date(report.uploadedAt).toLocaleDateString("sr-RS")}
+                          Size: {formatFileSize(report.fileSize)} • Uploaded: {new Date(report.uploadedAt).toLocaleDateString("sr-RS")}
                         </span>
 
                         {report.data?.processedOrganizations?.length > 0 ? (
@@ -186,9 +182,7 @@ export default function ReportsPage() {
                                     <td className="border px-2 py-1">{org.name}</td>
                                     <td className="border px-2 py-1 text-right">{org.value}</td>
                                     <td className="border px-2 py-1 text-right">{org.counterAssigned}</td>
-                                    <td className="border px-2 py-1 text-right">
-                                      {new Date(org.timestamp).toLocaleString("sr-RS")}
-                                    </td>
+                                    <td className="border px-2 py-1 text-right">{new Date(org.timestamp).toLocaleString("sr-RS")}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -197,9 +191,7 @@ export default function ReportsPage() {
                         ) : (
                           <div className="flex flex-col items-center justify-center text-center py-4 space-y-2">
                             <FileIcon className="h-10 w-10 text-muted-foreground/50" />
-                            <span className="text-sm text-muted-foreground">
-                              No organizations processed yet
-                            </span>
+                            <span className="text-sm text-muted-foreground">No organizations processed yet</span>
                           </div>
                         )}
                       </div>
@@ -207,9 +199,7 @@ export default function ReportsPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center text-center py-8 space-y-3">
                     <FileIcon className="h-12 w-12 text-muted-foreground/50" />
-                    <div className="text-lg font-medium text-muted-foreground">
-                      No JSON reports imported yet
-                    </div>
+                    <div className="text-lg font-medium text-muted-foreground">No JSON reports imported yet</div>
                   </div>
                 )}
               </CardContent>
@@ -223,31 +213,15 @@ export default function ReportsPage() {
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" /> Humanitarian Organization Templates
                 </CardTitle>
-                <CardDescription>
-                  Generate monthly report templates for all humanitarian organizations.
-                </CardDescription>
+                <CardDescription>Generate monthly report templates for all humanitarian organizations.</CardDescription>
               </CardHeader>
               <CardContent>
                 <HumanitarianTemplateGenerator />
               </CardContent>
             </Card>
 
-            
-
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart className="h-5 w-5" /> All Humanitarian Reports Archive
-                </CardTitle>
-                <CardDescription>
-                  Browse and filter all reports stored in the public/reports directory
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ReportScanner />
-              </CardContent>
-            </Card>
-            <Card className="mt-4">
+            {/* Generated Humanitarian Reports */}
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileIcon className="h-5 w-5" /> Generated Humanitarian Reports
@@ -259,70 +233,74 @@ export default function ReportsPage() {
                 </CardTitle>
                 <CardDescription>Recently generated humanitarian report templates</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {generatedReports.length > 0 ? (
-                  generatedReports.map((report) => {
-                    const fileUrl = getFileUrl(report.filePath, report.fileName);
-                    const formattedFileName = formatFileName(
-                      report.fileName,
-                      report.organizationName,
-                      report.generatedAt
-                    );
-
-                    return (
-                      <div
-                        key={report.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/20 transition-colors group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0">
+              <CardContent>
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {generatedReports.length > 0 ? (
+                    generatedReports.map((report) => {
+                      const fileUrl = getFileUrl(report.filePath, report.fileName);
+                      const formattedFileName = formatFileName(report.fileName, report.organizationName, report.generatedAt);
+                      return (
+                        <div key={report.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/20 transition-colors group">
+                          <div className="flex items-center gap-3">
                             <FileText className="h-8 w-8 text-blue-500" />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-semibold text-foreground truncate">
-                              {report.organizationName}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`text-sm font-medium px-2 py-0.5 rounded-full ${
-                                  report.status === "success"
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {report.status === "success" ? "✓ Generisan" : "✗ Greška"}
-                              </span>
-                              {report.month && report.year && (
-                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                  {report.month}/{report.year}
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-semibold text-foreground truncate">{report.organizationName}</span>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                                    report.status === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  {report.status === "success" ? "✓ Generisan" : "✗ Greška"}
                                 </span>
-                              )}
+                                {report.month && report.year && (
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{report.month}/{report.year}</span>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground mt-1">{formattedFileName} • {formatFileSize(report.fileSize)}</span>
+                              <span className="text-xs text-muted-foreground">
+                                Generated: {new Date(report.generatedAt).toLocaleDateString("sr-RS")} {new Date(report.generatedAt).toLocaleTimeString("sr-RS")}
+                              </span>
                             </div>
-                            <span className="text-xs text-muted-foreground mt-1">
-                              {formattedFileName} • {formatFileSize(report.fileSize)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              Generated:{" "}
-                              {new Date(report.generatedAt).toLocaleDateString("sr-RS")}{" "}
-                              {new Date(report.generatedAt).toLocaleTimeString("sr-RS")}
-                            </span>
                           </div>
+                          <ClientGeneratedReport fileUrl={fileUrl} fileName={formattedFileName} />
                         </div>
-                        <ClientGeneratedReport fileUrl={fileUrl} fileName={formattedFileName} />
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-center py-8 space-y-3">
-                    <FileIcon className="h-12 w-12 text-muted-foreground/50" />
-                    <div className="text-lg font-medium text-muted-foreground">
-                      No reports generated yet
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center py-8 space-y-3">
+                      <FileIcon className="h-12 w-12 text-muted-foreground/50" />
+                      <div className="text-lg font-medium text-muted-foreground">No reports generated yet</div>
+                      <div className="text-sm text-muted-foreground max-w-sm">Use the template generator above to create humanitarian organization reports.</div>
                     </div>
-                    <div className="text-sm text-muted-foreground max-w-sm">
-                      Use the template generator above to create humanitarian organization reports.
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Unified Reports */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" /> Unified Humanitarian Reports
+                </CardTitle>
+                <CardDescription>Consolidated reports for all humanitarian organizations (Prepaid & Postpaid)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UnifiedReportsScanner />
+              </CardContent>
+            </Card>
+
+            {/* Archive */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart className="h-5 w-5" /> All Humanitarian Reports Archive
+                </CardTitle>
+                <CardDescription>Browse and filter all reports stored in the public/reports directory</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ReportScanner />
               </CardContent>
             </Card>
           </TabsContent>
@@ -341,9 +319,7 @@ export default function ReportsPage() {
           <TabsContent value="financial">
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Financial Reports</h2>
-              <p className="text-muted-foreground mb-4">
-                Generate reports for revenue, payments, and financial performance
-              </p>
+              <p className="text-muted-foreground mb-4">Generate reports for revenue, payments, and financial performance</p>
               <Button variant="outline">
                 <BarChart className="mr-2 h-4 w-4" /> Generate Financial Report
               </Button>
@@ -354,9 +330,7 @@ export default function ReportsPage() {
           <TabsContent value="operations">
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Operations Reports</h2>
-              <p className="text-muted-foreground mb-4">
-                Generate reports for services, complaints, and operational metrics
-              </p>
+              <p className="text-muted-foreground mb-4">Generate reports for services, complaints, and operational metrics</p>
               <Button variant="outline">
                 <BarChart className="mr-2 h-4 w-4" /> Generate Operations Report
               </Button>
@@ -367,9 +341,7 @@ export default function ReportsPage() {
           <TabsContent value="contracts">
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Contract Reports</h2>
-              <p className="text-muted-foreground mb-4">
-                Generate reports for contract status, expiration, and renewal tracking
-              </p>
+              <p className="text-muted-foreground mb-4">Generate reports for contract status, expiration, and renewal tracking</p>
               <Button variant="outline">
                 <BarChart className="mr-2 h-4 w-4" /> Generate Contract Report
               </Button>

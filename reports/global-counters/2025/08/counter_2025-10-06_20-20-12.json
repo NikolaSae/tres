@@ -1,0 +1,155 @@
+{
+  "totalReports": 24,
+  "validReportsCount": 24,
+  "createdAt": "2025-10-06T20:20:12.303Z",
+  "lastUpdated": "2025-10-06T20:20:15.440Z",
+  "month": 8,
+  "year": 2025,
+  "generationType": "complete-reports",
+  "processedOrganizations": [
+    {
+      "name": "Humanitarna fondacija ZA NAŠE HEROJE",
+      "timestamp": "2025-10-06T20:20:12.306Z",
+      "value": 200,
+      "counterAssigned": 1
+    },
+    {
+      "name": "Udruženje UVEK SA DECOM",
+      "timestamp": "2025-10-06T20:20:12.592Z",
+      "value": 4200,
+      "counterAssigned": 2
+    },
+    {
+      "name": "Блиц Фондација",
+      "timestamp": "2025-10-06T20:20:12.661Z",
+      "value": 1300,
+      "counterAssigned": 3
+    },
+    {
+      "name": "Верско добротворно старатељство Архиепископије београдско-карловачке СПЦ",
+      "timestamp": "2025-10-06T20:20:12.728Z",
+      "value": 153300,
+      "counterAssigned": 4
+    },
+    {
+      "name": "Добро памтим све",
+      "timestamp": "2025-10-06T20:20:12.799Z",
+      "value": 200,
+      "counterAssigned": 5
+    },
+    {
+      "name": "Епархија нишка „Добри Самарјанин“",
+      "timestamp": "2025-10-06T20:20:12.864Z",
+      "value": 600,
+      "counterAssigned": 6
+    },
+    {
+      "name": "Национално удружење родитеља деце оболеле од рака-НУРДОР",
+      "timestamp": "2025-10-06T20:20:12.995Z",
+      "value": 3900,
+      "counterAssigned": 7
+    },
+    {
+      "name": "Удружење „Српска Солидарност“",
+      "timestamp": "2025-10-06T20:20:13.092Z",
+      "value": 1500,
+      "counterAssigned": 8
+    },
+    {
+      "name": "Удружење Подели радост",
+      "timestamp": "2025-10-06T20:20:13.314Z",
+      "value": 1600,
+      "counterAssigned": 9
+    },
+    {
+      "name": "Удружење ТЕЛОК",
+      "timestamp": "2025-10-06T20:20:13.380Z",
+      "value": 800,
+      "counterAssigned": 10
+    },
+    {
+      "name": "УНИЦЕФ",
+      "timestamp": "2025-10-06T20:20:13.466Z",
+      "value": 20800,
+      "counterAssigned": 11
+    },
+    {
+      "name": "Фондација – Хуманост без граница",
+      "timestamp": "2025-10-06T20:20:13.682Z",
+      "value": 181100,
+      "counterAssigned": 12
+    },
+    {
+      "name": "Фондација „ Буди хуман - Александар Шапић“",
+      "timestamp": "2025-10-06T20:20:14.137Z",
+      "value": 582700,
+      "counterAssigned": 13
+    },
+    {
+      "name": "Фондација „Подржи живот“",
+      "timestamp": "2025-10-06T20:20:14.201Z",
+      "value": 3800,
+      "counterAssigned": 14
+    },
+    {
+      "name": "Фондација Заједно за младе ",
+      "timestamp": "2025-10-06T20:20:14.390Z",
+      "value": 2200,
+      "counterAssigned": 15
+    },
+    {
+      "name": "Фондација Једро",
+      "timestamp": "2025-10-06T20:20:14.463Z",
+      "value": 23600,
+      "counterAssigned": 16
+    },
+    {
+      "name": "Фондација Тамара Мисирлић",
+      "timestamp": "2025-10-06T20:20:14.625Z",
+      "value": 17600,
+      "counterAssigned": 17
+    },
+    {
+      "name": "Фондација ТАТЕ НОВОСАЂАНИ",
+      "timestamp": "2025-10-06T20:20:14.714Z",
+      "value": 800,
+      "counterAssigned": 18
+    },
+    {
+      "name": "Хуманитарна организација  „Покрени живот“",
+      "timestamp": "2025-10-06T20:20:14.878Z",
+      "value": 429600,
+      "counterAssigned": 19
+    },
+    {
+      "name": "Хуманитарна организација „Срби за Србе“",
+      "timestamp": "2025-10-06T20:20:15.033Z",
+      "value": 36000,
+      "counterAssigned": 20
+    },
+    {
+      "name": "Хуманитарна организација Принцип",
+      "timestamp": "2025-10-06T20:20:15.233Z",
+      "value": 4200,
+      "counterAssigned": 21
+    },
+    {
+      "name": "Хуманитарна организација Сви за Космет",
+      "timestamp": "2025-10-06T20:20:15.301Z",
+      "value": 6200,
+      "counterAssigned": 22
+    },
+    {
+      "name": "Хуманитарно удружење Дечији осмех",
+      "timestamp": "2025-10-06T20:20:15.378Z",
+      "value": 400,
+      "counterAssigned": 23
+    },
+    {
+      "name": "Чеп за хендикеп - Зрењанин",
+      "timestamp": "2025-10-06T20:20:15.440Z",
+      "value": 100,
+      "counterAssigned": 24
+    }
+  ]
+}
