@@ -1,267 +1,1185 @@
 {
+  "version": "2.0",
+  "metadata": {
+    "lastUpdated": "2025-01-07",
+    "database": "PostgreSQL with Prisma",
+    "totalTools": 20
+  },
   "tools": {
     "get_contracts": {
-      "purpose": "Retrieve contracts with advanced filters, pagination, and summaries.",
+      "category": "read",
+      "purpose": "Dohvata ugovore sa naprednim filterima i paginacijom",
+      "when_to_use": [
+        "Korisnik traži pregled ugovora",
+        "Potrebna je filtracija po statusu ili tipu",
+        "Traženje ugovora specifičnog provajdera",
+        "Analiza ugovora koji ističu"
+      ],
+      "natural_queries": [
+        "Prikaži sve aktivne ugovore",
+        "Koji ugovori ističu uskoro?",
+        "Ugovori sa Telekomom",
+        "Moji ugovori",
+        "PROVIDER tip ugovora",
+        "Humanitarian ugovori koji ističu za 30 dana"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "status": { "type": "string", "description": "Filter by contract status (e.g., ACTIVE, EXPIRED)" },
-          "type": { "type": "string", "description": "Filter by contract type" },
-          "limit": { "type": "number", "default": 10, "description": "Number of contracts to return" },
-          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "EXPIRED", "PENDING", "RENEWAL_IN_PROGRESS", "TERMINATED"],
+            "description": "Status ugovora iz ContractStatus enum-a"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["PROVIDER", "HUMANITARIAN", "PARKING", "BULK"],
+            "description": "Tip ugovora iz ContractType enum-a"
+          },
+          "providerId": {
+            "type": "string",
+            "description": "Filter po ID provajdera"
+          },
+          "humanitarianOrgId": {
+            "type": "string",
+            "description": "Filter po ID humanitarne organizacije"
+          },
+          "parkingServiceId": {
+            "type": "string",
+            "description": "Filter po ID parking servisa"
+          },
+          "expiringInDays": {
+            "type": "number",
+            "description": "Ugovori koji ističu u narednih N dana"
+          },
+          "limit": {
+            "type": "number",
+            "default": 10,
+            "description": "Broj rezultata (max 100)"
+          },
+          "offset": {
+            "type": "number",
+            "default": 0,
+            "description": "Offset za paginaciju"
+          },
+          "orderBy": {
+            "type": "object",
+            "description": "Sortiranje (createdAt, updatedAt, endDate, name)"
+          }
         }
       },
-      "commands": [
-        { "command": "get_contracts(status: 'ACTIVE')", "description": "Fetch all active contracts." },
-        { "command": "get_contracts(type: 'PREPAID', limit: 20)", "description": "Fetch up to 20 prepaid contracts." }
+      "output_format": {
+        "contracts": "Array of contracts sa populated relations",
+        "total": "Ukupan broj match-eva",
+        "displayed": "Broj prikazanih rezultata",
+        "summary": {
+          "active": "Broj ACTIVE ugovora",
+          "expired": "Broj EXPIRED ugovora",
+          "pending": "Broj PENDING ugovora"
+        }
+      },
+      "included_relations": [
+        "provider (id, name)",
+        "humanitarianOrg (id, name)",
+        "parkingService (id, name)",
+        "createdBy (name, email)",
+        "_count (services, attachments, renewals)"
       ],
-      "edge_cases": "Returns empty list if no contracts match the filters."
+      "edge_cases": [
+        "USER role: vidi samo svoje ugovore (createdById)",
+        "Prazan rezultat ako nema match-eva",
+        "Automatski limit na 100 ako je veći"
+      ],
+      "related_tools": ["search_entities", "get_providers", "get_financial_summary"]
     },
+
     "get_providers": {
-      "purpose": "Retrieve providers with filtering and pagination.",
+      "category": "read",
+      "purpose": "Dohvata provajdere sa filterima i njihovim ugovorima",
+      "when_to_use": [
+        "Potrebna lista aktivnih/neaktivnih provajdera",
+        "Pretraga po imenu provajdera",
+        "Pregled provajdera i njihovih ugovora",
+        "Analiza provajdera sa najviše žalbi"
+      ],
+      "natural_queries": [
+        "Prikaži aktivne provajdere",
+        "Pretraži Telekom",
+        "Ko su naši provajderi?",
+        "Provajderi sa najviše žalbi",
+        "Neaktivni provajderi"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "isActive": { "type": "boolean", "description": "Filter by active/inactive providers" },
-          "name": { "type": "string", "description": "Filter by provider name (partial match)" },
-          "limit": { "type": "number", "default": 10, "description": "Number of providers to return" },
-          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+          "isActive": {
+            "type": "boolean",
+            "description": "Filter po aktivnosti (true/false)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Pretraga po imenu (case-insensitive, partial match)"
+          },
+          "limit": {
+            "type": "number",
+            "default": 10,
+            "description": "Broj rezultata"
+          },
+          "offset": {
+            "type": "number",
+            "default": 0
+          },
+          "orderBy": {
+            "type": "object",
+            "description": "Sortiranje (name, createdAt)"
+          }
         }
       },
-      "commands": [
-        { "command": "get_providers(isActive: true)", "description": "Fetch all active providers." },
-        { "command": "get_providers(name: 'Telekom')", "description": "Search for providers named 'Telekom'." }
+      "output_format": {
+        "providers": "Array sa detaljima provajdera",
+        "total": "Ukupan broj",
+        "displayed": "Prikazano",
+        "summary": {
+          "active": "Broj aktivnih",
+          "inactive": "Broj neaktivnih"
+        }
+      },
+      "included_relations": [
+        "contracts (top 5: id, name, status)",
+        "_count (complaints, contracts, vasServices)"
       ],
-      "edge_cases": "Returns empty list if no providers match the filters."
+      "related_tools": ["get_contracts", "get_complaints", "search_entities"]
     },
+
     "get_complaints": {
-      "purpose": "Retrieve customer complaints with filters.",
+      "category": "read",
+      "purpose": "Dohvata žalbe korisnika sa detaljnim filterima",
+      "when_to_use": [
+        "Pregled novih/aktivnih žalbi",
+        "Filter po prioritetu (1=highest, 3=lowest)",
+        "Žalbe dodeljene specifičnom agentu",
+        "Analiza žalbi po provajderu ili servisu"
+      ],
+      "natural_queries": [
+        "Prikaži nove žalbe",
+        "Visoko prioritetne žalbe",
+        "Moje žalbe",
+        "Nerešene žalbe",
+        "Žalbe na Telekom",
+        "Žalbe u statusu IN_PROGRESS"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "status": { "type": "string", "description": "Filter by complaint status (e.g., NEW, IN_PROGRESS)" },
-          "priority": { "type": "number", "description": "Filter by complaint priority" },
-          "assignedAgentId": { "type": "string", "description": "Filter by assigned agent ID" },
-          "limit": { "type": "number", "default": 10, "description": "Number of complaints to return" },
-          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+          "status": {
+            "type": "string",
+            "enum": ["NEW", "ASSIGNED", "IN_PROGRESS", "PENDING", "RESOLVED", "CLOSED", "REJECTED"],
+            "description": "Status žalbe iz ComplaintStatus enum-a"
+          },
+          "priority": {
+            "type": "number",
+            "description": "Prioritet (1=najviši, 5=najniži, default=3)"
+          },
+          "assignedAgentId": {
+            "type": "string",
+            "description": "Filter po ID dodeljenog agenta"
+          },
+          "submittedById": {
+            "type": "string",
+            "description": "Filter po ID korisnika koji je podneo žalbu"
+          },
+          "providerId": {
+            "type": "string",
+            "description": "Filter po ID provajdera"
+          },
+          "serviceId": {
+            "type": "string",
+            "description": "Filter po ID servisa"
+          },
+          "limit": {
+            "type": "number",
+            "default": 10
+          },
+          "offset": {
+            "type": "number",
+            "default": 0
+          },
+          "orderBy": {
+            "type": "object",
+            "description": "Sortiranje (createdAt, priority, updatedAt)"
+          }
         }
       },
-      "commands": [
-        { "command": "get_complaints(status: 'NEW')", "description": "Fetch all new complaints." },
-        { "command": "get_complaints(priority: 1)", "description": "Fetch high-priority complaints." }
+      "output_format": {
+        "complaints": "Array žalbi sa populated relations",
+        "total": "Ukupan broj",
+        "displayed": "Prikazano",
+        "summary": {
+          "new": "Broj NEW žalbi",
+          "inProgress": "Broj IN_PROGRESS",
+          "resolved": "Broj RESOLVED"
+        }
+      },
+      "included_relations": [
+        "submittedBy (name, email)",
+        "assignedAgent (name, email)",
+        "service (name, type)",
+        "provider (name)",
+        "_count (comments)"
       ],
-      "edge_cases": "Restricted to ADMIN, MANAGER, AGENT roles. AGENT role limits to assigned or submitted complaints."
+      "permissions": {
+        "ADMIN": "Sve žalbe",
+        "MANAGER": "Sve žalbe",
+        "AGENT": "Samo dodeljene (assignedAgentId) ili sopstvene (submittedById)",
+        "USER": "Nema pristup ovom tool-u"
+      },
+      "edge_cases": [
+        "AGENT vidi samo svoje preko OR clause",
+        "Prazan rezultat ako nema match-eva"
+      ],
+      "related_tools": ["create_complaint", "update_complaint", "add_complaint_comment", "get_providers"]
     },
+
     "search_entities": {
-      "purpose": "Search across multiple entities (contracts, providers, complaints, humanitarian orgs).",
+      "category": "read",
+      "purpose": "Globalna pretraga kroz sve entitete odjednom",
+      "when_to_use": [
+        "Korisnik ne zna tačno gde su podaci",
+        "Potrebna multi-entity pretraga",
+        "Brza pretraga po ključnoj reči",
+        "Traženje humanitarian org sa kratkim brojem"
+      ],
+      "natural_queries": [
+        "Pretraži Telekom",
+        "Nađi ugovor 123",
+        "Humanitarne organizacije sa kratkim brojem",
+        "Sve što ima veze sa XYZ",
+        "Pretraži sve za parkingu"
+      ],
       "input": {
         "type": "object",
+        "required": ["query"],
         "properties": {
-          "query": { "type": "string", "description": "Search term" },
-          "entities": { "type": "array", "items": { "type": "string" }, "description": "Entities to search (e.g., ['contracts', 'providers'])" },
-          "limit": { "type": "number", "default": 20, "description": "Total results to return" },
-          "offset": { "type": "number", "default": 0, "description": "Offset for pagination" }
+          "query": {
+            "type": "string",
+            "description": "Search term (minimum 2 karaktera)"
+          },
+          "entities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["contracts", "providers", "complaints", "humanitarian_orgs"]
+            },
+            "description": "Koje entitete pretražiti (default: sve)"
+          },
+          "onlyWithShortNumbers": {
+            "type": "boolean",
+            "default": false,
+            "description": "Samo humanitarne org. sa kratkim brojem (shortNumber IS NOT NULL)"
+          },
+          "limit": {
+            "type": "number",
+            "default": 20,
+            "description": "Ukupan broj rezultata across all entities"
+          },
+          "offset": {
+            "type": "number",
+            "default": 0
+          }
         }
       },
-      "commands": [
-        { "command": "search_entities(query: 'Telekom')", "description": "Search for 'Telekom' across all entities." },
-        { "command": "search_entities(query: '123', entities: ['contracts'])", "description": "Search for contract number '123'." }
-      ],
-      "edge_cases": "Restricted to ADMIN, MANAGER roles."
+      "output_format": {
+        "contracts": "Matching contracts (id, name, contractNumber, type, status)",
+        "contractsTotal": "Total count",
+        "providers": "Matching providers (id, name, email, isActive)",
+        "providersTotal": "Total count",
+        "complaints": "Matching complaints (id, title, status, priority)",
+        "complaintsTotal": "Total count",
+        "humanitarianOrgs": "Matching orgs (id, name, shortNumber)",
+        "humanitarianOrgsTotal": "Total count"
+      },
+      "search_fields": {
+        "contracts": ["name", "contractNumber", "description"],
+        "providers": ["name", "contactName", "email"],
+        "complaints": ["title", "description"],
+        "humanitarianOrgs": ["name", "shortNumber"]
+      },
+      "permissions": {
+        "ADMIN": "Full access",
+        "MANAGER": "Full access",
+        "AGENT": "Limited (bez sensitive podataka)",
+        "USER": "No access"
+      },
+      "related_tools": ["get_contracts", "get_providers", "get_complaints"]
     },
+
     "get_user_stats": {
-      "purpose": "Get user activity stats for a specified period.",
+      "category": "analytics",
+      "purpose": "Statistika lične aktivnosti korisnika",
+      "when_to_use": [
+        "Korisnik traži sopstvenu aktivnost",
+        "Pregled učinka za period",
+        "Dashboard metrics",
+        "Personal reporting"
+      ],
+      "natural_queries": [
+        "Moja aktivnost ovaj mesec",
+        "Statistika",
+        "Šta sam radio ove nedelje?",
+        "Moj pregled za godinu"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "period": { "type": "string", "default": "month", "description": "Period for stats (week, month, year)" }
+          "period": {
+            "type": "string",
+            "enum": ["week", "month", "year"],
+            "default": "month",
+            "description": "Period za koji se dohvataju statistike"
+          }
         }
       },
-      "commands": [
-        { "command": "get_user_stats(period: 'month')", "description": "Fetch user stats for the current month." }
+      "output_format": {
+        "period": "string (week/month/year)",
+        "stats": {
+          "contractsCreated": "Broj kreiranih ugovora",
+          "complaintsSubmitted": "Broj podnetih žalbi",
+          "activitiesCount": "Ukupan broj aktivnosti u ActivityLog"
+        }
+      },
+      "calculations": [
+        "contractsCreated: COUNT Contract WHERE createdById = userId AND createdAt >= dateFrom",
+        "complaintsSubmitted: COUNT Complaint WHERE submittedById = userId AND createdAt >= dateFrom",
+        "activitiesCount: COUNT ActivityLog WHERE userId = userId AND createdAt >= dateFrom"
       ],
-      "edge_cases": "Returns zeroed stats if no activity exists for the period."
+      "related_tools": ["get_activity_overview"]
     },
+
     "get_activity_overview": {
-      "purpose": "Overview of new contracts, complaints, and system activity.",
+      "category": "analytics",
+      "purpose": "Pregled sistemske aktivnosti za dashboards",
+      "when_to_use": [
+        "Manager/Admin dashboard",
+        "Daily/Weekly reports",
+        "Sistem overview",
+        "Quick system health check"
+      ],
+      "natural_queries": [
+        "Šta se desilo danas?",
+        "Aktivnost ove nedelje",
+        "Pregled za mesec",
+        "Dashboard info",
+        "System summary"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "period": { "type": "string", "default": "week", "description": "Period for overview (today, week, month)" }
+          "period": {
+            "type": "string",
+            "enum": ["today", "week", "month"],
+            "default": "week"
+          }
         }
       },
-      "commands": [
-        { "command": "get_activity_overview(period: 'today')", "description": "Fetch today’s system activity." }
-      ],
-      "edge_cases": "Restricted to ADMIN, MANAGER, AGENT roles."
+      "output_format": {
+        "period": "string",
+        "overview": {
+          "newContracts": "Broj novih ugovora",
+          "expiringContracts": "Ugovori koji ističu u narednih 30 dana (status=ACTIVE)",
+          "newComplaints": "Broj novih žalbi",
+          "activeRenewals": "Broj aktivnih renewal procesa",
+          "recentActivities": "Broj aktivnosti u ActivityLog"
+        }
+      },
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Yes",
+        "AGENT": "Yes",
+        "USER": "No"
+      },
+      "related_tools": ["get_user_stats", "get_financial_summary", "get_system_health"]
     },
+
     "get_financial_summary": {
-      "purpose": "Financial summary of active contracts.",
+      "category": "analytics",
+      "purpose": "Finansijski pregled aktivnih ugovora",
+      "when_to_use": [
+        "Revenue reports",
+        "Finansijski izveštaji",
+        "Business intelligence",
+        "Analiza profitabilnosti"
+      ],
+      "natural_queries": [
+        "Finansijski izveštaj",
+        "Koliko zaradujemo?",
+        "Revenue share pregled",
+        "Profit ovaj mesec",
+        "Finansije za PROVIDER ugovore"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "period": { "type": "string", "default": "month", "description": "Period for summary" },
-          "contractType": { "type": "string", "description": "Filter by contract type" }
+          "period": {
+            "type": "string",
+            "default": "month",
+            "description": "Period za finansijski pregled"
+          },
+          "contractType": {
+            "type": "string",
+            "enum": ["PROVIDER", "HUMANITARIAN", "PARKING"],
+            "description": "Filter po tipu ugovora"
+          }
         }
       },
-      "commands": [
-        { "command": "get_financial_summary(period: 'month')", "description": "Fetch financial summary for the current month." }
+      "output_format": {
+        "period": "string",
+        "financial": {
+          "activeContracts": "Broj aktivnih ugovora",
+          "averageRevenuePercentage": "Prosečan revenuePercentage",
+          "contractType": "all ili specifični tip"
+        }
+      },
+      "calculations": [
+        "activeContracts: COUNT Contract WHERE status=ACTIVE [AND type=contractType]",
+        "averageRevenuePercentage: AVG(revenuePercentage) WHERE status=ACTIVE"
       ],
-      "edge_cases": "Restricted to ADMIN, MANAGER roles."
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Yes",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_contracts", "get_activity_overview"]
     },
+
     "get_system_health": {
-      "purpose": "Get system health metrics.",
+      "category": "system",
+      "purpose": "Zdravlje i stanje sistema (SAMO ADMIN)",
+      "when_to_use": [
+        "System check",
+        "Monitoring",
+        "Admin dashboard",
+        "System diagnostics"
+      ],
+      "natural_queries": [
+        "Kako sistem funkcioniše?",
+        "System health",
+        "Proveri sistem",
+        "Status sistema"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "includeDetails": { "type": "boolean", "default": false, "description": "Include detailed metrics" }
+          "includeDetails": {
+            "type": "boolean",
+            "default": false,
+            "description": "Da li uključiti detaljne metrike"
+          }
         }
       },
-      "commands": [
-        { "command": "get_system_health()", "description": "Fetch system health metrics." }
-      ],
-      "edge_cases": "Restricted to ADMIN role."
+      "output_format": {
+        "system": {
+          "users": {
+            "total": "Ukupan broj korisnika",
+            "active": "Broj aktivnih (isActive=true)"
+          },
+          "contracts": {
+            "total": "Ukupan broj ugovora",
+            "active": "Broj ACTIVE ugovora"
+          },
+          "complaints": {
+            "pending": "Žalbe u statusima NEW, ASSIGNED, IN_PROGRESS"
+          }
+        }
+      },
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "No",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_activity_overview"]
     },
+
     "create_complaint": {
-      "purpose": "Create a new complaint.",
+      "category": "write",
+      "purpose": "Kreiranje nove žalbe",
+      "when_to_use": [
+        "Korisnik prijavljuje problem",
+        "Nova žalba na uslugu ili provajdera",
+        "Reporting issue"
+      ],
+      "natural_queries": [
+        "Prijavim žalbu",
+        "Problem sa uslugom",
+        "Kreiraj complaint",
+        "Nova žalba"
+      ],
       "input": {
         "type": "object",
+        "required": ["title", "description"],
         "properties": {
-          "title": { "type": "string", "description": "Complaint title" },
-          "description": { "type": "string", "description": "Complaint description" },
-          "priority": { "type": "number", "description": "Priority level" }
+          "title": {
+            "type": "string",
+            "description": "Naslov žalbe"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detaljan opis problema"
+          },
+          "priority": {
+            "type": "number",
+            "default": 3,
+            "description": "1=najviši, 3=srednji, 5=najniži"
+          },
+          "serviceId": {
+            "type": "string",
+            "description": "ID usluge (opciono)"
+          },
+          "providerId": {
+            "type": "string",
+            "description": "ID provajdera (opciono)"
+          },
+          "humanitarianOrgId": {
+            "type": "string",
+            "description": "ID humanitarne org (opciono)"
+          },
+          "parkingServiceId": {
+            "type": "string",
+            "description": "ID parking servisa (opciono)"
+          },
+          "financialImpact": {
+            "type": "number",
+            "description": "Finansijski uticaj (opciono)"
+          }
         }
       },
-      "commands": [
-        { "command": "create_complaint(title: 'Issue', description: 'Details')", "description": "Create a new complaint." }
+      "output_format": {
+        "success": "boolean",
+        "data": {
+          "id": "ID kreirane žalbe",
+          "status": "NEW (default)",
+          "submittedById": "userId koji je kreirao"
+        }
+      },
+      "business_rules": [
+        "Status se automatski postavlja na NEW",
+        "submittedById se automatski popunjava iz context.userId",
+        "assignedAgentId je null dok se ne dodeli",
+        "createdAt se automatski postavlja"
       ],
-      "edge_cases": "Returns error if required fields are missing."
+      "related_tools": ["get_complaints", "update_complaint", "add_complaint_comment"]
     },
+
     "update_complaint": {
-      "purpose": "Update an existing complaint.",
+      "category": "write",
+      "purpose": "Ažuriranje postojeće žalbe",
+      "when_to_use": [
+        "Promena statusa žalbe",
+        "Dodela žalbe agentu",
+        "Promena prioriteta",
+        "Dodavanje rezolucije"
+      ],
+      "natural_queries": [
+        "Označi kao rešeno",
+        "Dodeli mi žalbu",
+        "Promeni prioritet",
+        "Zatvori žalbu",
+        "Postavi status IN_PROGRESS"
+      ],
       "input": {
         "type": "object",
+        "required": ["complaintId"],
         "properties": {
-          "id": { "type": "string", "description": "Complaint ID" },
-          "status": { "type": "string", "description": "New status" }
+          "complaintId": {
+            "type": "string",
+            "description": "ID žalbe koja se ažurira"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["NEW", "ASSIGNED", "IN_PROGRESS", "PENDING", "RESOLVED", "CLOSED", "REJECTED"],
+            "description": "Novi status"
+          },
+          "priority": {
+            "type": "number",
+            "description": "Novi prioritet (1-5)"
+          },
+          "assignedAgentId": {
+            "type": "string",
+            "description": "ID agenta kojem se dodeljuje"
+          },
+          "resolution": {
+            "type": "string",
+            "description": "Opis rezolucije (za RESOLVED status)"
+          }
         }
       },
-      "commands": [
-        { "command": "update_complaint(id: '123', status: 'RESOLVED')", "description": "Update complaint status." }
+      "output_format": {
+        "success": "boolean",
+        "data": {
+          "id": "complaintId",
+          "previousStatus": "stari status",
+          "newStatus": "novi status"
+        }
+      },
+      "business_rules": [
+        "Kreira se ComplaintStatusHistory zapis",
+        "Ako se menja status u RESOLVED, postavlja se resolvedAt",
+        "Ako se menja status u CLOSED, postavlja se closedAt",
+        "Ako se dodeljuje agentu, postavlja se assignedAt"
       ],
-      "edge_cases": "Returns error if complaint ID doesn’t exist."
+      "permissions": {
+        "ADMIN": "Sve žalbe",
+        "MANAGER": "Sve žalbe",
+        "AGENT": "Samo dodeljene",
+        "USER": "Ne može menjati"
+      },
+      "related_tools": ["get_complaints", "add_complaint_comment"]
     },
+
     "add_complaint_comment": {
-      "purpose": "Add a comment to a complaint.",
+      "category": "write",
+      "purpose": "Dodavanje komentara na žalbu",
+      "when_to_use": [
+        "Agent dodaje napomenu",
+        "Interni komentar za tim",
+        "Komunikacija sa podnosiocem žalbe",
+        "Praćenje progresa"
+      ],
+      "natural_queries": [
+        "Dodaj komentar",
+        "Napiši napomenu",
+        "Ostavi poruku na žalbi",
+        "Interni komentar"
+      ],
       "input": {
         "type": "object",
+        "required": ["complaintId", "content"],
         "properties": {
-          "complaintId": { "type": "string", "description": "Complaint ID" },
-          "comment": { "type": "string", "description": "Comment text" }
+          "complaintId": {
+            "type": "string",
+            "description": "ID žalbe"
+          },
+          "content": {
+            "type": "string",
+            "description": "Tekst komentara"
+          },
+          "isInternal": {
+            "type": "boolean",
+            "default": false,
+            "description": "Da li je komentar interni (vidi samo tim)"
+          }
         }
       },
-      "commands": [
-        { "command": "add_complaint_comment(complaintId: '123', comment: 'Note')", "description": "Add a comment to a complaint." }
+      "output_format": {
+        "success": "boolean",
+        "data": {
+          "commentId": "ID kreiranog komentara",
+          "complaintId": "ID žalbe",
+          "userId": "Ko je dodao komentar"
+        }
+      },
+      "business_rules": [
+        "userId se automatski popunjava iz context",
+        "isInternal=true znači da samo ADMIN/MANAGER/AGENT mogu videti",
+        "Kreira se ActivityLog zapis"
       ],
-      "edge_cases": "Returns error if complaint ID doesn’t exist."
+      "related_tools": ["get_complaints", "update_complaint"]
     },
+
     "create_contract": {
-      "purpose": "Create a new contract.",
+      "category": "write",
+      "purpose": "Kreiranje novog ugovora",
+      "when_to_use": [
+        "Novi ugovor sa provajderom",
+        "Humanitarian ugovor",
+        "Parking ili Bulk ugovor"
+      ],
+      "natural_queries": [
+        "Kreiraj ugovor",
+        "Novi PROVIDER ugovor",
+        "Dodaj humanitarian ugovor"
+      ],
       "input": {
         "type": "object",
+        "required": ["name", "contractNumber", "type", "startDate", "endDate"],
         "properties": {
-          "name": { "type": "string", "description": "Contract name" },
-          "providerId": { "type": "string", "description": "Provider ID" },
-          "status": { "type": "string", "description": "Contract status" }
+          "name": {
+            "type": "string",
+            "description": "Naziv ugovora"
+          },
+          "contractNumber": {
+            "type": "string",
+            "description": "Jedinstveni broj ugovora"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["PROVIDER", "HUMANITARIAN", "PARKING", "BULK"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "PENDING"],
+            "default": "PENDING"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Datum početka (ISO format)"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "revenuePercentage": {
+            "type": "number",
+            "description": "Procenat prihoda platforme"
+          },
+          "providerId": {
+            "type": "string",
+            "description": "Required za PROVIDER tip"
+          },
+          "humanitarianOrgId": {
+            "type": "string",
+            "description": "Required za HUMANITARIAN tip"
+          },
+          "parkingServiceId": {
+            "type": "string",
+            "description": "Required za PARKING tip"
+          },
+          "description": {
+            "type": "string",
+            "description": "Opis ugovora (opciono)"
+          }
         }
       },
-      "commands": [
-        { "command": "create_contract(name: 'Contract A', providerId: '123')", "description": "Create a new contract." }
+      "validation": [
+        "contractNumber mora biti unique",
+        "type=PROVIDER zahteva providerId",
+        "type=HUMANITARIAN zahteva humanitarianOrgId",
+        "type=PARKING zahteva parkingServiceId",
+        "endDate mora biti posle startDate"
       ],
-      "edge_cases": "Returns error if required fields are missing."
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Yes",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_contracts", "update_contract"]
     },
+
     "update_contract": {
-      "purpose": "Update an existing contract.",
+      "category": "write",
+      "purpose": "Ažuriranje postojećeg ugovora",
+      "when_to_use": [
+        "Promena statusa",
+        "Izmena datuma",
+        "Ažuriranje revenue percentagea"
+      ],
+      "natural_queries": [
+        "Označi ugovor kao ACTIVE",
+        "Promeni krajnji datum",
+        "Ažuriraj revenue",
+        "Postavi status TERMINATED"
+      ],
       "input": {
         "type": "object",
+        "required": ["contractId"],
         "properties": {
-          "id": { "type": "string", "description": "Contract ID" },
-          "status": { "type": "string", "description": "New status" }
+          "contractId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "EXPIRED", "PENDING", "RENEWAL_IN_PROGRESS", "TERMINATED"]
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "revenuePercentage": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          }
         }
       },
-      "commands": [
-        { "command": "update_contract(id: '123', status: 'ACTIVE')", "description": "Update contract status." }
-      ],
-      "edge_cases": "Returns error if contract ID doesn’t exist."
+      "permissions": {
+        "ADMIN": "Sve izmene",
+        "MANAGER": "Limitirane izmene",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_contracts", "delete_contract"]
     },
+
     "delete_contract": {
-      "purpose": "Delete a contract.",
+      "category": "write",
+      "purpose": "Brisanje ugovora (soft ili hard delete)",
+      "when_to_use": [
+        "Ugovor je greška",
+        "Test podaci"
+      ],
+      "natural_queries": [
+        "Obriši ugovor",
+        "Delete contract"
+      ],
       "input": {
         "type": "object",
+        "required": ["contractId"],
         "properties": {
-          "id": { "type": "string", "description": "Contract ID" }
+          "contractId": {
+            "type": "string"
+          },
+          "softDelete": {
+            "type": "boolean",
+            "default": true,
+            "description": "Ako true, postavlja status TERMINATED umesto brisanja"
+          }
         }
       },
-      "commands": [
-        { "command": "delete_contract(id: '123')", "description": "Delete a contract." }
-      ],
-      "edge_cases": "Returns error if contract ID doesn’t exist."
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "No",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_contracts", "update_contract"]
     },
+
     "bulk_update_contracts": {
-      "purpose": "Bulk update contracts.",
+      "category": "write",
+      "purpose": "Bulk ažuriranje više ugovora odjednom",
+      "when_to_use": [
+        "Masovno postavljanje statusa",
+        "Batch operacije"
+      ],
+      "natural_queries": [
+        "Označi sve PENDING kao ACTIVE",
+        "Masovno ažuriranje"
+      ],
       "input": {
         "type": "object",
+        "required": ["contractIds", "updates"],
         "properties": {
-          "ids": { "type": "array", "items": { "type": "string" }, "description": "List of contract IDs" },
-          "status": { "type": "string", "description": "New status" }
+          "contractIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updates": {
+            "type": "object",
+            "description": "Polja koja se menjaju"
+          }
         }
       },
-      "commands": [
-        { "command": "bulk_update_contracts(ids: ['123', '456'], status: 'EXPIRED')", "description": "Update multiple contracts." }
-      ],
-      "edge_cases": "Skips invalid IDs."
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Limited",
+        "AGENT": "No",
+        "USER": "No"
+      }
     },
+
     "create_provider": {
-      "purpose": "Create a new provider.",
+      "category": "write",
+      "purpose": "Kreiranje novog provajdera",
       "input": {
         "type": "object",
+        "required": ["name"],
         "properties": {
-          "name": { "type": "string", "description": "Provider name" },
-          "email": { "type": "string", "description": "Provider email" }
+          "name": {
+            "type": "string",
+            "description": "Unique ime provajdera"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
         }
       },
-      "commands": [
-        { "command": "create_provider(name: 'Telekom', email: 'contact@telekom.com')", "description": "Create a new provider." }
-      ],
-      "edge_cases": "Returns error if required fields are missing."
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Yes",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_providers", "update_provider"]
     },
+
     "update_provider": {
-      "purpose": "Update provider data.",
+      "category": "write",
+      "purpose": "Ažuriranje postojećeg provajdera",
+      "when_to_use": [
+        "Promena kontakt informacija",
+        "Deaktivacija provajdera",
+        "Izmena email ili telefona"
+      ],
+      "natural_queries": [
+        "Ažuriraj provajdera",
+        "Deaktiviraj Telekom",
+        "Promeni email provajdera"
+      ],
       "input": {
         "type": "object",
+        "required": ["providerId"],
         "properties": {
-          "id": { "type": "string", "description": "Provider ID" },
-          "name": { "type": "string", "description": "New provider name" }
+          "providerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
         }
       },
-      "commands": [
-        { "command": "update_provider(id: '123', name: 'New Name')", "description": "Update provider details." }
-      ],
-      "edge_cases": "Returns error if provider ID doesn’t exist."
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Limited",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_providers", "create_provider"]
     },
-    "create_humanitarian_org": {
-      "purpose": "Create a humanitarian organization.",
+
+    "get_contract_renewals": {
+      "category": "read",
+      "purpose": "Dohvata renewal procese sa detaljima",
+      "when_to_use": [
+        "Pregled renewal procesa",
+        "Praćenje produženjih ugovora",
+        "Analiza renewal statusa"
+      ],
+      "natural_queries": [
+        "Renewal procesi",
+        "Koja produženja su u toku?",
+        "Završeni renewali",
+        "Pending renewal approvals"
+      ],
       "input": {
         "type": "object",
         "properties": {
-          "name": { "type": "string", "description": "Organization name" },
-          "shortNumber": { "type": "string", "description": "Shortcode for SMS donations" }
+          "contractId": {
+            "type": "string",
+            "description": "Filter po ugovoru"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["DRAFT", "PENDING_APPROVAL", "APPROVED", "REJECTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+            "description": "Status renewal procesa"
+          },
+          "limit": {
+            "type": "number",
+            "default": 10
+          },
+          "offset": {
+            "type": "number",
+            "default": 0
+          }
         }
       },
-      "commands": [
-        { "command": "create_humanitarian_org(name: 'Charity', shortNumber: '12345')", "description": "Create a humanitarian organization." }
+      "output_format": {
+        "renewals": "Array sa renewal procesima",
+        "total": "Ukupan broj",
+        "displayed": "Prikazano"
+      },
+      "included_relations": [
+        "contract (id, name, type)",
+        "initiatedBy (name, email)",
+        "approvedBy (name, email)"
       ],
-      "edge_cases": "Restricted to ADMIN role."
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Yes",
+        "AGENT": "Limited",
+        "USER": "No"
+      },
+      "related_tools": ["get_contracts", "initiate_contract_renewal"]
+    },
+
+    "initiate_contract_renewal": {
+      "category": "write",
+      "purpose": "Iniciranje renewal procesa za ugovor",
+      "when_to_use": [
+        "Ugovor ističe uskoro",
+        "Pokretanje produživanja",
+        "Renewal workflow"
+      ],
+      "natural_queries": [
+        "Pokreni renewal",
+        "Produži ugovor",
+        "Inicijuj renewal proces"
+      ],
+      "input": {
+        "type": "object",
+        "required": ["contractId", "proposedStartDate", "proposedEndDate"],
+        "properties": {
+          "contractId": {
+            "type": "string"
+          },
+          "proposedStartDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "proposedEndDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "proposedRevenuePercentage": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "business_rules": [
+        "Postavlja status na DRAFT",
+        "Kreira se ContractRenewal zapis",
+        "initiatedById = context.userId",
+        "Original ugovor ide u status RENEWAL_IN_PROGRESS"
+      ],
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Yes",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_contract_renewals", "approve_contract_renewal"]
+    },
+
+    "approve_contract_renewal": {
+      "category": "write",
+      "purpose": "Odobravanje ili odbijanje renewal procesa",
+      "when_to_use": [
+        "Manager approval workflow",
+        "Finalizacija renewal-a"
+      ],
+      "natural_queries": [
+        "Odobri renewal",
+        "Odbij produženje",
+        "Approve renewal"
+      ],
+      "input": {
+        "type": "object",
+        "required": ["renewalId", "approved"],
+        "properties": {
+          "renewalId": {
+            "type": "string"
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "approvalNotes": {
+            "type": "string"
+          }
+        }
+      },
+      "business_rules": [
+        "Ako approved=true: status -> APPROVED",
+        "Ako approved=false: status -> REJECTED",
+        "Postavlja approvedById i approvedAt",
+        "Kreira ActivityLog zapis"
+      ],
+      "permissions": {
+        "ADMIN": "Yes",
+        "MANAGER": "Yes",
+        "AGENT": "No",
+        "USER": "No"
+      },
+      "related_tools": ["get_contract_renewals", "initiate_contract_renewal"]
     }
+  },
+
+  "enums": {
+    "ContractStatus": ["ACTIVE", "EXPIRED", "PENDING", "RENEWAL_IN_PROGRESS", "TERMINATED"],
+    "ContractType": ["PROVIDER", "HUMANITARIAN", "PARKING", "BULK"],
+    "ComplaintStatus": ["NEW", "ASSIGNED", "IN_PROGRESS", "PENDING", "RESOLVED", "CLOSED", "REJECTED"],
+    "ServiceType": ["VAS", "BULK", "HUMANITARIAN", "PARKING"],
+    "RenewalStatus": ["DRAFT", "PENDING_APPROVAL", "APPROVED", "REJECTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+    "UserRole": ["ADMIN", "MANAGER", "AGENT", "USER"]
+  },
+
+  "relationships": {
+    "Contract": {
+      "belongsTo": ["Provider", "HumanitarianOrg", "ParkingService", "Operator", "User (createdBy)"],
+      "hasMany": ["Services (via ServiceContract)", "ContractRenewal", "Attachments"]
+    },
+    "Complaint": {
+      "belongsTo": ["Provider", "Service", "HumanitarianOrg", "ParkingService", "User (submittedBy)", "User (assignedAgent)"],
+      "hasMany": ["ComplaintComment", "ComplaintStatusHistory"]
+    },
+    "Provider": {
+      "hasMany": ["Contracts", "VasServices", "Complaints"]
+    },
+    "Service": {
+      "belongsTo": ["Provider"],
+      "hasMany": ["Contracts (via ServiceContract)", "VasTransactions", "Complaints"]
+    }
+  },
+
+  "query_patterns": {
+    "expiring_contracts": {
+      "description": "Ugovori koji ističu u narednih N dana",
+      "sql_logic": "WHERE status='ACTIVE' AND endDate <= NOW() + INTERVAL 'N days'"
+    },
+    "high_priority_complaints": {
+      "description": "Žalbe sa visokim prioritetom",
+      "sql_logic": "WHERE priority <= 2 AND status IN ('NEW', 'ASSIGNED', 'IN_PROGRESS')"
+    },
+    "user_activity": {
+      "description": "Aktivnost korisnika za period",
+      "sql_logic": "WHERE userId = X AND createdAt >= dateFrom AND createdAt <= dateTo"
+    },
+    "provider_performance": {
+      "description": "Performance provajdera baziran na žalbama",
+      "sql_logic": "COUNT(complaints) GROUP BY providerId ORDER BY count DESC"
+    }
+  },
+
+  "best_practices": {
+    "tool_selection": [
+      "Koristi search_entities za generičke pretrage",
+      "Koristi specifične get_* toolove za ciljane upite",
+      "Kombinuj filterе za preciznije rezultate",
+      "Uvek proveri permissions pre pozivanja write toolova"
+    ],
+    "pagination": [
+      "Default limit je 10",
+      "Max limit je 100",
+      "Koristi offset za paginaciju kroz velike datasete"
+    ],
+    "date_handling": [
+      "Datumi su u ISO 8601 formatu (YYYY-MM-DD)",
+      "expiringInDays računa od trenutnog datuma",
+      "period parametri: 'today', 'week', 'month', 'year'"
+    ],
+    "performance": [
+      "Izbegavaj fetch-ovanje svih podataka odjednom",
+      "Koristi limit i offset",
+      "Koristi specifične filtere umesto generičke pretrage"
+    ]
   }
 }

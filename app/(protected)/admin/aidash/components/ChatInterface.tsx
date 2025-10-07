@@ -1,3 +1,5 @@
+// app/(protected)/admin/aidash/components/ChatInterface.tsx
+
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Send, Bot, User } from 'lucide-react';

@@ -1,69 +1,141 @@
-// lib/mcp/write-tools.ts
+// lib/mcp/write-tools.ts - Ažurirano
 import { db } from '@/lib/db';
 import type { McpContext, McpResult, McpTool } from './types';
 import { logQuery } from './query-logger';
 
-export interface WriteTool {
-  name: string;
-  description: string;
-  inputSchema: any;
-  requiredRole?: string[];
-}
-
+/**
+ * Write Operations klasa - Upravlja svim write (CREATE, UPDATE, DELETE) operacijama
+ */
 export class WriteOperations {
   
-  // Dohvati write tools na osnovu uloge
-  getWriteToolsForRole(role: string): WriteTool[] {
-    const tools: WriteTool[] = [];
+  /**
+   * Vraća write alate dostupne za datu ulogu
+   */
+  getWriteToolsForRole(role: string): Omit<McpTool, 'category'>[] {
+    const tools: Omit<McpTool, 'category'>[] = [];
 
-    // Agent i više mogu kreirati reklamacije
+    // Agent i više mogu kreirati i ažurirati reklamacije
     if (['ADMIN', 'MANAGER', 'AGENT'].includes(role)) {
       tools.push(
         {
           name: 'create_complaint',
-          description: 'Create a new complaint',
+          description: 'Create a new complaint about a service or provider',
+          examples: [
+            'Kreiraj žalbu na Telekom zbog loše usluge',
+            'Nova reklamacija za MTS',
+            'Prijavi problem sa humanitarnom organizacijom'
+          ],
           requiredRole: ['ADMIN', 'MANAGER', 'AGENT'],
           inputSchema: {
             type: 'object',
             properties: {
-              title: { type: 'string', minLength: 5 },
-              description: { type: 'string', minLength: 10 },
-              priority: { type: 'number', minimum: 1, maximum: 5 },
-              providerId: { type: 'string' },
-              serviceId: { type: 'string' },
-              category: { type: 'string' },
-              financialImpact: { type: 'number', minimum: 0 }
+              title: { 
+                type: 'string', 
+                minLength: 5,
+                description: 'Brief title of the complaint'
+              },
+              description: { 
+                type: 'string', 
+                minLength: 10,
+                description: 'Detailed description of the issue'
+              },
+              priority: { 
+                type: 'number', 
+                minimum: 1, 
+                maximum: 5,
+                default: 3,
+                description: '1 = highest priority, 5 = lowest'
+              },
+              providerId: { 
+                type: 'string',
+                description: 'ID of the provider being complained about'
+              },
+              serviceId: { 
+                type: 'string',
+                description: 'Optional: specific service ID'
+              },
+              category: { 
+                type: 'string',
+                description: 'Complaint category'
+              },
+              financialImpact: { 
+                type: 'number', 
+                minimum: 0,
+                description: 'Estimated financial impact'
+              }
             },
             required: ['title', 'description', 'priority', 'providerId']
           }
         },
         {
           name: 'update_complaint',
-          description: 'Update an existing complaint',
+          description: 'Update status, priority, or assignment of an existing complaint',
+          examples: [
+            'Promeni status žalbe u "Rešeno"',
+            'Dodeli žalbu agentu',
+            'Ažuriraj prioritet na visok'
+          ],
           requiredRole: ['ADMIN', 'MANAGER', 'AGENT'],
           inputSchema: {
             type: 'object',
             properties: {
-              complaintId: { type: 'string' },
-              status: { type: 'string', enum: ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED', 'REJECTED'] },
-              priority: { type: 'number', minimum: 1, maximum: 5 },
-              assignedAgentId: { type: 'string' },
-              internalNotes: { type: 'string' },
-              resolution: { type: 'string' }
+              complaintId: { 
+                type: 'string',
+                description: 'ID of the complaint to update'
+              },
+              status: { 
+                type: 'string', 
+                enum: ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED', 'REJECTED'],
+                description: 'New status'
+              },
+              priority: { 
+                type: 'number', 
+                minimum: 1, 
+                maximum: 5,
+                description: 'New priority level'
+              },
+              assignedAgentId: { 
+                type: 'string',
+                description: 'Agent to assign this complaint to'
+              },
+              internalNotes: { 
+                type: 'string',
+                description: 'Internal notes (not visible to customer)'
+              },
+              resolution: { 
+                type: 'string',
+                description: 'Resolution description if closing complaint'
+              }
             },
             required: ['complaintId']
           }
         },
         {
           name: 'add_complaint_comment',
-          description: 'Add a comment to a complaint',
+          description: 'Add a comment to an existing complaint',
+          examples: [
+            'Dodaj komentar na žalbu',
+            'Interno obavestenje za tim',
+            'Odgovor za klijenta'
+          ],
           requiredRole: ['ADMIN', 'MANAGER', 'AGENT'],
           inputSchema: {
             type: 'object',
             properties: {
-              complaintId: { type: 'string' },
-              content: { type: 'string', minLength: 1 },
-              isInternal: { type: 'boolean', default: false }
+              complaintId: { 
+                type: 'string',
+                description: 'Complaint ID'
+              },
+              content: { 
+                type: 'string', 
+                minLength: 1,
+                description: 'Comment text'
+              },
+              isInternal: { 
+                type: 'boolean', 
+                default: false,
+                description: 'True if this is internal comment only'
+              }
             },
             required: ['complaintId', 'content']
           }
@@ -76,77 +148,212 @@ export class WriteOperations {
       tools.push(
         {
           name: 'create_contract',
-          description: 'Create a new contract',
+          description: 'Create a new contract with a provider, humanitarian org, or parking service',
+          examples: [
+            'Kreiraj novi ugovor sa Telekomom',
+            'Dodaj humanitarni ugovor za Crveni krst',
+            'Novi parking ugovor'
+          ],
           requiredRole: ['ADMIN', 'MANAGER'],
           inputSchema: {
             type: 'object',
             properties: {
-              name: { type: 'string', minLength: 3 },
-              contractNumber: { type: 'string' },
-              type: { type: 'string', enum: ['PROVIDER', 'HUMANITARIAN', 'PARKING', 'BULK'] },
-              status: { type: 'string', enum: ['ACTIVE', 'PENDING', 'EXPIRED'], default: 'PENDING' },
-              providerId: { type: 'string' },
-              humanitarianOrgId: { type: 'string' },
-              parkingServiceId: { type: 'string' },
-              startDate: { type: 'string', format: 'date' },
-              endDate: { type: 'string', format: 'date' },
-              revenuePercentage: { type: 'number', minimum: 0, maximum: 100 },
-              description: { type: 'string' }
+              name: { 
+                type: 'string', 
+                minLength: 3,
+                description: 'Contract name'
+              },
+              contractNumber: { 
+                type: 'string',
+                description: 'Unique contract number'
+              },
+              type: { 
+                type: 'string', 
+                enum: ['PROVIDER', 'HUMANITARIAN', 'PARKING', 'BULK'],
+                description: 'Type of contract'
+              },
+              status: { 
+                type: 'string', 
+                enum: ['ACTIVE', 'PENDING', 'EXPIRED'], 
+                default: 'PENDING',
+                description: 'Initial status'
+              },
+              providerId: { 
+                type: 'string',
+                description: 'Provider ID (required for PROVIDER type)'
+              },
+              humanitarianOrgId: { 
+                type: 'string',
+                description: 'Humanitarian org ID (required for HUMANITARIAN type)'
+              },
+              parkingServiceId: { 
+                type: 'string',
+                description: 'Parking service ID (required for PARKING type)'
+              },
+              startDate: { 
+                type: 'string', 
+                format: 'date',
+                description: 'Contract start date (YYYY-MM-DD)'
+              },
+              endDate: { 
+                type: 'string', 
+                format: 'date',
+                description: 'Contract end date (YYYY-MM-DD)'
+              },
+              revenuePercentage: { 
+                type: 'number', 
+                minimum: 0, 
+                maximum: 100,
+                description: 'Revenue share percentage'
+              },
+              description: { 
+                type: 'string',
+                description: 'Optional contract description'
+              }
             },
             required: ['name', 'type', 'startDate', 'endDate']
           }
         },
         {
           name: 'update_contract',
-          description: 'Update an existing contract',
+          description: 'Update an existing contract details',
+          examples: [
+            'Ažuriraj status ugovora na "Aktivan"',
+            'Promeni procenat prihoda',
+            'Produži datum isteka'
+          ],
           requiredRole: ['ADMIN', 'MANAGER'],
           inputSchema: {
             type: 'object',
             properties: {
-              contractId: { type: 'string' },
-              name: { type: 'string' },
-              status: { type: 'string', enum: ['ACTIVE', 'PENDING', 'EXPIRED', 'RENEWAL_IN_PROGRESS', 'TERMINATED'] },
-              endDate: { type: 'string', format: 'date' },
-              revenuePercentage: { type: 'number', minimum: 0, maximum: 100 },
-              description: { type: 'string' },
-              notes: { type: 'string' }
+              contractId: { 
+                type: 'string',
+                description: 'Contract ID to update'
+              },
+              name: { 
+                type: 'string',
+                description: 'New contract name'
+              },
+              status: { 
+                type: 'string', 
+                enum: ['ACTIVE', 'PENDING', 'EXPIRED', 'RENEWAL_IN_PROGRESS', 'TERMINATED'],
+                description: 'New status'
+              },
+              endDate: { 
+                type: 'string', 
+                format: 'date',
+                description: 'New end date'
+              },
+              revenuePercentage: { 
+                type: 'number', 
+                minimum: 0, 
+                maximum: 100,
+                description: 'New revenue percentage'
+              },
+              description: { 
+                type: 'string',
+                description: 'Updated description'
+              },
+              notes: { 
+                type: 'string',
+                description: 'Additional notes'
+              }
             },
             required: ['contractId']
           }
         },
         {
           name: 'create_provider',
-          description: 'Create a new provider',
+          description: 'Create a new service provider in the system',
+          examples: [
+            'Dodaj novog provajdera "Novi Telekom"',
+            'Kreiraj provajder sa email kontaktom',
+            'Registruj novu kompaniju'
+          ],
           requiredRole: ['ADMIN', 'MANAGER'],
           inputSchema: {
             type: 'object',
             properties: {
-              name: { type: 'string', minLength: 2 },
-              contactName: { type: 'string' },
-              email: { type: 'string', format: 'email' },
-              phone: { type: 'string' },
-              address: { type: 'string' },
-              pib: { type: 'string' },
-              registrationNumber: { type: 'string' },
-              isActive: { type: 'boolean', default: true }
+              name: { 
+                type: 'string', 
+                minLength: 2,
+                description: 'Provider name'
+              },
+              contactName: { 
+                type: 'string',
+                description: 'Contact person name'
+              },
+              email: { 
+                type: 'string', 
+                format: 'email',
+                description: 'Contact email'
+              },
+              phone: { 
+                type: 'string',
+                description: 'Contact phone'
+              },
+              address: { 
+                type: 'string',
+                description: 'Provider address'
+              },
+              pib: { 
+                type: 'string',
+                description: 'Tax ID (PIB)'
+              },
+              registrationNumber: { 
+                type: 'string',
+                description: 'Company registration number'
+              },
+              isActive: { 
+                type: 'boolean', 
+                default: true,
+                description: 'Is provider active?'
+              }
             },
             required: ['name', 'email']
           }
         },
         {
           name: 'update_provider',
-          description: 'Update an existing provider',
+          description: 'Update existing provider information',
+          examples: [
+            'Ažuriraj email provajdera',
+            'Deaktiviraj provajder',
+            'Promeni kontakt telefon'
+          ],
           requiredRole: ['ADMIN', 'MANAGER'],
           inputSchema: {
             type: 'object',
             properties: {
-              providerId: { type: 'string' },
-              name: { type: 'string' },
-              contactName: { type: 'string' },
-              email: { type: 'string', format: 'email' },
-              phone: { type: 'string' },
-              address: { type: 'string' },
-              isActive: { type: 'boolean' }
+              providerId: { 
+                type: 'string',
+                description: 'Provider ID to update'
+              },
+              name: { 
+                type: 'string',
+                description: 'New name'
+              },
+              contactName: { 
+                type: 'string',
+                description: 'New contact name'
+              },
+              email: { 
+                type: 'string', 
+                format: 'email',
+                description: 'New email'
+              },
+              phone: { 
+                type: 'string',
+                description: 'New phone'
+              },
+              address: { 
+                type: 'string',
+                description: 'New address'
+              },
+              isActive: { 
+                type: 'boolean',
+                description: 'Active status'
+              }
             },
             required: ['providerId']
           }
@@ -159,31 +366,51 @@ export class WriteOperations {
       tools.push(
         {
           name: 'delete_contract',
-          description: 'Delete a contract (soft delete)',
+          description: 'Soft delete a contract (sets status to TERMINATED)',
+          examples: [
+            'Obriši ugovor sa obrazloženjem',
+            'Terminiraj ugovor zbog neispunjenja uslova'
+          ],
           requiredRole: ['ADMIN'],
           inputSchema: {
             type: 'object',
             properties: {
-              contractId: { type: 'string' },
-              reason: { type: 'string', minLength: 10 }
+              contractId: { 
+                type: 'string',
+                description: 'Contract ID to delete'
+              },
+              reason: { 
+                type: 'string', 
+                minLength: 10,
+                description: 'Reason for deletion (required for audit)'
+              }
             },
             required: ['contractId', 'reason']
           }
         },
         {
           name: 'bulk_update_contracts',
-          description: 'Update multiple contracts at once',
+          description: 'Update multiple contracts at once (batch operation)',
+          examples: [
+            'Ažuriraj sve ugovore na 15% prihoda',
+            'Postavi status svih na ACTIVE'
+          ],
           requiredRole: ['ADMIN'],
           inputSchema: {
             type: 'object',
             properties: {
-              contractIds: { type: 'array', items: { type: 'string' } },
+              contractIds: { 
+                type: 'array', 
+                items: { type: 'string' },
+                description: 'Array of contract IDs'
+              },
               updates: { 
                 type: 'object',
                 properties: {
                   status: { type: 'string' },
                   revenuePercentage: { type: 'number' }
-                }
+                },
+                description: 'Fields to update'
               }
             },
             required: ['contractIds', 'updates']
@@ -192,20 +419,57 @@ export class WriteOperations {
         {
           name: 'create_humanitarian_org',
           description: 'Create a new humanitarian organization',
+          examples: [
+            'Dodaj Crveni krst kao humanitarnu organizaciju',
+            'Registruj novu humanitarnu org sa kratkim brojem'
+          ],
           requiredRole: ['ADMIN'],
           inputSchema: {
             type: 'object',
             properties: {
-              name: { type: 'string', minLength: 3 },
-              shortNumber: { type: 'string' },
-              accountNumber: { type: 'string' },
-              pib: { type: 'string' },
-              registrationNumber: { type: 'string' },
-              bank: { type: 'string' },
-              mission: { type: 'string' },
-              email: { type: 'string', format: 'email' },
-              phone: { type: 'string' },
-              isActive: { type: 'boolean', default: true }
+              name: { 
+                type: 'string', 
+                minLength: 3,
+                description: 'Organization name'
+              },
+              shortNumber: { 
+                type: 'string',
+                description: 'Short SMS number'
+              },
+              accountNumber: { 
+                type: 'string',
+                description: 'Bank account number'
+              },
+              pib: { 
+                type: 'string',
+                description: 'Tax ID'
+              },
+              registrationNumber: { 
+                type: 'string',
+                description: 'Registration number'
+              },
+              bank: { 
+                type: 'string',
+                description: 'Bank name'
+              },
+              mission: { 
+                type: 'string',
+                description: 'Organization mission statement'
+              },
+              email: { 
+                type: 'string', 
+                format: 'email',
+                description: 'Contact email'
+              },
+              phone: { 
+                type: 'string',
+                description: 'Contact phone'
+              },
+              isActive: { 
+                type: 'boolean', 
+                default: true,
+                description: 'Is organization active?'
+              }
             },
             required: ['name', 'shortNumber']
           }
@@ -216,10 +480,12 @@ export class WriteOperations {
     return tools;
   }
 
-  // Execute write operations
+  /**
+   * Izvršava write operaciju
+   */
   async executeWriteTool(toolName: string, args: any, context: McpContext): Promise<McpResult> {
     try {
-      // Log write operation
+      // Log write operacije
       await logQuery(context.userId, `WRITE_${toolName}`, args);
 
       switch (toolName) {
@@ -375,9 +641,9 @@ export class WriteOperations {
     }
 
     try {
-      const comment = await db.complaintComment.create({
+      const comment = await db.comment.create({
         data: {
-          content: args.content,
+          text: args.content,
           isInternal: args.isInternal || false,
           complaintId: args.complaintId,
           userId: context.userId
@@ -608,8 +874,6 @@ export class WriteOperations {
           email: args.email,
           phone: args.phone,
           address: args.address,
-          pib: args.pib,
-          registrationNumber: args.registrationNumber,
           isActive: args.isActive !== undefined ? args.isActive : true
         }
       });

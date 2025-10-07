@@ -1,372 +1,128 @@
-// lib/mcp/types.ts
-
-
-export interface McpContext {
-  userId: string;
-  userRole: string;
-}
+// lib/mcp/types.ts - Type definitions for MCP system
 
 /**
- * Definicija MCP alata
- * Opisuje jedan alat koji AI može koristiti
+ * Kontekst korisnika koji se prosleđuje svim MCP operacijama
  */
-export interface McpTool {
-  name: string;
-  description: string;
-  inputSchema: any;
-  examples?: string[];
-  category?: 'read' | 'write' | 'analytics' | 'system';
-  responseFormat?: string;
+export interface McpContext {
+  userId: string;
+  userRole: 'ADMIN' | 'MANAGER' | 'AGENT' | 'USER';
+  metadata?: Record<string, any>; // Dodatni kontekst po potrebi
 }
 
 /**
  * Rezultat izvršavanja MCP alata
- * Standardizovan format odgovora
  */
 export interface McpResult {
   success: boolean;
   data?: any;
   error?: string;
-  metadata?: McpMetadata;
-}
-
-/**
- * Dodatne informacije o izvršenju
- */
-export interface McpMetadata {
-  executionTime?: number;
-  recordsAffected?: number;
-  warnings?: string[];
-  queryInfo?: {
-    toolName?: string;
-    args?: any;
-    userId?: string;
+  metadata?: {
+    executionTime?: number;
+    cached?: boolean;
+    [key: string]: any;
   };
 }
 
 /**
- * Tip za poruke u chat istoriji
+ * Kategorije alata
  */
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp?: Date;
+export type ToolCategory = 'read' | 'write' | 'analytics' | 'system';
+
+/**
+ * Definicija MCP alata
+ */
+export interface McpTool {
+  name: string;
+  description: string;
+  category: ToolCategory;
+  examples?: string[]; // Primeri korišćenja za AI
+  inputSchema: JsonSchema;
+  requiredRole?: string[]; // Uloge koje mogu koristiti ovaj alat
+  outputSchema?: JsonSchema; // Opciono: format output-a
 }
 
 /**
- * Query analiza rezultat
+ * JSON Schema type (simplified)
  */
-export interface QueryAnalysis {
-  isDatabaseQuery: boolean;
-  toolName?: string;
-  args?: any;
-  context?: string;
-  confidence?: number;
+export interface JsonSchema {
+  type: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
+  items?: JsonSchemaProperty;
+  enum?: any[];
+  default?: any;
+  description?: string;
+  format?: string;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
 }
 
 /**
- * Parametri za filtriranje ugovora
+ * JSON Schema Property
  */
-export interface ContractFilters {
-  status?: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'RENEWAL_IN_PROGRESS' | 'TERMINATED';
-  type?: 'PROVIDER' | 'HUMANITARIAN' | 'PARKING' | 'BULK';
-  limit?: number;
-  offset?: number;
-  orderBy?: {
-    createdAt?: 'asc' | 'desc';
-    updatedAt?: 'asc' | 'desc';
-    name?: 'asc' | 'desc';
-  };
+export interface JsonSchemaProperty {
+  type?: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+  description?: string;
+  enum?: any[];
+  default?: any;
+  properties?: Record<string, JsonSchemaProperty>;
+  items?: JsonSchemaProperty;
+  required?: string[];
+  format?: string;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
 }
 
 /**
- * Parametri za filtriranje provajdera
- */
-export interface ProviderFilters {
-  isActive?: boolean;
-  name?: string;
-  limit?: number;
-  offset?: number;
-  orderBy?: {
-    name?: 'asc' | 'desc';
-    createdAt?: 'asc' | 'desc';
-  };
-}
-
-/**
- * Parametri za filtriranje žalbi
- */
-export interface ComplaintFilters {
-  status?: 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'PENDING' | 'RESOLVED' | 'CLOSED' | 'REJECTED';
-  priority?: number;
-  assignedAgentId?: string;
-  limit?: number;
-  offset?: number;
-  orderBy?: {
-    createdAt?: 'asc' | 'desc';
-    priority?: 'asc' | 'desc';
-    updatedAt?: 'asc' | 'desc';
-  };
-}
-
-/**
- * Parametri za pretragu entiteta
- */
-export interface SearchEntityParams {
-  query: string;
-  entities?: ('contracts' | 'providers' | 'complaints' | 'users' | 'humanitarian_orgs')[];
-  limit?: number;
-  offset?: number;
-  onlyWithShortNumbers?: boolean;
-}
-
-/**
- * Parametri za korisničke statistike
- */
-export interface UserStatsParams {
-  period?: 'week' | 'month' | 'year';
-}
-
-/**
- * Parametri za pregled aktivnosti
- */
-export interface ActivityOverviewParams {
-  period?: 'today' | 'week' | 'month';
-}
-
-/**
- * Parametri za finansijski pregled
- */
-export interface FinancialSummaryParams {
-  period?: 'month' | 'quarter' | 'year';
-  contractType?: 'PROVIDER' | 'HUMANITARIAN' | 'PARKING';
-}
-
-/**
- * Parametri za zdravlje sistema
- */
-export interface SystemHealthParams {
-  includeDetails?: boolean;
-}
-
-/**
- * Parametri za upravljanje korisnicima
- */
-export interface ManageUserParams {
-  action: 'view' | 'activate' | 'deactivate';
-  userId?: string;
-  email?: string;
-}
-
-/**
- * Tool mapping tip
- */
-export type ToolMapping = Record<string, string>;
-
-/**
- * Response format tip za različite kontekste
- */
-export type ResponseContext = 
-  | 'contracts'
-  | 'providers'
-  | 'complaints'
-  | 'humanitarian'
-  | 'stats'
-  | 'search'
-  | 'activity'
-  | 'financial'
-  | 'system'
-  | 'debug';
-
-/**
- * Dozvole za alate po ulogama
- */
-export interface RolePermissions {
-  USER: string[];
-  AGENT: string[];
-  MANAGER: string[];
-  ADMIN: string[];
-}
-
-/**
- * Log entry za query logger
+ * Query log entry za tracking
  */
 export interface QueryLogEntry {
+  id: string;
   userId: string;
   toolName: string;
-  args: any;
-  timestamp: Date;
+  params: any;
+  result?: any;
+  success: boolean;
   executionTime?: number;
-  success?: boolean;
+  timestamp: Date;
   error?: string;
 }
 
 /**
- * Write operation rezultat
+ * Tool execution options
  */
-export interface WriteOperationResult extends McpResult {
-  recordId?: string;
-  recordsCreated?: number;
-  recordsUpdated?: number;
-  recordsDeleted?: number;
+export interface ToolExecutionOptions {
+  timeout?: number; // Timeout u milisekundama
+  retries?: number; // Broj pokušaja u slučaju greške
+  cache?: boolean; // Da li keširaju rezultat
+  cacheTTL?: number; // TTL za keš u sekundama
 }
 
 /**
- * Parametri za kreiranje ugovora
+ * Validation result
  */
-export interface CreateContractParams {
-  name: string;
-  contractNumber: string;
-  type: 'PROVIDER' | 'HUMANITARIAN' | 'PARKING' | 'BULK';
-  startDate: string | Date;
-  endDate: string | Date;
-  providerId?: string;
-  humanitarianOrgId?: string;
-  parkingServiceId?: string;
-  description?: string;
-  revenuePercentage?: number;
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings?: string[];
 }
 
 /**
- * Parametri za ažuriranje ugovora
+ * AI Response format
  */
-export interface UpdateContractParams {
-  contractId: string;
-  updates: Partial<CreateContractParams>;
-}
-
-/**
- * Parametri za kreiranje žalbe
- */
-export interface CreateComplaintParams {
-  title: string;
-  description: string;
-  priority?: number;
-  serviceId?: string;
-  providerId?: string;
-  financialImpact?: number;
-}
-
-/**
- * Parametri za ažuriranje žalbe
- */
-export interface UpdateComplaintParams {
-  complaintId: string;
-  status?: ComplaintFilters['status'];
-  priority?: number;
-  assignedAgentId?: string;
-  resolution?: string;
-}
-
-/**
- * Parametri za dodavanje komentara
- */
-export interface AddCommentParams {
-  complaintId: string;
-  content: string;
-  isInternal?: boolean;
-}
-
-/**
- * Summary statistika
- */
-export interface SummaryStats {
-  active?: number;
-  expired?: number;
-  pending?: number;
-  new?: number;
-  inProgress?: number;
-  resolved?: number;
-  inactive?: number;
-  total?: number;
-}
-
-/**
- * Sistem zdravlje podaci
- */
-export interface SystemHealthData {
-  users: {
-    total: number;
-    active: number;
+export interface AIResponse {
+  message: string;
+  toolCall?: {
+    toolName: string;
+    params: any;
+    requiresConfirmation: boolean;
   };
-  contracts: {
-    total: number;
-    active: number;
-  };
-  complaints: {
-    pending: number;
-  };
-}
-
-/**
- * Aktivnost pregled podaci
- */
-export interface ActivityOverviewData {
-  newContracts: number;
-  expiringContracts: number;
-  newComplaints: number;
-  activeRenewals: number;
-  recentActivities: number;
-}
-
-/**
- * Finansijski pregled podaci
- */
-export interface FinancialSummaryData {
-  activeContracts: number;
-  averageRevenuePercentage: number;
-  contractType: string;
-}
-
-/**
- * Korisničke statistike podaci
- */
-export interface UserStatsData {
-  contractsCreated: number;
-  complaintsSubmitted: number;
-  activitiesCount: number;
-}
-
-/**
- * Error tipovi za MCP operacije
- */
-export class McpError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public statusCode: number = 500
-  ) {
-    super(message);
-    this.name = 'McpError';
-  }
-}
-
-export class UnauthorizedError extends McpError {
-  constructor(message: string = 'Unauthorized') {
-    super(message, 'UNAUTHORIZED', 401);
-  }
-}
-
-export class ForbiddenError extends McpError {
-  constructor(message: string = 'Insufficient permissions') {
-    super(message, 'FORBIDDEN', 403);
-  }
-}
-
-export class NotFoundError extends McpError {
-  constructor(message: string = 'Resource not found') {
-    super(message, 'NOT_FOUND', 404);
-  }
-}
-
-export class ValidationError extends McpError {
-  constructor(message: string = 'Validation failed') {
-    super(message, 'VALIDATION_ERROR', 400);
-  }
-}
-
-export class DatabaseError extends McpError {
-  constructor(message: string = 'Database operation failed') {
-    super(message, 'DATABASE_ERROR', 500);
-  }
+  suggestions?: string[];
+  metadata?: Record<string, any>;
 }
