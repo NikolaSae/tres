@@ -1,5 +1,4 @@
-//app/(protected)/help/documentation/page.tsx
-
+// app/(protected)/help/documentation/page.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, FileText, Code, Database, Zap, Shield, Server, Layers } from "lucide-react";
 import Link from "next/link";
@@ -64,9 +63,9 @@ export default function DocumentationPage() {
           icon: FileText,
         },
         {
-          name: "App Contracts structure",
-          slug: "app-contracts",
-          description: "Project structure and file organization",
+          name: "Contracts Module",
+          slug: "contracts-module",
+          description: "Complete documentation for the contracts management module",
           icon: FileText,
         },
         {
@@ -94,6 +93,9 @@ export default function DocumentationPage() {
     }
   ];
 
+  // Calculate totals
+  const totalDocs = docCategories.reduce((sum, cat) => sum + cat.docs.length, 0);
+
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       {/* Header */}
@@ -104,7 +106,7 @@ export default function DocumentationPage() {
           </div>
           <div>
             <h1 className="text-4xl font-bold mb-2">
-              TRES Documentation
+              FIN-APP-HUB Documentation
             </h1>
             <p className="text-muted-foreground text-lg">
               Comprehensive documentation for Telco Regulation & Expense System
@@ -119,7 +121,9 @@ export default function DocumentationPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <Zap className="h-8 w-8 text-yellow-500" />
-              <span className="text-3xl font-bold">2</span>
+              <span className="text-3xl font-bold">
+                {docCategories[0].docs.length}
+              </span>
             </div>
             <CardTitle className="text-sm font-medium">Getting Started</CardTitle>
           </CardHeader>
@@ -129,7 +133,9 @@ export default function DocumentationPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <Code className="h-8 w-8 text-blue-500" />
-              <span className="text-3xl font-bold">2</span>
+              <span className="text-3xl font-bold">
+                {docCategories[1].docs.length}
+              </span>
             </div>
             <CardTitle className="text-sm font-medium">API Docs</CardTitle>
           </CardHeader>
@@ -139,7 +145,9 @@ export default function DocumentationPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <Server className="h-8 w-8 text-green-500" />
-              <span className="text-3xl font-bold">2</span>
+              <span className="text-3xl font-bold">
+                {docCategories[2].docs.length}
+              </span>
             </div>
             <CardTitle className="text-sm font-medium">Application</CardTitle>
           </CardHeader>
@@ -149,7 +157,9 @@ export default function DocumentationPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <Database className="h-8 w-8 text-purple-500" />
-              <span className="text-3xl font-bold">1</span>
+              <span className="text-3xl font-bold">
+                {docCategories[3].docs.length}
+              </span>
             </div>
             <CardTitle className="text-sm font-medium">Database</CardTitle>
           </CardHeader>

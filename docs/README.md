@@ -1,4 +1,4 @@
-# 📱 TRES - Telco Regulation & Expense System
+# 📱 Fin-App-Hub - Telco Regulation & Expense System
 
 > Sveobuhvatna Next.js aplikacija za upravljanje telekomunikacionim uslugama, humanitarnim organizacijama, parking servisima i ugovorima.
 
@@ -409,11 +409,297 @@ npm run dev
 
 ## 📚 Dodatna Dokumentacija
 
-- [Arhitektura Sistema](docs/arhitektura.md)
-- [Šema Baze](docs/baza-podataka.md)
-- [API Dokumentacija](docs/PROJECT_API_DOCUMENTATION.md)
-- [Struktura Projekta](docs/PROJECT_STRUCTURE.md)
+- [Arhitektura Sistema](docs/arhitektura.md) - Detaljan pregled arhitekture
+- [Šema Baze](docs/baza-podataka.md) - Kompletna šema baze podataka
+- [API Dokumentacija](docs/PROJECT_API_DOCUMENTATION.md) - Svi API endpoints
+- [Struktura Projekta](docs/PROJECT_STRUCTURE.md) - Organizacija fajlova
+- [API Struktura](docs/PROJECT_API_STRUCTURE.md) - API organizacija
 
 ---
 
-##
+## 🔧 Česte Komande
+
+### Development
+
+```bash
+# Pokreni dev server
+npm run dev
+
+# Build aplikaciju
+npm run build
+
+# Pokreni production build lokalno
+npm run start
+
+# Linting
+npm run lint
+
+# Format kod
+npm run format
+```
+
+### Database
+
+```bash
+# Generiši Prisma client
+npx prisma generate
+
+# Kreiraj migraciju
+npx prisma migrate dev
+
+# Primeni migracije
+npx prisma migrate deploy
+
+# Otvori Prisma Studio
+npx prisma studio
+
+# Reset baze (PAŽLJIVO!)
+npx prisma migrate reset
+
+# Seed bazu
+npm run seed
+```
+
+### Package Management
+
+```bash
+# Proveri outdated pakete
+npm outdated
+
+# Update specifičan paket
+npm install <package>@latest
+
+# Update sve minor/patch verzije
+npm update
+
+# Proveri security vulnerabilities
+npm audit
+
+# Fix vulnerabilities
+npm audit fix
+```
+
+---
+
+## 📖 Kako Koristiti TRES
+
+### 1. Kreiranje Novog Ugovora
+
+1. Idi na **Contracts** → **New Contract**
+2. Izaberi tip ugovora (Provider, Humanitarian, Parking)
+3. Popuni obavezna polja
+4. Dodaj attachment-e (opciono)
+5. Klikni **Create Contract**
+
+### 2. Praćenje Isteka Ugovora
+
+1. Idi na **Contracts** → **Expiring Contracts**
+2. Vidi sve ugovore koji ističu u narednih 60 dana
+3. Klikni na ugovor za detalje
+4. Pokreni renewal proces
+
+### 3. Generisanje Izveštaja
+
+1. Idi na **Reports**
+2. Izaberi tip izveštaja (Contracts, Providers, Services)
+3. Postavi filtere (datum, status, provider)
+4. Klikni **Generate Report**
+5. Download PDF/Excel
+
+### 4. Import Podataka iz Excel-a
+
+1. Idi na modul (Services, Contracts, Providers)
+2. Klikni **Import**
+3. Upload Excel fajl (.xlsx)
+4. Mapuj kolone
+5. Potvrdi import
+
+### 5. AI Obrada Email-a
+
+1. Pošalji email na configured MCP endpoint
+2. Sistem automatski ekstraktuje podatke
+3. Kreira draft ugovor
+4. Proveri i odobri draft
+
+---
+
+## 🔐 Security Best Practices
+
+### Password Policy
+
+- Minimalno 8 karaktera
+- Kombinacija slova, brojeva i simbola
+- Redovna promena lozinke (preporučeno svaka 3 meseca)
+
+### Data Protection
+
+- Svi osjetljivi podaci su enkriptovani
+- HTTPSOnly u produkciji
+- Regular security audits
+- Role-based access control
+
+### Backup Strategy
+
+```bash
+# Daily automated backups (Supabase)
+# Weekly manual exports
+# Monthly archive backups
+
+# Manual backup
+pg_dump $DATABASE_URL > backup-$(date +%Y%m%d).sql
+```
+
+---
+
+## 🆘 Troubleshooting
+
+### Problem: "Database connection failed"
+
+**Rešenje:**
+```bash
+# Proveri DATABASE_URL u .env
+# Proveri Supabase connection
+# Proveri mrežnu konekciju
+```
+
+### Problem: "Prisma client not generated"
+
+**Rešenje:**
+```bash
+npx prisma generate
+```
+
+### Problem: "NextAuth session undefined"
+
+**Rešenje:**
+```bash
+# Proveri NEXTAUTH_SECRET u .env
+# Proveri NEXTAUTH_URL
+# Restartuj server
+```
+
+### Problem: "Email notifications not sending"
+
+**Rešenje:**
+```bash
+# Proveri RESEND_API_KEY
+# Proveri email template
+# Proveri Resend dashboard za logs
+```
+
+### Problem: "File upload fails"
+
+**Rešenje:**
+```bash
+# Proveri upload folder permissions
+mkdir -p public/uploads/contracts
+chmod 755 public/uploads
+```
+
+---
+
+## 📞 Support i Resursi
+
+### Kontakt
+
+- **Email:** support@tres-system.com
+- **GitHub Issues:** [github.com/your-org/tres/issues](https://github.com/your-org/tres/issues)
+- **Documentation:** [docs.tres-system.com](https://docs.tres-system.com)
+
+### Eksterne Reference
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [shadcn/ui Components](https://ui.shadcn.com)
+- [NextAuth.js Guide](https://authjs.dev)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+
+---
+
+## 📝 Changelog
+
+### Version 1.0.0 (Januar 2025)
+
+**Nove Funkcionalnosti:**
+- ✅ Kompletan sistem za upravljanje ugovorima
+- ✅ AI integracija za obradu email-a
+- ✅ Automatski cron jobs za proveru isteka
+- ✅ Excel/CSV import/export
+- ✅ Dashboard sa analitikom
+
+**Poboljšanja:**
+- ✅ Optimizovane database upite
+- ✅ Bolji UX za forme
+- ✅ Responsive dizajn za mobile
+- ✅ Email notifikacije
+
+**Bug Fixes:**
+- 🐛 Fixed contract expiration calculation
+- 🐛 Fixed file upload size limits
+- 🐛 Fixed timezone issues
+
+---
+
+## 🎯 Roadmap
+
+### Q1 2025
+
+- [ ] Mobile aplikacija (React Native)
+- [ ] Advanced analytics dashboard
+- [ ] Multi-language support (EN/SR)
+- [ ] API documentation portal
+
+### Q2 2025
+
+- [ ] Audit log system
+- [ ] Advanced reporting with charts
+- [ ] Integration sa ERP sistemima
+- [ ] Workflow automation builder
+
+### Q3 2025
+
+- [ ] Machine learning za predviđanje troškova
+- [ ] Real-time collaboration
+- [ ] Document versioning
+- [ ] Advanced search sa Elasticsearch
+
+---
+
+## ⭐ Contributors
+
+Hvala svima koji su doprineli ovom projektu!
+
+<!-- Add contributors list here -->
+
+---
+
+## 📄 License
+
+**Proprietary Software** - All rights reserved.
+
+Ova aplikacija je vlasništvo [Your Company Name]. Neovlašćeno kopiranje, distribucija ili izmena je zabranjena.
+
+Za komercijalne licence, kontaktirajte: licensing@tres-system.com
+
+---
+
+## 🙏 Acknowledgments
+
+- Next.js tim za odličan framework
+- Vercel za hosting platform
+- Prisma za odličan ORM
+- shadcn za UI komponente
+- Svi open source contributori
+
+---
+
+**Verzija:** 1.0.0  
+**Poslednje Ažuriranje:** Januar 2025  
+**Status:** ✅ Production Ready  
+**Održava:** TRES Development Team
+
+---
+
+<div align="center">
+  <strong>Napravljeno sa ❤️ koristeći Next.js</strong>
+</div>

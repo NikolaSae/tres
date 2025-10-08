@@ -1,22 +1,21 @@
-//app/components/MarkdownViewer.tsx
-
+// components/MarkdownViewer.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 
 interface MarkdownViewerProps {
   content: string;
 }
 
 export function MarkdownViewer({ content }: MarkdownViewerProps) {
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const copyToClipboard = async (code: string, id: string) => {
+  const handleCopy = async (code: string, id: string) => {
     try {
       await navigator.clipboard.writeText(code);
-      setCopiedCode(id);
-      setTimeout(() => setCopiedCode(null), 2000);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
@@ -37,172 +36,273 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
     return text
       .toLowerCase()
       .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-');
+      .replace(/\s+/g, '-')
+      .replace(/--+/g, '-')
+      .replace(/^-|-$/g, '');
   };
 
-  const parseMarkdown = (md: string): string => {
-    let html = md;
-
-    // Fenced code blocks
-    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-      const id = `code-${Math.random().toString(36).substr(2, 9)}`;
-      const trimmedCode = code.trim();
-      return `<div class="code-wrapper" data-lang="${lang || 'text'}">
-        <div class="code-header">
-          <span class="code-lang">${lang || 'text'}</span>
-          <button class="copy-btn" data-code="${encodeURIComponent(trimmedCode)}" data-id="${id}">Copy</button>
-        </div>
-        <pre class="code-block"><code>${escapeHtml(trimmedCode)}</code></pre>
-      </div>`;
-    });
-
-    // Headers with IDs for anchors
-    html = html.replace(/^#{6}\s+(.+)$/gim, (match, text) => 
-      `<h6 id="${generateId(text)}">${text}</h6>`
-    );
-    html = html.replace(/^#{5}\s+(.+)$/gim, (match, text) => 
-      `<h5 id="${generateId(text)}">${text}</h5>`
-    );
-    html = html.replace(/^#{4}\s+(.+)$/gim, (match, text) => 
-      `<h4 id="${generateId(text)}">${text}</h4>`
-    );
-    html = html.replace(/^###\s+(.+)$/gim, (match, text) => 
-      `<h3 id="${generateId(text)}">${text}</h3>`
-    );
-    html = html.replace(/^##\s+(.+)$/gim, (match, text) => 
-      `<h2 id="${generateId(text)}">${text}</h2>`
-    );
-    html = html.replace(/^#\s+(.+)$/gim, (match, text) => 
-      `<h1 id="${generateId(text)}">${text}</h1>`
-    );
-
-    // Bold
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    // Italic
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
+  const parseInline = (text: string): string => {
+    let html = text;
+    
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-
+    
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // Italic
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    
     // Inline code
     html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-
-    // Blockquotes
-    html = html.replace(/^>\s+(.+)$/gim, '<blockquote>$1</blockquote>');
-
-    // Horizontal rules
-    html = html.replace(/^---$/gim, '<hr />');
-    html = html.replace(/^\*\*\*$/gim, '<hr />');
-
-    // Unordered lists
-    const ulRegex = /((?:^[\-\*\+]\s+.+$\n?)+)/gim;
-    html = html.replace(ulRegex, (match) => {
-      const items = match
-        .split('\n')
-        .filter(line => line.trim())
-        .map(line => line.replace(/^[\-\*\+]\s+/, ''))
-        .map(item => `<li>${item}</li>`)
-        .join('');
-      return `<ul>${items}</ul>`;
-    });
-
-    // Ordered lists
-    const olRegex = /((?:^\d+\.\s+.+$\n?)+)/gim;
-    html = html.replace(olRegex, (match) => {
-      const items = match
-        .split('\n')
-        .filter(line => line.trim())
-        .map(line => line.replace(/^\d+\.\s+/, ''))
-        .map(item => `<li>${item}</li>`)
-        .join('');
-      return `<ol>${items}</ol>`;
-    });
-
-    // Tables
-    const tableRegex = /(\|.+\|\n)+/g;
-    html = html.replace(tableRegex, (match) => {
-      const rows = match.trim().split('\n');
-      if (rows.length < 2) return match;
-      
-      const headers = rows[0].split('|').filter(cell => cell.trim());
-      const separator = rows[1];
-      const dataRows = rows.slice(2);
-      
-      let table = '<table><thead><tr>';
-      headers.forEach(header => {
-        table += `<th>${header.trim()}</th>`;
-      });
-      table += '</tr></thead><tbody>';
-      
-      dataRows.forEach(row => {
-        const cells = row.split('|').filter(cell => cell.trim());
-        table += '<tr>';
-        cells.forEach(cell => {
-          table += `<td>${cell.trim()}</td>`;
-        });
-        table += '</tr>';
-      });
-      
-      table += '</tbody></table>';
-      return table;
-    });
-
-    // Paragraphs
-    const lines = html.split('\n');
-    const processed: string[] = [];
-    let inParagraph = false;
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      
-      if (line.trim() === '') {
-        if (inParagraph) {
-          processed.push('</p>');
-          inParagraph = false;
-        }
-        processed.push(line);
-      } else if (line.match(/^<(h[1-6]|ul|ol|table|blockquote|hr|div|pre)/)) {
-        if (inParagraph) {
-          processed.push('</p>');
-          inParagraph = false;
-        }
-        processed.push(line);
-      } else {
-        if (!inParagraph) {
-          processed.push('<p>');
-          inParagraph = true;
-        }
-        processed.push(line);
-      }
-    }
-    
-    if (inParagraph) {
-      processed.push('</p>');
-    }
-
-    return processed.join('\n');
+    return html;
   };
 
-  useEffect(() => {
-    const handleCopyClick = (e: Event) => {
-      const target = e.target as HTMLElement;
-      const button = target.closest('.copy-btn') as HTMLElement;
-      
-      if (button) {
-        const code = decodeURIComponent(button.getAttribute('data-code') || '');
-        const id = button.getAttribute('data-id') || '';
-        copyToClipboard(code, id);
-        
-        if (copiedCode === id) {
-          button.textContent = 'Copied!';
-        }
+  const parseMarkdown = (md: string): JSX.Element[] => {
+    const lines = md.split('\n');
+    const elements: JSX.Element[] = [];
+    let currentParagraph: string[] = [];
+    let inCodeBlock = false;
+    let codeLanguage = '';
+    let codeContent: string[] = [];
+    let inList = false;
+    let listItems: string[] = [];
+    let listType: 'ul' | 'ol' | null = null;
+    let tableLines: string[] = [];
+    let inTable = false;
+
+    const flushParagraph = () => {
+      if (currentParagraph.length > 0) {
+        const content = currentParagraph.join(' ');
+        elements.push(
+          <p key={elements.length} dangerouslySetInnerHTML={{ __html: parseInline(content) }} />
+        );
+        currentParagraph = [];
       }
     };
 
-    document.addEventListener('click', handleCopyClick);
-    return () => document.removeEventListener('click', handleCopyClick);
-  }, [copiedCode]);
+    const flushList = () => {
+      if (listItems.length > 0 && listType) {
+        const ListTag = listType;
+        elements.push(
+          <ListTag key={elements.length}>
+            {listItems.map((item, idx) => (
+              <li key={idx} dangerouslySetInnerHTML={{ __html: parseInline(item) }} />
+            ))}
+          </ListTag>
+        );
+        listItems = [];
+        listType = null;
+        inList = false;
+      }
+    };
+
+    const flushTable = () => {
+      if (tableLines.length >= 2) {
+        // Filter out empty lines and separator lines
+        const contentLines = tableLines.filter(line => {
+          const trimmed = line.trim();
+          return trimmed && !trimmed.match(/^\|[\s:-]+\|$/);
+        });
+
+        if (contentLines.length < 2) {
+          tableLines = [];
+          inTable = false;
+          return;
+        }
+
+        const [header, ...rows] = contentLines;
+        
+        // Parse header
+        const headerCells = header
+          .split('|')
+          .filter(cell => cell.trim())
+          .map(cell => cell.trim());
+        
+        // Parse rows
+        const bodyRows = rows.map(row => 
+          row.split('|')
+            .filter(cell => cell.trim())
+            .map(cell => cell.trim())
+        );
+        
+        // Only create table if we have valid data
+        if (headerCells.length > 0 && bodyRows.length > 0) {
+          elements.push(
+            <table key={elements.length}>
+              <thead>
+                <tr>
+                  {headerCells.map((cell, idx) => (
+                    <th key={idx} dangerouslySetInnerHTML={{ __html: parseInline(cell) }} />
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bodyRows.map((row, rowIdx) => (
+                  <tr key={rowIdx}>
+                    {row.map((cell, cellIdx) => (
+                      <td key={cellIdx} dangerouslySetInnerHTML={{ __html: parseInline(cell) }} />
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          );
+        }
+      }
+      tableLines = [];
+      inTable = false;
+    };
+
+    lines.forEach((line, index) => {
+      // Tables - detect table rows (must start and end with |)
+      if (line.trim().match(/^\|.+\|$/)) {
+        if (!inTable) {
+          flushParagraph();
+          flushList();
+          inTable = true;
+        }
+        tableLines.push(line);
+        return;
+      } else if (inTable) {
+        flushTable();
+      }
+
+      // Code blocks
+      if (line.startsWith('```')) {
+        if (!inCodeBlock) {
+          flushParagraph();
+          flushList();
+          inCodeBlock = true;
+          codeLanguage = line.replace('```', '').trim() || 'text';
+          codeContent = [];
+        } else {
+          const codeId = `code-${elements.length}`;
+          const code = codeContent.join('\n');
+          
+          elements.push(
+            <div key={elements.length} className="code-wrapper">
+              <div className="code-header">
+                <span className="code-lang">{codeLanguage}</span>
+                <button
+                  className="copy-btn"
+                  onClick={() => handleCopy(code, codeId)}
+                  aria-label="Copy code"
+                >
+                  {copiedId === codeId ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+              <pre className="code-block">
+                <code dangerouslySetInnerHTML={{ __html: escapeHtml(code) }} />
+              </pre>
+            </div>
+          );
+          
+          inCodeBlock = false;
+          codeLanguage = '';
+          codeContent = [];
+        }
+        return;
+      }
+
+      if (inCodeBlock) {
+        codeContent.push(line);
+        return;
+      }
+
+      // Headers
+      if (line.match(/^#{1,6}\s/)) {
+        flushParagraph();
+        flushList();
+        
+        const match = line.match(/^(#{1,6})\s+(.+)$/);
+        if (match) {
+          const level = match[1].length;
+          const text = match[2];
+          const id = generateId(text);
+          const Tag = `h${level}` as keyof JSX.IntrinsicElements;
+          
+          elements.push(
+            <Tag key={elements.length} id={id}>
+              {text}
+            </Tag>
+          );
+        }
+        return;
+      }
+
+      // Horizontal rules
+      if (line.match(/^(---|\*\*\*)$/)) {
+        flushParagraph();
+        flushList();
+        elements.push(<hr key={elements.length} />);
+        return;
+      }
+
+      // Lists
+      const ulMatch = line.match(/^[\-\*\+]\s+(.+)$/);
+      const olMatch = line.match(/^\d+\.\s+(.+)$/);
+
+      if (ulMatch || olMatch) {
+        flushParagraph();
+        
+        const item = ulMatch ? ulMatch[1] : olMatch![1];
+        const type = ulMatch ? 'ul' : 'ol';
+        
+        if (!inList || listType !== type) {
+          flushList();
+          inList = true;
+          listType = type;
+        }
+        
+        listItems.push(item);
+        return;
+      } else if (inList) {
+        flushList();
+      }
+
+      // Blockquotes
+      if (line.match(/^>\s+(.+)$/)) {
+        flushParagraph();
+        const match = line.match(/^>\s+(.+)$/);
+        if (match) {
+          elements.push(
+            <blockquote key={elements.length} dangerouslySetInnerHTML={{ __html: parseInline(match[1]) }} />
+          );
+        }
+        return;
+      }
+
+      // Empty lines
+      if (line.trim() === '') {
+        flushParagraph();
+        flushList();
+        return;
+      }
+
+      // Regular paragraphs (skip if looks like beginning of table)
+      if (!line.trim().startsWith('|')) {
+        currentParagraph.push(line);
+      }
+    });
+
+    flushParagraph();
+    flushList();
+    flushTable();
+
+    return elements;
+  };
 
   return (
     <>
@@ -255,7 +355,8 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
 
         .markdown-viewer ul, .markdown-viewer ol {
           margin-left: 2rem;
-          margin-bottom: 1rem;
+          margin-bottom: 1.5rem;
+          padding-left: 0;
         }
 
         .markdown-viewer li {
@@ -280,7 +381,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
           padding: 0.2rem 0.5rem;
           border-radius: 0.375rem;
           font-size: 0.875em;
-          font-family: 'Monaco', 'Courier New', monospace;
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
           color: #dc2626;
           border: 1px solid #e2e8f0;
         }
@@ -321,6 +422,9 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
           font-size: 0.75rem;
           font-weight: 500;
           transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
         }
 
         .markdown-viewer .copy-btn:hover {
@@ -332,7 +436,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
           padding: 1.25rem;
           overflow-x: auto;
           background: #1e293b;
-          font-family: 'Monaco', 'Courier New', monospace;
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
           font-size: 0.875rem;
           line-height: 1.7;
         }
@@ -345,7 +449,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
         .markdown-viewer blockquote {
           border-left: 4px solid #3b82f6;
           padding-left: 1rem;
-          margin: 1rem 0;
+          margin: 1.5rem 0;
           color: #6b7280;
           font-style: italic;
           background: #f9fafb;
@@ -387,6 +491,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
           background: #f9fafb;
         }
 
+        /* Dark mode */
         .dark .markdown-viewer {
           color: #e5e7eb;
         }
@@ -434,10 +539,9 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
         }
       `}</style>
       
-      <div 
-        className="markdown-viewer"
-        dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }} 
-      />
+      <div className="markdown-viewer">
+        {parseMarkdown(content)}
+      </div>
     </>
   );
 }

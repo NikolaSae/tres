@@ -1,9 +1,7 @@
-//app/(protected)/help/documentation/layout.tsx
-
-import { getAllMarkdownFiles } from "@/lib/docs";
+// app/(protected)/help/documentation/layout.tsx
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { FileText, Code, Database, BookOpen, Home } from "lucide-react";
+import { FileText, Code, Database, BookOpen, Home, Layers, Server } from "lucide-react";
 
 interface DocsLayoutProps {
   children: React.ReactNode;
@@ -15,7 +13,7 @@ const docSections = [
     icon: Home,
     items: [
       { name: "README", slug: "readme", icon: FileText },
-      { name: "Architecture", slug: "architecture", icon: BookOpen },
+      { name: "Architecture", slug: "architecture", icon: Layers },
     ]
   },
   {
@@ -28,10 +26,10 @@ const docSections = [
   },
   {
     title: "Application",
-    icon: BookOpen,
+    icon: Server,
     items: [
       { name: "App Structure", slug: "app-structure", icon: FileText },
-      { name: "App Contracts structure", slug: "app-contracts", icon: FileText },
+      { name: "Contracts Module", slug: "contracts-module", icon: FileText },
       { name: "Full Documentation", slug: "full-docs", icon: BookOpen },
     ]
   },
@@ -51,7 +49,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
       <aside className="w-64 border-r bg-slate-50 dark:bg-slate-900 p-6 sticky top-0 h-screen overflow-y-auto">
         <div className="mb-6">
           <Link href="/help/documentation">
-            <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
               <BookOpen className="h-6 w-6" />
               Docs
             </h2>
@@ -100,9 +98,10 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
                 href="https://nextjs.org/docs" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-400"
+                className="text-blue-600 hover:underline dark:text-blue-400 flex items-center gap-1"
               >
                 Next.js Docs
+                <span className="text-xs">↗</span>
               </a>
             </li>
             <li>
@@ -110,9 +109,10 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
                 href="https://www.prisma.io/docs" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-400"
+                className="text-blue-600 hover:underline dark:text-blue-400 flex items-center gap-1"
               >
                 Prisma Docs
+                <span className="text-xs">↗</span>
               </a>
             </li>
             <li>
@@ -120,9 +120,10 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
                 href="https://ui.shadcn.com" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-400"
+                className="text-blue-600 hover:underline dark:text-blue-400 flex items-center gap-1"
               >
                 shadcn/ui
+                <span className="text-xs">↗</span>
               </a>
             </li>
           </ul>
