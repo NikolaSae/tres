@@ -1,21 +1,21 @@
-// app/api/chat/route.ts - Potpuno ažurirana verzija sa AI Context Builder
+// app/api/chat/route.ts - Potpuno ažurirana verzija sa boljim AI odgovorima
 
 import { auth } from '@/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { InternalMcpServer } from '@/lib/mcp/internal-server';
 import { AIContextBuilder } from '@/lib/mcp/ai-context-builder';
 import type { McpContext } from '@/lib/mcp/types';
+import { db } from '@/lib/db';
 
 const mcpServer = new InternalMcpServer();
 const pendingActions: Record<string, { toolName: string, params: any }> = {};
-const userToolHistory: Record<string, string[]> = {}; // 🆕 Praćenje tool usage
 
 export async function POST(req: NextRequest) {
   try {
     console.log('🔥 API Chat called');
     
     const body = await req.json();
-    const { message } = body;
+    const { message, conversationHistory = [] } = body;
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -41,21 +41,33 @@ export async function POST(req: NextRequest) {
 
     console.log('📨 Chat request:', { message, context });
 
-    // 🆕 Praćenje tool historije za contextual hints
-    if (!userToolHistory[context.userId]) {
-      userToolHistory[context.userId] = [];
-    }
+    // Dobij recent tools iz baze
+    const recentQueries = await db.queryLog.findMany({
+      where: { userId: context.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { toolName: true }
+    });
+    const recentTools = [...new Set(recentQueries.map(q => q.toolName))];
 
-    // Koristi AI ako je dostupan API key i poruka je dovoljno duga
-    const useAI = process.env.OPENROUTER_API_KEY && message.length > 5;
+    // Koristi AI ako je dostupan API key (smanjena granica na 2 karaktera)
+    const useAI = process.env.OPENROUTER_API_KEY && message.trim().length >= 2;
     
-    const response = useAI 
-      ? await handleAIQuery(message, context, userToolHistory[context.userId])
+    console.log('🤖 AI Decision:', { 
+      useAI, 
+      hasApiKey: !!process.env.OPENROUTER_API_KEY,
+      messageLength: message.length 
+    });
+    
+    const result = useAI 
+      ? await handleAIQuery(message, context, recentTools, conversationHistory)
       : await handleQuery(message, context);
 
     return NextResponse.json({ 
-      response,
-      timestamp: new Date().toISOString()
+      response: result.response,
+      timestamp: new Date().toISOString(),
+      toolsUsed: result.toolsUsed || [],
+      data: result.data || null
     });
 
   } catch (error: any) {
@@ -92,12 +104,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ✅ AŽURIRANA FUNKCIJA - AI-powered sa AI Context Builder
+// ✅ POBOLJŠANA AI FUNKCIJA
 async function handleAIQuery(
   query: string, 
   context: McpContext,
-  recentTools: string[]
-): Promise<string> {
+  recentTools: string[],
+  conversationHistory: any[]
+): Promise<{ response: string; toolsUsed?: string[]; data?: any }> {
   const userId = context.userId;
 
   // 1️⃣ Provera potvrde prethodne akcije
@@ -108,54 +121,80 @@ async function handleAIQuery(
     try {
       const result = await mcpServer.executeTool(toolName, params, context);
       
-      // 🆕 Dodaj u tool history
-      userToolHistory[userId] = [...(userToolHistory[userId] || []), toolName].slice(-10);
+      if (!result.success) {
+        return {
+          response: `❌ Greška pri izvršavanju: ${result.error}`,
+          toolsUsed: [toolName],
+          data: null
+        };
+      }
       
-      return formatToolResponse(toolName, result);
+      return {
+        response: formatToolResponse(toolName, result),
+        toolsUsed: [toolName],
+        data: result.data
+      };
     } catch (error: any) {
       console.error('Tool execution error:', error);
-      return `❌ Greška pri izvršavanju alata: ${error.message || error}`;
+      return {
+        response: `❌ Greška pri izvršavanju alata: ${error.message || error}`,
+        toolsUsed: [toolName],
+        data: null
+      };
     }
   }
 
-  // 2️⃣ Generiši optimizovan AI prompt korišćenjem AI Context Builder
+  // 2️⃣ Generiši AI prompt sa AI Context Builder
   try {
     const tools = mcpServer.getToolsForRole(context.userRole);
     
-    // 🆕 Koristi AIContextBuilder za stvaranje system prompta
-    const systemPrompt = AIContextBuilder.buildSystemPrompt(
-      tools,
-      context.userRole,
-      context
-    );
+    // Koristi AIContextBuilder
+    const basePrompt = AIContextBuilder.buildSystemPrompt(tools, context.userRole, context);
+    const hints = AIContextBuilder.generateContextualHints(recentTools, context.userRole);
 
-    // 🆕 Dodaj contextual hints
-    const hints = AIContextBuilder.generateContextualHints(
-      recentTools,
-      context.userRole
-    );
-
-    const fullPrompt = `${systemPrompt}${hints}
+    const systemPrompt = `${basePrompt}${hints}
 
 ---
 
-**KRITIČNA PRAVILA ZA KORIŠĆENJE ALATA:**
+**KRITIČNA PRAVILA:**
 
-1. **Format odgovora kada predlažeš alat:**
+1. **Tool Execution Format:**
    \`\`\`
-   Koristim alat: [IME_ALATA] sa parametrima: {"key": "value"}
+   TOOL_CALL: tool_name
+   PARAMS: {"param1": "value1", "param2": "value2"}
    \`\`\`
 
-2. **Kada tražiš od korisnika da potvrdi:**
-   - Jasno objasni šta će alat uraditi
-   - Napiši: "Da li želiš da potvrdim ovu akciju? (Odgovori sa 'potvrdjujem')"
+2. **Za READ operacije (get_*):**
+   - Izvršavaj ih odmah bez potvrde
+   - Objasni šta ćeš uraditi PRE tool call-a
 
-3. **Za READ alate (get_*):** Automatski ih koristi bez potvrde
-4. **Za WRITE alate (create_*, update_*, delete_*):** UVEK traži potvrdu
+3. **Za WRITE operacije (create_*, update_*, delete_*):**
+   - UVEK traži potvrdu
+   - Objasni tačno šta će se desiti
+   - Napiši: "Odgovori sa 'potvrdjujem' za izvršenje"
 
-5. **Uvek odgovaraj na srpskom jeziku**
+4. **Odgovori na srpskom jeziku**
 
-**Trenutni upit korisnika:** ${query}`;
+5. **Kada nemaš dovoljno informacija:**
+   - Pitaj korisnika za dodatne detalje
+   - Predloži šta bi moglo pomoći
+
+6. **Budi koncizan ali informativan**
+
+**Dostupni alati:**
+${tools.map(t => `- ${t.name}: ${t.description}`).join('\n')}
+
+**Korisnikov upit:** ${query}`;
+
+    // Priprema conversation history
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory.slice(-4).map((msg: any) => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      })),
+      { role: 'user', content: query }
+    ];
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -167,12 +206,9 @@ async function handleAIQuery(
       },
       body: JSON.stringify({
         model: 'deepseek/deepseek-chat',
-        messages: [
-          { role: 'system', content: fullPrompt },
-          { role: 'user', content: query }
-        ],
+        messages,
         temperature: 0.7,
-        max_tokens: 800 // 🆕 Povećano zbog dužeg system prompta
+        max_tokens: 1000
       })
     });
 
@@ -185,137 +221,158 @@ async function handleAIQuery(
     const data = await response.json();
     const aiResponse = data.choices[0]?.message?.content || 'Nema odgovora';
 
-    // 3️⃣ Parsiranje AI odgovora za detekciju tool calla
-    const toolMatch = aiResponse.match(/Koristim alat:\s*(\w+)\s*(?:sa parametrima:\s*(\{.+?\}))?/is);
+    // 3️⃣ Parse AI response za tool calls
+    const toolMatch = aiResponse.match(/TOOL_CALL:\s*(\w+)\s*\n?\s*PARAMS:\s*(\{[^}]+\})/is);
     
     if (toolMatch) {
-      const toolName = toolMatch[1];
+      const toolName = toolMatch[1].trim();
       let params: any = {};
 
-      if (toolMatch[2]) {
-        try {
-          params = JSON.parse(toolMatch[2]);
-        } catch (e) {
-          console.warn('Failed to parse tool params:', toolMatch[2]);
-        }
+      try {
+        params = JSON.parse(toolMatch[2]);
+      } catch (e) {
+        console.warn('Failed to parse tool params:', toolMatch[2]);
       }
 
-      // 🆕 Proveri da li je WRITE operacija
+      // Proveri da li alat postoji
       const tool = tools.find(t => t.name === toolName);
-      const isWriteOperation = tool?.category === 'write';
+      
+      if (!tool) {
+        return {
+          response: `❌ Alat "${toolName}" nije dostupan za vašu ulogu.`,
+          toolsUsed: [],
+          data: null
+        };
+      }
+
+      const isWriteOperation = tool.category === 'write';
 
       if (isWriteOperation) {
-        // WRITE operacija - čuvaj u pending i traži potvrdu
+        // WRITE - čuvaj i traži potvrdu
         pendingActions[userId] = { toolName, params };
-        return `${aiResponse}\n\n⚠️ **Ovo je operacija izmene podataka.**\n\n` +
-               `Da li želiš da potvrdim akciju? Odgovori sa **"potvrdjujem"**.`;
+        
+        // Ukloni TOOL_CALL deo iz odgovora
+        const cleanResponse = aiResponse.replace(/TOOL_CALL:[\s\S]*?PARAMS:[\s\S]*?\}/i, '').trim();
+        
+        return {
+          response: `${cleanResponse}\n\n⚠️ **Ovo je operacija izmene podataka.**\n\nDa li želiš da izvršim ovu akciju? Odgovori sa **"potvrdjujem"**.`,
+          toolsUsed: [],
+          data: null
+        };
       } else {
-        // READ operacija - izvršava se odmah
+        // READ - izvršava odmah
         try {
           const result = await mcpServer.executeTool(toolName, params, context);
           
-          // 🆕 Dodaj u tool history
-          userToolHistory[userId] = [...(userToolHistory[userId] || []), toolName].slice(-10);
+          if (!result.success) {
+            return {
+              response: `❌ ${result.error}`,
+              toolsUsed: [toolName],
+              data: null
+            };
+          }
           
-          return formatToolResponse(toolName, result);
+          // Ukloni TOOL_CALL deo i dodaj rezultate
+          const cleanResponse = aiResponse.replace(/TOOL_CALL:[\s\S]*?PARAMS:[\s\S]*?\}/i, '').trim();
+          const formattedResult = formatToolResponse(toolName, result);
+          
+          return {
+            response: cleanResponse ? `${cleanResponse}\n\n${formattedResult}` : formattedResult,
+            toolsUsed: [toolName],
+            data: result.data
+          };
         } catch (error: any) {
           console.error('Tool execution error:', error);
-          return `❌ Greška pri izvršavanju alata: ${error.message}`;
+          return {
+            response: `❌ Greška: ${error.message}`,
+            toolsUsed: [toolName],
+            data: null
+          };
         }
       }
     }
 
     // 4️⃣ Ako AI ne poziva alat, vrati njegov odgovor
-    return aiResponse;
+    return {
+      response: aiResponse,
+      toolsUsed: [],
+      data: null
+    };
 
   } catch (error: any) {
     console.error('AI Query error:', error);
-    return handleQuery(query, context); // fallback na keyword matching
+    return handleQuery(query, context); // fallback
   }
 }
 
-// ✅ Originalna keyword-based funkcija (fallback) - OSTAJE ISTA
-async function handleQuery(query: string, context: McpContext): Promise<string> {
+// ✅ FALLBACK funkcija - keyword-based (ostaje ista)
+async function handleQuery(
+  query: string, 
+  context: McpContext
+): Promise<{ response: string; toolsUsed?: string[]; data?: any }> {
   const lowerQuery = query.toLowerCase();
 
-  // Help request
-  if (lowerQuery.includes('koje alate') || 
-      lowerQuery.includes('što možeš') || 
-      lowerQuery.includes('available tools') ||
-      lowerQuery.includes('list tools') ||
-      lowerQuery.includes('help')) {
-    return formatAvailableTools(context.userRole);
-  }
-
-  // Debug/status
-  if (lowerQuery.includes('debug') || lowerQuery.includes('status')) {
-    return getSystemStatus();
+  // Help
+  if (lowerQuery.includes('koje alate') || lowerQuery.includes('help')) {
+    return {
+      response: formatAvailableTools(context.userRole),
+      toolsUsed: [],
+      data: null
+    };
   }
 
   // Contracts
   if (lowerQuery.includes('ugovor') || lowerQuery.includes('contract')) {
-    const result = await mcpServer.executeTool('get_contracts', {
-      limit: 10,
-      offset: 0
-    }, context);
-    return formatToolResponse('get_contracts', result);
+    const result = await mcpServer.executeTool('get_contracts', { limit: 10 }, context);
+    return {
+      response: formatToolResponse('get_contracts', result),
+      toolsUsed: ['get_contracts'],
+      data: result.data
+    };
   }
 
   // Providers
   if (lowerQuery.includes('provajder') || lowerQuery.includes('provider')) {
-    const result = await mcpServer.executeTool('get_providers', {
-      limit: 10,
-      offset: 0
-    }, context);
-    return formatToolResponse('get_providers', result);
+    const result = await mcpServer.executeTool('get_providers', { limit: 10 }, context);
+    return {
+      response: formatToolResponse('get_providers', result),
+      toolsUsed: ['get_providers'],
+      data: result.data
+    };
   }
 
   // Complaints
-  if (lowerQuery.includes('žalb') || lowerQuery.includes('complaint') || lowerQuery.includes('zalb')) {
+  if (lowerQuery.includes('žalb') || lowerQuery.includes('complaint')) {
     if (!['ADMIN', 'MANAGER', 'AGENT'].includes(context.userRole)) {
-      return '🔒 Nemate pristup žalbama. Kontaktirajte administratora.';
+      return {
+        response: '🔒 Nemate pristup žalbama.',
+        toolsUsed: [],
+        data: null
+      };
     }
-    const result = await mcpServer.executeTool('get_complaints', {
-      limit: 10,
-      offset: 0
-    }, context);
-    return formatToolResponse('get_complaints', result);
-  }
-
-  // Search
-  if (lowerQuery.includes('pretraži') || 
-      lowerQuery.includes('search') || 
-      lowerQuery.includes('pronađi') ||
-      lowerQuery.includes('humanitarn')) {
-    const searchTerm = extractSearchTerm(query);
-    const result = await mcpServer.executeTool('search_entities', {
-      query: searchTerm,
-      entities: ['contracts', 'providers', 'complaints', 'humanitarian_orgs'],
-      limit: 20
-    }, context);
-    return formatToolResponse('search_entities', result);
-  }
-
-  // Stats
-  if (lowerQuery.includes('statistik') || lowerQuery.includes('stats')) {
-    const result = await mcpServer.executeTool('get_user_stats', {
-      period: 'month'
-    }, context);
-    return formatToolResponse('get_user_stats', result);
+    const result = await mcpServer.executeTool('get_complaints', { limit: 10 }, context);
+    return {
+      response: formatToolResponse('get_complaints', result),
+      toolsUsed: ['get_complaints'],
+      data: result.data
+    };
   }
 
   // Default
-  return `💬 Nisam siguran šta tražite. Pokušajte:
-
+  return {
+    response: `💬 Nisam siguran šta tražite. Pokušajte:
+    
 - "Koje alate imam?" - Lista dostupnih alata
 - "Prikaži ugovore" - Lista ugovora
 - "Prikaži provajdere" - Lista provajdera
-- "Pretraži Telekom" - Pretraga
-- "Statistika" - Vaše statistike`;
+- "Statistika" - Vaše statistike`,
+    toolsUsed: [],
+    data: null
+  };
 }
 
 // ===================================
-// FORMATTING FUNCTIONS - OSTAJU ISTE
+// FORMATTING FUNCTIONS
 // ===================================
 
 function formatAvailableTools(role: string): string {
@@ -334,30 +391,23 @@ function formatAvailableTools(role: string): string {
 
   let result = `🛠️ **Dostupni alati za ${role}:**\n\n`;
 
+  const categoryEmojis: Record<string, string> = {
+    read: '📖',
+    write: '✏️',
+    analytics: '📊',
+    system: '⚙️'
+  };
+
   Object.entries(grouped).forEach(([category, categoryTools]) => {
-    result += `**${category.toUpperCase()}:**\n`;
+    const emoji = categoryEmojis[category] || '📦';
+    result += `${emoji} **${category.toUpperCase()}:**\n`;
     categoryTools.forEach(tool => {
-      result += `• **${tool.name}**\n`;
-      result += `  ${tool.description}\n`;
-      if (tool.examples?.length) {
-        result += `  _Primeri: ${tool.examples.slice(0, 2).join(', ')}_\n`;
-      }
-      result += '\n';
+      result += `• **${tool.name}** - ${tool.description}\n`;
     });
+    result += '\n';
   });
 
   return result;
-}
-
-function getSystemStatus(): string {
-  return `📊 **MCP Server Status:**
-
-✅ Server: Operativan
-🔧 Alati: ${mcpServer.getToolsForRole('ADMIN').length} dostupnih
-💾 Database: Povezana
-⚡ Response: ~${Math.random() * 100 | 0}ms
-
-_Sistem radi normalno._`;
 }
 
 function formatToolResponse(toolName: string, result: any): string {
@@ -378,32 +428,28 @@ function formatToolResponse(toolName: string, result: any): string {
       return formatSearchResults(data);
     case 'get_user_stats':
       return formatStats(data);
-    case 'update_provider':
-    case 'create_provider':
-      return formatProviderUpdate(data);
     case 'get_activity_overview':
       return formatActivityOverview(data);
-    case 'get_system_health':
-      return formatSystemHealth(data);
-    case 'update_contract':
-    case 'create_contract':
-      return `✅ Ugovor uspešno ${toolName.includes('create') ? 'kreiran' : 'ažuriran'}!\n\n` +
-             `ID: ${data.contract?.id}\n` +
-             `Naziv: ${data.contract?.name}`;
-    case 'create_complaint':
-    case 'update_complaint':
-      return `✅ Žalba uspešno ${toolName.includes('create') ? 'kreirana' : 'ažurirana'}!\n\n` +
-             `ID: ${data.complaint?.id}\n` +
-             `Naslov: ${data.complaint?.title}`;
+    case 'get_financial_summary':
+      return formatFinancialSummary(data);
     default:
-      return `✅ **Rezultat:**\n\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
+      // Generic formatting
+      if (data && typeof data === 'object') {
+        const keys = Object.keys(data);
+        if (keys.length <= 5) {
+          let result = '✅ **Rezultat:**\n\n';
+          keys.forEach(key => {
+            result += `• **${key}**: ${JSON.stringify(data[key])}\n`;
+          });
+          return result;
+        }
+      }
+      return `✅ Operacija uspešna!\n\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
   }
 }
 
 function formatContracts(data: any): string {
-  if (!data.contracts?.length) {
-    return '📋 Nema ugovora.';
-  }
+  if (!data.contracts?.length) return '📋 Nema ugovora.';
 
   let result = `📋 **Ugovori** (${data.displayed}/${data.total})\n\n`;
   
@@ -415,8 +461,7 @@ function formatContracts(data: any): string {
     result += `**${c.name}**\n`;
     result += `• Status: ${c.status}\n`;
     result += `• Provajder: ${c.provider?.name || 'N/A'}\n`;
-    result += `• Broj: ${c.contractNumber || 'N/A'}\n`;
-    result += `• Period: ${new Date(c.startDate).toLocaleDateString('sr-RS')} - ${new Date(c.endDate).toLocaleDateString('sr-RS')}\n\n`;
+    result += `• Broj: ${c.contractNumber || 'N/A'}\n\n`;
   });
 
   if (data.contracts.length > 5) {
@@ -427,9 +472,7 @@ function formatContracts(data: any): string {
 }
 
 function formatProviders(data: any): string {
-  if (!data.providers?.length) {
-    return '🏢 Nema provajdera.';
-  }
+  if (!data.providers?.length) return '🏢 Nema provajdera.';
 
   let result = `🏢 **Provajderi** (${data.displayed}/${data.total})\n\n`;
 
@@ -444,9 +487,7 @@ function formatProviders(data: any): string {
 }
 
 function formatComplaints(data: any): string {
-  if (!data.complaints?.length) {
-    return '📝 Nema žalbi.';
-  }
+  if (!data.complaints?.length) return '📝 Nema žalbi.';
 
   let result = `📝 **Žalbe** (${data.displayed}/${data.total})\n\n`;
 
@@ -457,8 +498,7 @@ function formatComplaints(data: any): string {
   data.complaints.slice(0, 5).forEach((c: any) => {
     result += `**${c.title}**\n`;
     result += `• Status: ${c.status}\n`;
-    result += `• Prioritet: ${c.priority || 'N/A'}\n`;
-    result += `• Provajder: ${c.provider?.name || 'N/A'}\n\n`;
+    result += `• Prioritet: ${c.priority || 'N/A'}\n\n`;
   });
 
   return result;
@@ -486,86 +526,33 @@ function formatSearchResults(data: any): string {
     result += '\n';
   }
 
-  if (data.complaints?.length) {
-    hasResults = true;
-    result += `📝 **Žalbe (${data.complaintsTotal}):**\n`;
-    data.complaints.slice(0, 3).forEach((c: any) => {
-      result += `• ${c.title} (${c.status})\n`;
-    });
-    result += '\n';
-  }
-
-  if (data.humanitarianOrgs?.length) {
-    hasResults = true;
-    result += `🤝 **Humanitarne org. (${data.humanitarianOrgsTotal}):**\n`;
-    data.humanitarianOrgs.slice(0, 3).forEach((h: any) => {
-      result += `• ${h.name}${h.shortNumber ? ` (${h.shortNumber})` : ''}\n`;
-    });
-  }
-
-  if (!hasResults) {
-    return '🔍 Nema rezultata pretrage.';
-  }
-
-  return result;
+  return hasResults ? result : '🔍 Nema rezultata.';
 }
 
 function formatStats(data: any): string {
   const { period, stats } = data;
-  return `📊 **Tvoja statistika - ${period}:**
+  return `📊 **Statistika - ${period}:**
 
 📋 Kreirani ugovori: ${stats.contractsCreated}
 📝 Podnesene žalbe: ${stats.complaintsSubmitted}
 ⚡ Ukupne aktivnosti: ${stats.activitiesCount}`;
 }
 
-function formatProviderUpdate(data: any): string {
-  if (!data.provider) {
-    return '❌ Greška pri ažuriranju provajdera.';
-  }
-
-  const p = data.provider;
-  return `✅ **Provajder uspešno ažuriran**
-
-**${p.name}**
-- Email: ${p.email || 'N/A'}
-- Telefon: ${p.phone || 'N/A'}
-- Status: ${p.isActive ? '✅ Aktivan' : '❌ Neaktivan'}
-- Adresa: ${p.address || 'N/A'}
-
-_Ažurirano: ${new Date(p.updatedAt).toLocaleString('sr-RS')}_`;
-}
-
 function formatActivityOverview(data: any): string {
   const { period, overview } = data;
-  return `📊 **Pregled aktivnosti - ${period}**
+  return `📊 **Pregled - ${period}**
 
 📋 Novi ugovori: ${overview.newContracts}
-⚠️ Ugovori koji ističu (30 dana): ${overview.expiringContracts}
+⚠️ Ugovori koji ističu: ${overview.expiringContracts}
 📝 Nove žalbe: ${overview.newComplaints}
-🔄 Aktivna obnavljanja: ${overview.activeRenewals}
-⚡ Nedavne aktivnosti: ${overview.recentActivities}`;
+⚡ Aktivnosti: ${overview.recentActivities}`;
 }
 
-function formatSystemHealth(data: any): string {
-  const { system } = data;
-  return `🏥 **Zdravlje sistema**
+function formatFinancialSummary(data: any): string {
+  const { summary } = data;
+  return `💰 **Finansijski pregled:**
 
-👥 Korisnici:
-- Ukupno: ${system.users.total}
-- Aktivni: ${system.users.active}
-
-📋 Ugovori:
-- Ukupno: ${system.contracts.total}
-- Aktivni: ${system.contracts.active}
-
-📝 Žalbe:
-- Na čekanju: ${system.complaints.pending}
-
-✅ Sistem radi normalno`;
-}
-
-function extractSearchTerm(query: string): string {
-  const match = query.match(/pretraži\s+(.+)|search\s+(.+)|pronađi\s+(.+)/i);
-  return match ? (match[1] || match[2] || match[3]).trim() : query;
+📋 Ukupno ugovora: ${summary.totalContracts}
+💵 Revenue share: ${summary.totalRevenueShare.toFixed(2)}%
+📊 Prosek: ${summary.averageRevenueShare.toFixed(2)}%`;
 }

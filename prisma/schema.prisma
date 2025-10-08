@@ -126,7 +126,7 @@ model User {
   modifiedRenewals        ContractRenewal[]           @relation("ContractRenewalModifier")
   uploadedRenewalFiles    ContractRenewalAttachment[] @relation("RenewalAttachmentUploader")
   createdParkingServices  ParkingService[]
-
+  queryLogs               QueryLog[]
   // Added the inverse relation to LogEntry, using the relation name
   logEntries              LogEntry[]             @relation("LogCreator")
   updatedLogs             LogEntry[]             @relation("LogUpdater") // Relacija ka logovima koje je ažurirao
@@ -986,4 +986,18 @@ model ReportFile {
   isMonthlyReport Boolean?
   @@index([organizationId])
   @@index([startDate])
+}
+
+model QueryLog {
+  id        String   @id @default(cuid())
+  userId    String
+  toolName  String
+  params    Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([toolName])
+  @@map("query_logs")
 }

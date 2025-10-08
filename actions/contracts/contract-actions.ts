@@ -1,7 +1,7 @@
 // actions/contracts/contract-actions.ts
 'use server'
 
-import { auth } from '@/lib/auth';
+import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { ContractStatus, ContractRenewalSubStatus } from '@prisma/client';
 import { revalidatePath } from 'next/cache';

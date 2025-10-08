@@ -31,6 +31,7 @@ const docSections = [
     icon: BookOpen,
     items: [
       { name: "App Structure", slug: "app-structure", icon: FileText },
+      { name: "App Contracts structure", slug: "app-contracts", icon: FileText },
       { name: "Full Documentation", slug: "full-docs", icon: BookOpen },
     ]
   },

@@ -64,6 +64,12 @@ export default function DocumentationPage() {
           icon: FileText,
         },
         {
+          name: "App Contracts structure",
+          slug: "app-contracts",
+          description: "Project structure and file organization",
+          icon: FileText,
+        },
+        {
           name: "Full Documentation",
           slug: "full-docs",
           description: "Comprehensive project documentation",

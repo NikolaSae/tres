@@ -1,5 +1,4 @@
-//app/(protected)/help/documentation/[slug]/page.tsx
-
+// app/(protected)/help/documentation/[slug]/page.tsx
 import { getMarkdown, extractTableOfContents } from "@/lib/docs";
 import { MarkdownViewer } from "@/components/MarkdownViewer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +8,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 interface DocPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // Mapa slug-ova na stvarne fajlove
@@ -20,19 +19,57 @@ const slugToFile: Record<string, string> = {
   'api-docs': 'PROJECT_API_DOCUMENTATION.md',
   'api-structure': 'PROJECT_API_STRUCTURE.md',
   'app-structure': 'PROJECT_STRUCTURE.md',
+  'app-contracts': 'PROJECT_APP_CONTRACTS.md',
   'full-docs': 'PROJECT_DOCUMENTATION.md',
   'database': 'baza-podataka.md',
   'architecture': 'arhitektura.md',
 };
 
-export function generateStaticParams() {
+// Mapa naslova za svaki dokument
+const docTitles: Record<string, { title: string; description: string }> = {
+  'readme': { 
+    title: 'README', 
+    description: 'Project overview, setup instructions, and quick start guide' 
+  },
+  'api-docs': { 
+    title: 'API Documentation', 
+    description: 'Complete API endpoints reference with examples' 
+  },
+  'api-structure': { 
+    title: 'API Structure', 
+    description: 'API organization and routing structure' 
+  },
+  'app-structure': { 
+    title: 'App Structure', 
+    description: 'Project structure and file organization' 
+  },
+  'app-structure': { 
+    title: 'App Contracts structure', 
+    description: 'Project contracts structure and file organization' 
+  },
+  'full-docs': { 
+    title: 'Full Documentation', 
+    description: 'Comprehensive project documentation' 
+  },
+  'database': { 
+    title: 'Database Schema', 
+    description: 'Complete database schema with relationships' 
+  },
+  'architecture': { 
+    title: 'Architecture', 
+    description: 'System architecture and design patterns' 
+  },
+};
+
+export async function generateStaticParams() {
   return Object.keys(slugToFile).map(slug => ({
     slug,
   }));
 }
 
-export default function DocPage({ params }: DocPageProps) {
-  const { slug } = params;
+export default async function DocPage({ params }: DocPageProps) {
+  // ✅ Await params
+  const { slug } = await params;
   
   // Dohvati ime fajla na osnovu slug-a
   const fileName = slugToFile[slug];
@@ -43,10 +80,18 @@ export default function DocPage({ params }: DocPageProps) {
   
   // Učitaj sadržaj
   const content = getMarkdown(fileName);
+  
+  if (!content) {
+    notFound();
+  }
+  
   const toc = extractTableOfContents(content);
   
-  // Izvuci naslov dokumenta
-  const title = toc[0]?.text || fileName.replace('.md', '');
+  // Koristi predefinisane naslove ili fallback
+  const docInfo = docTitles[slug] || { 
+    title: fileName.replace('.md', ''), 
+    description: fileName 
+  };
   
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -64,10 +109,10 @@ export default function DocPage({ params }: DocPageProps) {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <FileText className="h-10 w-10 text-primary" />
-          <h1 className="text-4xl font-bold">{title}</h1>
+          <h1 className="text-4xl font-bold">{docInfo.title}</h1>
         </div>
         <p className="text-muted-foreground">
-          {fileName}
+          {docInfo.description}
         </p>
       </div>
 
@@ -80,20 +125,24 @@ export default function DocPage({ params }: DocPageProps) {
               <CardDescription>Quick navigation</CardDescription>
             </CardHeader>
             <CardContent>
-              <nav className="space-y-1">
-                {toc.map((heading, index) => (
-                  <a
-                    key={index}
-                    href={`#${heading.id}`}
-                    className={`block text-sm hover:text-primary transition-colors ${
-                      heading.level === 1 ? 'font-semibold' : ''
-                    }`}
-                    style={{ paddingLeft: `${(heading.level - 1) * 0.75}rem` }}
-                  >
-                    {heading.text}
-                  </a>
-                ))}
-              </nav>
+              {toc.length > 0 ? (
+                <nav className="space-y-1">
+                  {toc.map((heading, index) => (
+                    <a
+                      key={index}
+                      href={`#${heading.id}`}
+                      className={`block text-sm hover:text-primary transition-colors ${
+                        heading.level === 1 ? 'font-semibold' : ''
+                      }`}
+                      style={{ paddingLeft: `${(heading.level - 1) * 0.75}rem` }}
+                    >
+                      {heading.text}
+                    </a>
+                  ))}
+                </nav>
+              ) : (
+                <p className="text-sm text-muted-foreground">No headings found</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -109,10 +158,10 @@ export default function DocPage({ params }: DocPageProps) {
           {/* Footer Navigation */}
           <div className="mt-8 flex justify-between">
             <div>
-              {/* Previous Doc Link */}
+              {/* Previous Doc Link - možeš dodati navigaciju */}
             </div>
             <div>
-              {/* Next Doc Link */}
+              {/* Next Doc Link - možeš dodati navigaciju */}
             </div>
           </div>
         </div>
