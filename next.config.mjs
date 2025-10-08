@@ -12,11 +12,13 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: [
         "localhost:3000",
+        "localhost:3001",
         "*.app.github.dev", // Wildcard za sve Codespaces instance
         process.env.NEXTAUTH_URL?.replace("https://", "") || "" // Dinamički host iz environmenta
       ],
       allowedForwardedHosts: [
         "localhost:3000",
+        "localhost:3001",
         "*.app.github.dev", // Wildcard za sve Codespaces instance
         process.env.NEXTAUTH_URL?.replace("https://", "") || "" // Dinamički host
       ],
