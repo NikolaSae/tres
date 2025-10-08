@@ -1,10 +1,11 @@
 // app/api/reports/upload-humanitarian/route.ts
 
-
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { db } from '@/lib/db';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,15 +44,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create folder name: "kratki_broj - ime_organizacije"
+    // Use organization name exactly as stored in database
+    console.log('Organization name from DB:', organization.name);
+
+    // Only remove filesystem-dangerous characters
     const sanitizedOrgName = organization.name
-      .replace(/[<>:"/\\|?*]/g, '') // Remove only filesystem-dangerous characters
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .replace(/[<>:"/\\|?*]/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
     
     const orgFolderName = `${organization.shortNumber || 'unknown'} - ${sanitizedOrgName}`;
     
-    // Create the full folder path: reports/kratki_broj - ime_organizacije/yyyy/mm/
+    console.log('Organization folder name:', orgFolderName);
+    
+    // Create the full folder path
     const uploadsDir = path.join(
       process.cwd(), 
       'public', 
@@ -66,7 +72,9 @@ export async function POST(request: NextRequest) {
     // Convert file to buffer and save
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const filePath = path.join(uploadsDir, file.name);
+    
+    const normalizedFileName = file.name;
+    const filePath = path.join(uploadsDir, normalizedFileName);
     
     console.log('Writing file to:', filePath);
     await writeFile(filePath, buffer);
@@ -77,8 +85,8 @@ export async function POST(request: NextRequest) {
     // Save file info to database
     await db.reportFile.create({
       data: {
-        fileName: file.name,
-        filePath: `/reports/${orgFolderName}/${folderPath}/${file.name}`,
+        fileName: normalizedFileName,
+        filePath: `/reports/${orgFolderName}/${folderPath}/${normalizedFileName}`,
         fileSize: file.size,
         mimeType: file.type,
         category: 'HUMANITARIAN',
@@ -94,7 +102,7 @@ export async function POST(request: NextRequest) {
     console.log('Humanitarian upload successful');
     return NextResponse.json({ 
       message: 'File uploaded successfully',
-      filePath: `/reports/${orgFolderName}/${folderPath}/${file.name}`
+      filePath: `/reports/${orgFolderName}/${folderPath}/${normalizedFileName}`
     });
   } catch (error) {
     console.error('Error uploading humanitarian file:', error);
