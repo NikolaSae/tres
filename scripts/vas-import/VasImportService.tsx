@@ -1,18 +1,42 @@
-//scripts/vas-import/VasImportService.tsx
-import { PrismaClient, ServiceType, BillingType, ContractType, ContractStatus } from '@prisma/client';
+// scripts/vas-import/VasImportService.tsx - COMPLETE PARSER FOR ALL FORMATS
+
+import { PrismaClient, ServiceType, BillingType } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs/promises';
 import path from 'path';
 import { glob } from 'glob';
-import { parse as parseCSV } from 'csv-parse';
 
 const prisma = new PrismaClient();
-
 const PROJECT_ROOT = process.cwd();
 const FOLDER_PATH = path.join(PROJECT_ROOT, 'scripts', 'input');
 const PROCESSED_FOLDER = path.join(PROJECT_ROOT, 'scripts', 'processed');
 const ERROR_FOLDER = path.join(PROJECT_ROOT, 'scripts', 'errors');
-const OUTPUT_FILE = path.join(PROJECT_ROOT, 'scripts', 'data', 'vas_output.csv');
+
+// ========================================
+// ✅ INTERFEJSI
+// ========================================
+
+interface ProviderInfo {
+  id: string;
+  name: string;           // Standardizovani naziv u bazi
+  displayName: string;    // Originalni naziv iz fajla
+  folderName: string;     // Sigurni naziv za folder sistem
+}
+
+interface ContractInfo {
+  contractType: string;   // "STANDARD", "MEDIA", "APPS", "SAVETOVANJE"
+  contractNumber: string; // Merchant ID ili autogen broj
+  revenueShare: number;   // 50, 60, 70
+  contractName: string;   // "{PROVIDER}_{TYPE}"
+}
+
+interface FileParseResult {
+  provider: ProviderInfo;
+  contract: ContractInfo;
+  year: string;
+  month: string | null;
+  format: 'SDP' | 'MICROPAYMENT';
+}
 
 interface VasRecord {
   providerId: string;
@@ -32,801 +56,429 @@ interface FileProcessResult {
   providerName: string;
   filename: string;
   userId: string;
+  importLogs?: string[];
 }
 
 class VasImportService {
   private currentUserId: string;
+  private providerCache = new Map<string, ProviderInfo>();
 
   constructor(userId?: string) {
     this.currentUserId = userId || 'system-user';
   }
 
-  async ensureDirectories(): Promise<void> {
-    const dirs = [FOLDER_PATH, PROCESSED_FOLDER, ERROR_FOLDER, path.dirname(OUTPUT_FILE)];
-    
-    for (const dir of dirs) {
-      try {
-        await fs.mkdir(dir, { recursive: true });
-      } catch (error) {
-        console.error(`Error creating directory ${dir}:`, error);
-      }
-    }
-  }
-
-  extractServiceCode(serviceName: string): string | null {
-    if (!serviceName) return null;
-    
-    const pattern = /(?<!\d)(\d{4})(?!\d)/;
-    const match = serviceName.toString().match(pattern);
-    
-    return match ? match[1] : null;
-  }
-
-
-  private normalizeProviderName(rawName: string): string {
-  // Uklanjanje suvišnih razmaka i specijalnih karaktera
-  const cleanedName = rawName
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[^a-zA-Z0-9\s]/g, '')
-    .toUpperCase();
-
-  // Mapa za normalizaciju naziva provajdera
-  const providerMap: Record<string, string> = {
+  // ========================================
+  // ✅ PROVIDER NORMALIZATION MAP
+  // ========================================
+  
+  private readonly PROVIDER_NORMALIZATION: Record<string, string> = {
+    // NTH variants
     'NTHMEDIA': 'NTH',
     'NTH MEDIA': 'NTH',
-    'NTHMEDI': 'NTH',
-    'NTH STANDARD': 'NTH',
-    'NTH APPS': 'NTH',
-    'NTH SAVETOVANJE': 'NTH',
-    // Dodajte ostale varijacije po potrebi
+    'NTHDCB': 'NTH',
+    'NTH DCB': 'NTH',
+    'NTH': 'NTH',
+    
+    // ComTrade variants
+    'COMTRADEITSS': 'ComTradeITSS',
+    'COMTRADE ITSS': 'ComTradeITSS',
+    'COMTRADE': 'ComTradeITSS',
+    
+    // OneClick variants
+    'ONECLICKSOLUTIONS': 'OneClickSolutions',
+    'ONE CLICK SOLUTIONS': 'OneClickSolutions',
+    'ONECLICK': 'OneClickSolutions',
+    
+    // JP Posta variants
+    'CEPP': 'JP Posta',
+    'JP POSTA': 'JP Posta',
+    'POSTA': 'JP Posta',
+    
+    // Akton variants
+    'AKTON': 'Akton',
+    
+    // Mond variants
+    'MOND': 'Mond',
+    
+    // Nuewoo variants
+    'NPAY': 'Nuewoo',
+    'NUEWOO': 'Nuewoo',
+    
+    // Processcom variants
+    'EKG': 'Processcom',
+    'PROCESSCOM': 'Processcom',
   };
 
-  // Provera da li je u mapi
-  if (providerMap[cleanedName]) {
-    return providerMap[cleanedName];
-  }
-
-  // Provera za NTH varijante
-  if (cleanedName.includes('NTH')) {
-    return 'NTH';
-  }
-
-  return cleanedName;
-}
-
-
-  extractProviderName(filename: string): string {
-  // Uklonimo prefiks sa datumom ako postoji
-  const cleanFilename = filename.replace(/^\d+_/, '');
+  // ========================================
+  // ✅ REVENUE SHARE MAP (PROVIDER + CONTRACT TYPE)
+  // ========================================
   
-  // Poboljšani regex
-  const pattern = /Servis__SDP_([A-Za-z0-9\s]+)_[a-z]+_\d{8}\.xls$/i;
-  const match = cleanFilename.match(pattern);
-  
-  if (match && match[1]) {
-    const rawName = match[1].trim();
-    return this.normalizeProviderName(rawName);
-  }
-  
-  // Fallback za stare formate
-  const baseName = path.basename(filename);
-  const sdpPattern = /Servis_?_{1,3}SDP_?_{1,3}([A-Za-z0-9\s]+)_/i;
-  const sdpMatch = baseName.match(sdpPattern);
-  
-  if (sdpMatch && sdpMatch[1]) {
-    return this.normalizeProviderName(sdpMatch[1].trim());
-  }
-
-  const patterns = [
-    /Servis__MicropaymentMerchantReport_([A-Za-z0-9\s]+)_Apps_\d+__\d+_\d+/i,
-    /Servis__MicropaymentMerchantReport_([A-Za-z0-9\s]+)_Standard_\d+__\d+_\d+/i,
-    /Servis__MicropaymentMerchantReport_([A-Za-z0-9\s]+)_Media_\d+__\d+_\d+/i
-  ];
-  
-  for (const pattern of patterns) {
-    const match = baseName.match(pattern);
-    if (match && match[1]) {
-      return this.normalizeProviderName(match[1].trim());
+  private readonly REVENUE_SHARE_MAP: Record<string, Record<string, number>> = {
+    'NTH': {
+      'MEDIA': 50,
+      'SAVETOVANJE': 60,
+      'STANDARD': 60,
+      'DCB_APPS': 70,
+      'DCB_MEDIA': 60,
+      'DCB_STANDARD': 50
+    },
+    'ComTradeITSS': {
+      'STANDARD': 50,
+      'MEDIA': 60
+    },
+    'Mond': {
+      'STANDARD': 50,
+      'MEDIA': 60
+    },
+    'OneClickSolutions': {
+      'STANDARD': 50,
+      'MEDIA': 60
+    },
+    'JP Posta': {
+      'STANDARD': 50,
+      'MEDIA': 60
+    },
+    'Akton': {
+      'STANDARD': 50,
+      'MEDIA': 60
+    },
+    'Nuewoo': {
+      'APPS': 70
+    },
+    'Processcom': {
+      'GENERAL': 50
     }
-  }
+  };
+
+  // ========================================
+  // ✅ FILE PARSER - DETECTS FORMAT AND EXTRACTS INFO
+  // ========================================
   
-  const codeMatch = baseName.match(/[A-Za-z0-9]{3,5}/);
-  return codeMatch ? this.normalizeProviderName(codeMatch[0]) : 'UNK';
-}
-
-  convertToFloat(val: any): number {
-    if (typeof val === 'string') {
-      const cleaned = val.replace(/,/g, '').trim();
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? 0 : parsed;
-    }
-    return parseFloat(val) || 0;
-  }
-
-  convertDateFormat(dateStr: string): Date | null {
-    if (!dateStr) return null;
+  parseFilename(filename: string): FileParseResult {
+    const cleanFilename = filename.replace(/^\d+_/, '');
     
-    try {
-      const cleaned = dateStr.toString().replace(/[^\d.]/g, '');
-      
-      if (cleaned.split('.').length === 3) {
-        const parts = cleaned.split('.');
-        let [day, month, year] = parts;
-        if (year.length === 2) year = `20${year}`;
-        
-        const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-        return isNaN(date.getTime()) ? null : date;
-      }
-      
-      return null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  extractYearFromFilename(filename: string): string {
-    const yearMatch = filename.match(/(\d{4})/);
-    if (yearMatch) {
-      const year = parseInt(yearMatch[1]);
-      if (year >= 2000 && year <= new Date().getFullYear() + 1) {
-        return year.toString();
-      }
-    }
-    return new Date().getFullYear().toString();
-  }
-
-  private mergeRecords(records: VasRecord[]): VasRecord[] {
-  const mergedMap = new Map<string, VasRecord>();
-
-  for (const record of records) {
-    const key = `${record.date}_${record.serviceName}_${record.group}`;
+    // FORMAT 1: Servis__SDP_PROVIDER_TYPE_YYYYMMDD.xls
+    // Dozvoljava:
+    // - Jedan ili više underscore-a između delova
+    // - Space-ove u nazivima
+    // - Kombinacije slova i brojeva
+    const sdpPattern = /Servis__SDP_([A-Za-z0-9\s]+?)_+([a-z]+)_(\d{8})\.xls$/i;
+    const sdpMatch = cleanFilename.match(sdpPattern);
     
-    if (!mergedMap.has(key)) {
-      // Prvi unos za ovaj datum
-      mergedMap.set(key, { ...record });
-      
-      // Ako je količina 0 ali ima vrednost (retki slučajevi)
-      if (record.quantity === 0 && record.amount !== 0) {
-        mergedMap.get(key)!.quantity = record.amount > 0 ? 1 : -1;
-      }
-    } else {
-      const existing = mergedMap.get(key)!;
-      
-      // Pravilo 1: Ako postoji +500 i dodajemo -500
-      if (existing.price > 0 && record.price < 0) {
-        existing.quantity = Math.max(0, existing.quantity - Math.abs(record.quantity));
-        existing.amount += record.amount; // automatski smanjuje jer je record.amount negativan
-        
-        // Ako smo potrošili sve pozitivne količine, prebacujemo u negativ
-        if (existing.quantity === 0 && existing.amount < 0) {
-          existing.price = record.price; // postavi negativnu cenu
-          existing.quantity = Math.abs(record.quantity);
-        }
-      }
-      // Pravilo 2: Ako oba unosa su negativna
-      else if (existing.price < 0 && record.price < 0) {
-        existing.quantity += record.quantity;
-        existing.amount += record.amount;
-      }
-      // Pravilo 3: Ako postoji -500 i dodajemo +500 (ne očekuje se)
-      else if (existing.price < 0 && record.price > 0) {
-        existing.quantity = Math.max(0, Math.abs(existing.quantity) - record.quantity);
-        existing.amount += record.amount;
-        
-        // Ako smo potrošili sve negativne količine, prebacujemo u pozitiv
-        if (existing.quantity === 0 && existing.amount > 0) {
-          existing.price = record.price; // postavi pozitivnu cenu
-          existing.quantity = record.quantity;
-        }
-      }
+    if (sdpMatch) {
+      return this.parseSdpFormat(sdpMatch[1], sdpMatch[2], sdpMatch[3], filename);
     }
-  }
-
-  // Post-procesiranje za konzistentnost
-  for (const [_, record] of mergedMap) {
-    // Osiguraj da negativne vrednosti imaju negativne količine
-    if (record.amount < 0 && record.quantity > 0) {
-      record.quantity = -record.quantity;
-    }
-    // Osiguraj da pozitivne vrednosti imaju pozitivne količine
-    else if (record.amount > 0 && record.quantity < 0) {
-      record.quantity = Math.abs(record.quantity);
-    }
-  }
-
-  return Array.from(mergedMap.values());
-}
-
-  async importRecordsToDatabase(
-  records: VasRecord[]
-): Promise<{ logs: string[]; inserted: number; updated: number; errors: number }> {
-  // Merge records before processing
-  const mergedRecords = this.mergeRecords(records);
-  
-  let inserted = 0;
-  let updated = 0;
-  let errors = 0;
-  const logs: string[] = [`Starting import of ${mergedRecords.length} merged records...`];
-
-  for (const [index, record] of mergedRecords.entries()) {
-    try {
-      const dateObj = this.convertDateFormat(record.date);
-      if (!dateObj) {
-        errors++;
-        logs.push(`❌ Record ${index+1}: Invalid date format - ${record.date}`);
-        continue;
-      }
-
-      const existing = await prisma.vasTransaction.findUnique({
-        where: {
-          providerId_date_serviceName_group: {
-            providerId: record.providerId,
-            date: dateObj,
-            serviceName: record.serviceName,
-            group: record.group
-          }
-        }
-      });
-
-      if (existing) {
-        await prisma.vasTransaction.update({
-          where: { id: existing.id },
-          data: {
-            price: record.price,
-            quantity: record.quantity,
-            amount: record.amount,
-            serviceCode: record.serviceCode
-          }
-        });
-        updated++;
-        logs.push(`🔄 Record ${index+1}: Updated existing record for ${record.serviceName} on ${record.date}`);
-      } else {
-        await prisma.vasTransaction.create({
-          data: {
-            providerId: record.providerId,
-            serviceId: record.serviceId,
-            date: dateObj,
-            group: record.group,
-            serviceName: record.serviceName,
-            serviceCode: record.serviceCode,
-            price: record.price,
-            quantity: record.quantity,
-            amount: record.amount
-          }
-        });
-        inserted++;
-        logs.push(`✅ Record ${index+1}: Created new record for ${record.serviceName} on ${record.date}`);
-      }
-    } catch (error: any) {
-      errors++;
-      logs.push(`❌ Record ${index+1}: Failed to process ${record.serviceName} - ${error.message || 'Unknown error'}`);
-    }
-  }
-
-  logs.push(
-    `\nImport summary:`,
-    `✅ ${inserted} records inserted`,
-    `🔄 ${updated} records updated`,
-    `❌ ${errors} records failed`,
-    `Total processed: ${inserted + updated + errors}/${mergedRecords.length}`
-  );
-
-  return { logs, inserted, updated, errors };
-}
-
-  async getOrCreateSystemUser(): Promise<string> {
-    let user = await prisma.user.findFirst({
-      where: { email: 'system@internal.app' }
-    });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          name: 'System User',
-          email: 'system@internal.app',
-          role: 'ADMIN',
-          isActive: true
-        }
-      });
-    }
-
-    return user.id;
-  }
-
-  async logActivity(
-    entityType: string,
-    entityId: string,
-    action: string,
-    subject: string,
-    description?: string,
-    severity: 'INFO' | 'WARNING' | 'ERROR' = 'INFO'
-  ): Promise<void> {
-    try {
-      const details = description ? `${subject}: ${description}` : subject;
-      
-      await prisma.activityLog.create({
-        data: {
-          action,
-          entityType,
-          entityId,
-          details,
-          severity,
-          userId: this.currentUserId
-        }
-      });
-    } catch (error) {
-      console.error('Failed to create ActivityLog:', error);
-    }
-  }
-
-  async getOrCreateProvider(name: string) {
-  // Normalizujemo naziv pre traženja u bazi
-  const normalizedName = this.normalizeProviderName(name);
-  
-  let provider = await prisma.provider.findFirst({
-    where: { 
-      name: {
-        equals: normalizedName,
-        mode: 'insensitive' // Case-insensitive search
-      }
-    }
-  });
-
-  if (!provider) {
-    provider = await prisma.provider.create({
-      data: {
-        name: normalizedName,
-        isActive: true
-      }
-    });
     
-    await this.logActivity(
-      'Provider',
-      provider.id,
-      'CREATE',
-      `Created provider ${normalizedName}`
-    );
-  }
-
-  return provider;
-}
-
-  async getOrCreateService(serviceCode: string, serviceType: ServiceType = 'VAS', billingType: BillingType = 'PREPAID') {
-    let service = await prisma.service.findFirst({
-      where: { name: serviceCode }
-    });
-
-    if (!service) {
-      service = await prisma.service.create({
-        data: {
-          name: serviceCode,
-          type: serviceType,
-          billingType,
-          description: `Auto-created VAS service: ${serviceCode}`,
-          isActive: true
-        }
-      });
-      
-      await this.logActivity(
-        'Service',
-        service.id,
-        'CREATE',
-        `Created service ${serviceCode}`
+    // FORMAT 2: Servis__MicropaymentMerchantReport_[...]_MERCHANTID__DATES.xls
+    const micropaymentPattern = /Servis__MicropaymentMerchantReport_(.+?)_(\d+)__(\d{8})_\d{4}__(\d{8})_\d{4}\.xls$/i;
+    const micropaymentMatch = cleanFilename.match(micropaymentPattern);
+    
+    if (micropaymentMatch) {
+      return this.parseMicropaymentFormat(
+        micropaymentMatch[1], // Full middle part
+        micropaymentMatch[2], // Merchant ID
+        micropaymentMatch[3], // Start date
+        filename
       );
     }
-
-    return { service };
+    
+    throw new Error(`Unknown file format: ${filename}`);
   }
 
-  private extractContractName(filename: string): string {
-  // 1. Pronađi prvu grupu od 3+ slova nakon Servis/SDP
-  const prefixMatch = filename.match(/(Servis|SDP)[^a-zA-Z]*([A-Z]{3,})/i);
+  // ========================================
+  // ✅ SDP FORMAT PARSER
+  // ========================================
   
-  if (!prefixMatch || !prefixMatch[2]) {
-    throw new Error(`Ne mogu pronaći prefix u nazivu fajla: ${filename}`);
-  }
-
-  const firstThree = prefixMatch[2].substring(0, 3).toUpperCase();
-  const remaining = prefixMatch[2].substring(3);
-
-  // 2. Pronađi sledeću ključnu reč nakon prefixa
-  const suffixMatch = filename.match(new RegExp(`${prefixMatch[2]}[^a-zA-Z]*([A-Za-z]+)`));
-  
-  if (!suffixMatch || !suffixMatch[1]) {
-    throw new Error(`Ne mogu pronaći suffix u nazivu fajla: ${filename}`);
-  }
-
-  const suffix = suffixMatch[1].toUpperCase();
-
-  // 3. Formiraj naziv ugovora
-  return `${firstThree}_${suffix}`;
-}
-
-private extractContractDetails(filename: string): { contractType: string; contractName: string } {
-  // Uklonimo prefiks sa datumom ako postoji
-  const cleanFilename = filename.replace(/^\d+_/, '');
-  
-  // Poboljšani regex koji toleriše razmake i dodatne donje crte
-  const pattern = /Servis__SDP_([A-Za-z0-9\s]+)_([a-z]+)_\d{8}\.xls$/i;
-  const match = cleanFilename.match(pattern);
-  
-  if (match && match[1] && match[2]) {
-    const providerName = match[1].trim().replace(/\s+/g, ' '); // Normalizacija razmaka
-    const contractType = match[2].trim().toUpperCase();
+  private parseSdpFormat(
+    providerRaw: string,
+    contractTypeRaw: string,
+    dateStr: string,
+    filename: string
+  ): FileParseResult {
+    // Normalizuj provider naziv - ukloni whitespace i napravi uppercase
+    const providerKey = providerRaw.trim().replace(/\s+/g, '').toUpperCase();
+    const providerName = this.PROVIDER_NORMALIZATION[providerKey] || providerRaw.trim();
+    
+    // Normalizuj contract type
+    const contractType = contractTypeRaw.trim().toUpperCase();
+    
+    // Ekstraktuj datum
+    const year = dateStr.substring(0, 4);
+    const month = dateStr.substring(4, 6);
+    
+    // Dobij revenue share
+    const revenueShare = this.REVENUE_SHARE_MAP[providerName]?.[contractType] || 50;
+    
+    // Generiši contract number
+    const contractNumber = `SDP-${providerName.replace(/\s/g, '')}-${contractType}-${year}`;
     
     return {
-      contractType,
-      contractName: `${providerName.replace(/\s/g, '_')}_${contractType}`
+      provider: {
+        id: '', // Biće popunjeno kasnije
+        name: providerName,
+        displayName: providerRaw.trim(),
+        folderName: this.createSafeFolderName(providerName)
+      },
+      contract: {
+        contractType,
+        contractNumber,
+        revenueShare,
+        contractName: `${providerName}_${contractType}`
+      },
+      year,
+      month,
+      format: 'SDP'
     };
   }
+
+  // ========================================
+  // ✅ MICROPAYMENT FORMAT PARSER
+  // ========================================
   
-  // Fallback za ostale formate
-  if (cleanFilename.includes('_Apps_')) return { contractType: 'APPS', contractName: 'APPS' };
-  if (cleanFilename.includes('_Media_')) return { contractType: 'MEDIA', contractName: 'MEDIA' };
-  if (cleanFilename.includes('_Standard_')) return { contractType: 'STANDARD', contractName: 'STANDARD' };
-  if (cleanFilename.includes('_Commerce_')) return { contractType: 'COMMERCE', contractName: 'COMMERCE' };
-  
-  // Još jedan fallback pokušaj
-  const parts = cleanFilename.split('_');
-  if (parts.length >= 5) {
-    const providerName = parts[2]?.trim();
-    const contractType = parts[3]?.trim().toUpperCase();
+  private parseMicropaymentFormat(
+    middlePart: string,
+    merchantId: string,
+    startDateStr: string,
+    filename: string
+  ): FileParseResult {
+    let providerName = '';
+    let contractType = 'GENERAL';
+    let isDCB = false;
     
-    if (providerName && contractType) {
-      return {
+    // Parse middle part
+    // Moguće varijante:
+    // 1. "EKG" -> Processcom, GENERAL
+    // 2. "NPay_Apps" -> Nuewoo, APPS
+    // 3. "SDP_Standard_CePP" -> JP Posta, STANDARD
+    // 4. "SDP_Media_Akton" -> Akton, MEDIA
+    // 5. "NTHDCB_Apps" -> NTH, DCB_APPS
+    
+    const parts = middlePart.split('_').map(p => p.trim()).filter(p => p);
+    
+    // Check if it's NTHDCB format
+    if (parts[0].toUpperCase().includes('NTHDCB')) {
+      isDCB = true;
+      providerName = 'NTH';
+      if (parts.length > 1) {
+        contractType = `DCB_${parts[1].toUpperCase()}`;
+      }
+    }
+    // Check if it starts with "SDP"
+    else if (parts[0].toUpperCase() === 'SDP') {
+      // Format: SDP_Type_Provider
+      if (parts.length >= 3) {
+        contractType = parts[1].toUpperCase();
+        const providerPart = parts.slice(2).join('_');
+        const providerKey = providerPart.replace(/\s+/g, '').toUpperCase();
+        providerName = this.PROVIDER_NORMALIZATION[providerKey] || providerPart;
+      }
+    }
+    // Simple formats like "EKG" or "NPay_Apps"
+    else {
+      if (parts.length === 1) {
+        // Just provider name
+        const providerKey = parts[0].replace(/\s+/g, '').toUpperCase();
+        providerName = this.PROVIDER_NORMALIZATION[providerKey] || parts[0];
+        contractType = 'GENERAL';
+      } else {
+        // Provider_Type format
+        const providerKey = parts[0].replace(/\s+/g, '').toUpperCase();
+        providerName = this.PROVIDER_NORMALIZATION[providerKey] || parts[0];
+        contractType = parts[1].toUpperCase();
+      }
+    }
+    
+    // Fallback if provider name is still empty
+    if (!providerName) {
+      const firstPart = parts[0].replace(/\s+/g, '').toUpperCase();
+      providerName = this.PROVIDER_NORMALIZATION[firstPart] || parts[0];
+    }
+    
+    // Ekstraktuj datum
+    const year = startDateStr.substring(0, 4);
+    const month = startDateStr.substring(4, 6);
+    
+    // Dobij revenue share
+    const revenueShare = this.REVENUE_SHARE_MAP[providerName]?.[contractType] || 50;
+    
+    // Contract number je Merchant ID
+    const contractNumber = `MID-${merchantId}`;
+    
+    return {
+      provider: {
+        id: '',
+        name: providerName,
+        displayName: providerName,
+        folderName: this.createSafeFolderName(providerName)
+      },
+      contract: {
         contractType,
-        contractName: `${providerName.replace(/\s/g, '_')}_${contractType}`
-      };
-    }
+        contractNumber,
+        revenueShare,
+        contractName: `${providerName}_${contractType}_${merchantId}`
+      },
+      year,
+      month,
+      format: 'MICROPAYMENT'
+    };
   }
+
+  // ========================================
+  // ✅ FOLDER NAME CREATION
+  // ========================================
   
-  throw new Error(`Nepoznat format ugovora: ${filename}`);
-}
+  private createSafeFolderName(providerName: string): string {
+    return providerName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 50);
+  }
 
-private async getOrCreateContract(
-  providerId: string,
-  filename: string
-): Promise<{ contract: Contract }> {
-  const { contractType, contractName } = this.extractContractDetails(filename);
+  // ========================================
+  // ✅ PROVIDER MANAGEMENT
+  // ========================================
   
-  // Proverimo da li ugovor već postoji za ovog provajdera
-  const existingContract = await prisma.contract.findFirst({
-    where: {
-      providerId,
-      name: contractName
+  async getOrCreateProvider(providerName: string): Promise<ProviderInfo> {
+    if (this.providerCache.has(providerName)) {
+      return this.providerCache.get(providerName)!;
     }
-  });
 
-  if (existingContract) return { contract: existingContract };
-
-  // Kreiraj novi ugovor
-  const newContract = await prisma.contract.create({
-    data: {
-      name: contractName,
-      contractNumber: `VAS-${contractType}-${Date.now().toString().slice(-6)}`,
-      type: 'PROVIDER',
-      status: 'ACTIVE',
-      startDate: new Date(),
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-      providerId,
-      createdById: this.currentUserId,
-      revenuePercentage: 0,
-      description: `Automatski kreiran ugovor za ${contractName} servise`
-    }
-  });
-
-  return { contract: newContract };
-}
-
-private async migrateExistingProviders() {
-  try {
-    // Pronađi sve provajdere koji sadrže "NTH" u nazivu
-    const nthProviders = await prisma.provider.findMany({
-      where: {
+    let provider = await prisma.provider.findFirst({
+      where: { 
         name: {
-          contains: 'NTH',
+          equals: providerName,
           mode: 'insensitive'
         }
       }
     });
 
-    // Ažuriraj ih na normalizovani naziv "NTH"
-    for (const provider of nthProviders) {
-      if (provider.name.toUpperCase() !== 'NTH') {
-        await prisma.provider.update({
-          where: { id: provider.id },
-          data: { name: 'NTH' }
-        });
-        console.log(`Migrated provider ${provider.name} to NTH`);
-      }
-    }
-  } catch (error) {
-    console.error('Error migrating providers:', error);
-  }
-}
-
-// Pozovite u konstruktoru ili pre procesiranja
-
-  async getOrCreateServiceContract(serviceId: string, contractId: string) {
-    let serviceContract = await prisma.serviceContract.findFirst({
-      where: { 
-        serviceId,
-        contractId
-      }
-    });
-
-    if (!serviceContract) {
-      serviceContract = await prisma.serviceContract.create({
+    if (!provider) {
+      provider = await prisma.provider.create({
         data: {
-          serviceId,
-          contractId
+          name: providerName,
+          isActive: true
         }
       });
       
       await this.logActivity(
-        'ServiceContract',
-        serviceContract.id,
+        'Provider',
+        provider.id,
         'CREATE',
-        'Created service contract connection'
+        `Created provider ${providerName}`
       );
     }
 
-    return { serviceContract };
+    const providerInfo: ProviderInfo = {
+      id: provider.id,
+      name: providerName,
+      displayName: providerName,
+      folderName: this.createSafeFolderName(providerName)
+    };
+
+    this.providerCache.set(providerName, providerInfo);
+    return providerInfo;
   }
 
-  async processExcelFile(inputFile: string): Promise<FileProcessResult> {
-  try {
-    await this.logActivity(
-      'System',
-      'start',
-      'PROCESS_START',
-      `Started processing ${path.basename(inputFile)}`
-    );
-
-    const fileBuffer = await fs.readFile(inputFile);
-    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-    const allSheetsData: VasRecord[] = [];
-    
-    const filename = path.basename(inputFile);
-    const providerName = this.extractProviderName(filename);
-    const provider = await this.getOrCreateProvider(providerName);
-    
-    // Detektuj tip ugovora iz naziva fajla
-    const contractType = this.detectContractType(filename);
-    const { contract } = await this.getOrCreateContract(provider.id, filename);
-
-    const serviceNamesInFile = new Set<string>();
-    const serviceIdMapping: { [key: string]: string } = {};
-    const newServices: {name: string, code?: string, type: string}[] = [];
-
-    const sheetNames = workbook.SheetNames;
-
-    for (let sheetIdx = 3; sheetIdx < sheetNames.length; sheetIdx++) {
-      const sheetName = sheetNames[sheetIdx];
-      const worksheet = workbook.Sheets[sheetName];
-      const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-      
-      if (!rows.length) continue;
-
-      const header = rows[0].map((x: any) => String(x).trim());
-      const dateCols = header[header.length - 1]?.toUpperCase() === 'TOTAL' 
-        ? header.slice(3, -1) 
-        : header.slice(3);
-
-      let currentGroup = 'prepaid';
-      const sheetRecords: VasRecord[] = [];
-      
-      let i = 1;
-      while (i < rows.length) {
-        const row = rows[i].map((x: any) => String(x).trim());
-        
-        if (!row.some(cell => cell)) {
-          i++;
-          continue;
-        }
-
-        if (row.length > 1 && row[1].toLowerCase().includes('total')) {
-          i++;
-          continue;
-        }
-
-        if (i === 1 && (row[0].toLowerCase().includes('servis') || row[0].toLowerCase().includes('izveštaj'))) {
-          i++;
-          continue;
-        }
-
-        const groupKeywords = ['prepaid', 'postpaid', 'total'];
-        let foundGroup = false;
-        
-        for (const keyword of groupKeywords) {
-          if (row[0].toLowerCase().includes(keyword)) {
-            currentGroup = keyword;
-            i++;
-            foundGroup = true;
-            break;
-          }
-        }
-
-        if (!foundGroup && row[0]) {
-          const serviceName = row[0].trim();
-          serviceNamesInFile.add(serviceName);
-          
-          const price = this.convertToFloat(row[1]);
-          const quantityValues = header[header.length - 1]?.toUpperCase() === 'TOTAL' 
-            ? row.slice(3, -1) 
-            : row.slice(3);
-
-          let amountValues: any[] = [];
-          if (i + 1 < rows.length) {
-            const nextRow = rows[i + 1].map((x: any) => String(x).trim());
-            amountValues = header[header.length - 1]?.toUpperCase() === 'TOTAL' 
-              ? nextRow.slice(3, -1) 
-              : nextRow.slice(3);
-          }
-
-          for (let j = 0; j < dateCols.length; j++) {
-            const dateVal = dateCols[j];
-            const quantity = this.convertToFloat(quantityValues[j] || 0);
-            const amount = this.convertToFloat(amountValues[j] || 0);
-            
-            if (quantity !== 0 && currentGroup === 'prepaid') {
-              sheetRecords.push({
-                providerId: provider.id,
-                serviceId: '',
-                group: currentGroup,
-                serviceName,
-                serviceCode: this.extractServiceCode(serviceName) || '',
-                price,
-                date: dateVal?.toString().replace(/\s+/g, '').replace(/\.$/, '') || '',
-                quantity,
-                amount
-              });
-            }
-          }
-          i += 2;
-        } else {
-          i++;
-        }
+  // ========================================
+  // ✅ CONTRACT MANAGEMENT
+  // ========================================
+  
+  async getOrCreateContract(
+    providerId: string,
+    contractInfo: ContractInfo
+  ): Promise<any> {
+    const existingContract = await prisma.contract.findFirst({
+      where: {
+        providerId,
+        contractNumber: contractInfo.contractNumber
       }
-      
-      allSheetsData.push(...sheetRecords);
-    }
+    });
 
-    // Create services and track new ones
-    for (const serviceName of serviceNamesInFile) {
-      const serviceCode = this.extractServiceCode(serviceName);
-      const existingService = await prisma.service.findFirst({
-        where: { name: serviceName }
-      });
-
-      if (!existingService) {
-        newServices.push({
-          name: serviceName,
-          code: serviceCode,
-          type: contractType
+    if (existingContract) {
+      // Update revenue share ako se promenio
+      if (existingContract.revenuePercentage !== contractInfo.revenueShare) {
+        await prisma.contract.update({
+          where: { id: existingContract.id },
+          data: { revenuePercentage: contractInfo.revenueShare }
         });
       }
-
-      const { service } = await this.getOrCreateService(
-        serviceName,
-        'VAS',
-        'PREPAID',
-        serviceCode
-      );
-      
-      serviceIdMapping[serviceName] = service.id;
-      await this.getOrCreateServiceContract(service.id, contract.id);
+      return existingContract;
     }
 
-    // Update records with service IDs
-    for (const record of allSheetsData) {
-      if (serviceIdMapping[record.serviceName]) {
-        record.serviceId = serviceIdMapping[record.serviceName];
-      } else {
-        console.warn(`⚠️ No service ID found for: ${record.serviceName}`);
-        await this.logActivity(
-          'System',
-          'warning',
-          'MISSING_SERVICE',
-          `No service ID for ${record.serviceName}`
-        );
+    // Kreiraj novi ugovor
+    const newContract = await prisma.contract.create({
+      data: {
+        name: contractInfo.contractName,
+        contractNumber: contractInfo.contractNumber,
+        type: 'PROVIDER',
+        status: 'ACTIVE',
+        startDate: new Date(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+        providerId,
+        createdById: this.currentUserId,
+        revenuePercentage: contractInfo.revenueShare,
+        description: `${contractInfo.contractType} ugovor (${contractInfo.revenueShare}% revenue share)`
+      }
+    });
+
+    await this.logActivity(
+      'Contract',
+      newContract.id,
+      'CREATE',
+      `Created contract ${contractInfo.contractName} with ${contractInfo.revenueShare}% revenue share`
+    );
+
+    return newContract;
+  }
+
+  // ========================================
+  // ✅ DIRECTORY MANAGEMENT
+  // ========================================
+  
+  async createProviderDirectory(
+    providerInfo: ProviderInfo,
+    year: string,
+    month?: string | null
+  ): Promise<string> {
+    const parts = [
+      PROJECT_ROOT,
+      'public',
+      'providers',
+      providerInfo.folderName,
+      'reports',
+      year
+    ];
+
+    if (month) {
+      parts.push(month);
+    }
+
+    const basePath = path.join(...parts);
+    await fs.mkdir(basePath, { recursive: true });
+    
+    return basePath;
+  }
+
+  private async generateUniqueFilename(targetDir: string, filename: string): Promise<string> {
+    const ext = path.extname(filename);
+    const nameWithoutExt = path.basename(filename, ext);
+    let finalFilename = filename;
+    let counter = 1;
+
+    while (true) {
+      const fullPath = path.join(targetDir, finalFilename);
+      try {
+        await fs.access(fullPath);
+        finalFilename = `${nameWithoutExt}_${counter}${ext}`;
+        counter++;
+      } catch {
+        break;
       }
     }
 
-    // Prepare logs with new services info
-    const logs: string[] = [
-      `ℹ️ Using contract: ${contract.contractNumber} (${contractType})`,
-      `ℹ️ Provider: ${providerName}`
-    ];
-
-    if (newServices.length > 0) {
-      logs.push('\n⚠️ NEW SERVICES DETECTED:');
-      newServices.forEach(service => {
-        logs.push(`• ${service.name} (${service.code || 'no code'}) - ${service.type}`);
-      });
-    }
-
-    return {
-      records: allSheetsData,
-      providerId: provider.id,
-      providerName,
-      filename,
-      userId: this.currentUserId,
-      importLogs: logs
-    };
-    
-  } catch (error) {
-    await this.logActivity(
-      'System',
-      'error',
-      'PROCESS_ERROR',
-      `Error processing ${path.basename(inputFile)}`,
-      error instanceof Error ? error.message : String(error),
-      'ERROR'
-    );
-    throw error;
-  }
-}
-
-private detectContractType(filename: string): string {
-  // Uklonimo prefiks sa datumom ako postoji
-  const cleanFilename = filename.replace(/^\d+_/, '');
-  
-  // Poboljšani regex koji toleriše razmake
-  const pattern = /Servis__SDP_[A-Za-z0-9\s]+_([a-z]+)_\d{8}\.xls$/i;
-  const match = cleanFilename.match(pattern);
-  
-  if (match && match[1]) {
-    return match[1].trim().toUpperCase();
-  }
-  
-  // Fallback za stare formate
-  const lowerFilename = cleanFilename.toLowerCase();
-  
-  if (lowerFilename.includes('_apps_') || lowerFilename.includes('app')) return 'APPS';
-  if (lowerFilename.includes('_standard_') || lowerFilename.includes('standard')) return 'STANDARD';
-  if (lowerFilename.includes('_media_') || lowerFilename.includes('media')) return 'MEDIA';
-  if (lowerFilename.includes('_commerce_') || lowerFilename.includes('commerce')) return 'COMMERCE';
-  
-  // Detekcija po delovima
-  const parts = cleanFilename.split('_');
-  for (const part of parts) {
-    const lowerPart = part.toLowerCase();
-    if (lowerPart === 'standard') return 'STANDARD';
-    if (lowerPart === 'commerce') return 'COMMERCE';
-    if (lowerPart === 'media') return 'MEDIA';
-    if (lowerPart === 'apps') return 'APPS';
-  }
-  
-  return 'GENERAL';
-}
-
-
-
-  private sanitizeTransactionRecord(row: any): VasRecord | null {
-    try {
-      return {
-        providerId: row.providerId || '',
-        serviceId: row.serviceId || '',
-        group: row.group || '',
-        serviceName: row.serviceName || '',
-        serviceCode: row.serviceCode || '',
-        price: this.convertToFloat(row.price) || 0,
-        date: row.date || '',
-        quantity: this.convertToFloat(row.quantity) || 0,
-        amount: this.convertToFloat(row.amount) || 0
-      };
-    } catch (error) {
-      return null;
-    }
-  }
-
-  async createProviderDirectory(providerName: string, year: string): Promise<string> {
-    const safeProviderName = providerName.replace(/[^\w\s-]/g, '').replace(/[-\s]+/g, '-');
-    const basePath = path.join(PROJECT_ROOT, 'public', 'providers', safeProviderName, 'reports', year);
-    await fs.mkdir(basePath, { recursive: true });
-    return basePath;
+    return finalFilename;
   }
 
   async moveFileToProviderDirectory(
@@ -836,27 +488,39 @@ private detectContractType(filename: string): string {
     filename: string
   ): Promise<string | null> {
     try {
-      const year = this.extractYearFromFilename(filename);
-      const targetDir = await this.createProviderDirectory(providerName, year);
-      const targetFile = path.join(targetDir, filename);
+      const parseResult = this.parseFilename(filename);
+      const providerInfo = await this.getOrCreateProvider(providerName);
+      
+      const targetDir = await this.createProviderDirectory(
+        providerInfo,
+        parseResult.year,
+        parseResult.month
+      );
+      
+      const uniqueFilename = await this.generateUniqueFilename(targetDir, filename);
+      const targetFile = path.join(targetDir, uniqueFilename);
       
       await fs.rename(sourceFile, targetFile);
+      
+      console.log(`✅ File moved: ${targetFile.replace(PROJECT_ROOT, '')}`);
       
       await this.logActivity(
         'Provider',
         providerId,
         'FILE_MOVED',
-        `File moved to ${targetFile}`
+        `File moved to ${targetFile.replace(PROJECT_ROOT, '')}`
       );
       
       return targetFile;
       
     } catch (error) {
+      console.error('❌ Error moving file:', error);
+      
       try {
         const errorFile = path.join(ERROR_FOLDER, path.basename(sourceFile));
         await fs.rename(sourceFile, errorFile);
       } catch (moveError) {
-        console.error('Could not move file to error folder:', moveError);
+        console.error('❌ Could not move file to error folder:', moveError);
       }
       
       await this.logActivity(
@@ -872,66 +536,460 @@ private detectContractType(filename: string): string {
     }
   }
 
-  async processAllFiles(): Promise<void> {
+  // ========================================
+  // ✅ FILE PROCESSING
+  // ========================================
+  
+  async processExcelFile(inputFile: string): Promise<FileProcessResult> {
     try {
-      this.currentUserId = await this.getOrCreateSystemUser();
-      await this.ensureDirectories();
+      const filename = path.basename(inputFile);
       
-      const excelFiles = [
-        ...(await glob(path.join(FOLDER_PATH, '*.xlsx'))),
-        ...(await glob(path.join(FOLDER_PATH, '*.xls')))
-      ];
+      // Parse filename to get all info
+      const parseResult = this.parseFilename(filename);
       
-      if (!excelFiles.length) return;
+      console.log(`\n📋 Processing: ${filename}`);
+      console.log(`   Provider: ${parseResult.provider.name}`);
+      console.log(`   Contract: ${parseResult.contract.contractType}`);
+      console.log(`   Revenue: ${parseResult.contract.revenueShare}%`);
+      console.log(`   Format: ${parseResult.format}`);
       
-      const allRecords: VasRecord[] = [];
+      // Get or create provider
+      const providerInfo = await this.getOrCreateProvider(parseResult.provider.name);
+      parseResult.provider.id = providerInfo.id;
       
-      for (const filePath of excelFiles) {
-        try {
-          const result = await this.processExcelFile(filePath);
+      // Get or create contract
+      const contract = await this.getOrCreateContract(
+        providerInfo.id,
+        parseResult.contract
+      );
+      
+      // Process Excel file
+      const fileBuffer = await fs.readFile(inputFile);
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const allSheetsData: VasRecord[] = [];
+      
+      const serviceNamesInFile = new Set<string>();
+      const serviceIdMapping: { [key: string]: string } = {};
+
+      // Process sheets (starting from index 3)
+      const sheetNames = workbook.SheetNames;
+      for (let sheetIdx = 3; sheetIdx < sheetNames.length; sheetIdx++) {
+        const sheetName = sheetNames[sheetIdx];
+        const worksheet = workbook.Sheets[sheetName];
+        const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        
+        if (!rows.length) continue;
+
+        const header = rows[0].map((x: any) => String(x).trim());
+        const dateCols = header[header.length - 1]?.toUpperCase() === 'TOTAL' 
+          ? header.slice(3, -1) 
+          : header.slice(3);
+
+        let currentGroup = 'prepaid';
+        
+        let i = 1;
+        while (i < rows.length) {
+          const row = rows[i].map((x: any) => String(x).trim());
           
-          if (result.records.length) {
-            allRecords.push(...result.records);
-            await this.moveFileToProviderDirectory(
-              filePath,
-              result.providerId,
-              result.providerName,
-              result.filename
-            );
-          } else {
-            const errorFile = path.join(ERROR_FOLDER, path.basename(filePath));
-            await fs.rename(filePath, errorFile);
+          if (!row.some(cell => cell)) {
+            i++;
+            continue;
           }
-        } catch (error) {
-          const errorFile = path.join(ERROR_FOLDER, path.basename(filePath));
-          await fs.rename(filePath, errorFile);
-          continue;
+
+          if (row.length > 1 && row[1].toLowerCase().includes('total')) {
+            i++;
+            continue;
+          }
+
+          const groupKeywords = ['prepaid', 'postpaid', 'total'];
+          let foundGroup = false;
+          
+          for (const keyword of groupKeywords) {
+            if (row[0].toLowerCase().includes(keyword)) {
+              currentGroup = keyword;
+              i++;
+              foundGroup = true;
+              break;
+            }
+          }
+
+          if (!foundGroup && row[0]) {
+            const serviceName = row[0].trim();
+            serviceNamesInFile.add(serviceName);
+            
+            const price = this.convertToFloat(row[1]);
+            const quantityValues = header[header.length - 1]?.toUpperCase() === 'TOTAL' 
+              ? row.slice(3, -1) 
+              : row.slice(3);
+
+            let amountValues: any[] = [];
+            if (i + 1 < rows.length) {
+              const nextRow = rows[i + 1].map((x: any) => String(x).trim());
+              amountValues = header[header.length - 1]?.toUpperCase() === 'TOTAL' 
+                ? nextRow.slice(3, -1) 
+                : nextRow.slice(3);
+            }
+
+            for (let j = 0; j < dateCols.length; j++) {
+              const dateVal = dateCols[j];
+              const quantity = this.convertToFloat(quantityValues[j] || 0);
+              const amount = this.convertToFloat(amountValues[j] || 0);
+              
+              if (quantity !== 0 && currentGroup === 'prepaid') {
+                allSheetsData.push({
+                  providerId: providerInfo.id,
+                  serviceId: '',
+                  group: currentGroup,
+                  serviceName,
+                  serviceCode: this.extractServiceCode(serviceName) || '',
+                  price,
+                  date: dateVal?.toString().replace(/\s+/g, '').replace(/\.$/, '') || '',
+                  quantity,
+                  amount
+                });
+              }
+            }
+            i += 2;
+          } else {
+            i++;
+          }
         }
       }
-      
-      if (allRecords.length) {
-        const importResult = await this.importRecordsToDatabase(allRecords);
-        console.log(`Import completed: ${importResult.inserted} inserted, ${importResult.updated} updated, ${importResult.errors} errors`);
+
+      // Create services
+      for (const serviceName of serviceNamesInFile) {
+        const serviceCode = this.extractServiceCode(serviceName);
+        const { service } = await this.getOrCreateService(serviceName, 'VAS', 'PREPAID', serviceCode);
+        serviceIdMapping[serviceName] = service.id;
+        await this.getOrCreateServiceContract(service.id, contract.id);
       }
+
+      // Update records with service IDs
+      for (const record of allSheetsData) {
+        if (serviceIdMapping[record.serviceName]) {
+          record.serviceId = serviceIdMapping[record.serviceName];
+        }
+      }
+
+      const logs: string[] = [
+        `ℹ️ Contract: ${contract.contractNumber} (${parseResult.contract.revenueShare}% revenue)`,
+        `ℹ️ Provider: ${parseResult.provider.name}`,
+        `ℹ️ Type: ${parseResult.contract.contractType}`,
+        `ℹ️ Format: ${parseResult.format}`
+      ];
+
+      return {
+        records: allSheetsData,
+        providerId: providerInfo.id,
+        providerName: parseResult.provider.name,
+        filename,
+        userId: this.currentUserId,
+        importLogs: logs
+      };
       
     } catch (error) {
-      console.error('Main process error:', error);
+      await this.logActivity(
+        'System',
+        'error',
+        'PROCESS_ERROR',
+        `Error processing ${path.basename(inputFile)}`,
+        error instanceof Error ? error.message : String(error),
+        'ERROR'
+      );
       throw error;
-    } finally {
-      await prisma.$disconnect();
     }
+  }
+
+  // ========================================
+  // ✅ HELPER METHODS
+  // ========================================
+
+  extractServiceCode(serviceName: string): string | null {
+    if (!serviceName) return null;
+    const pattern = /(?<!\d)(\d{4})(?!\d)/;
+    const match = serviceName.toString().match(pattern);
+    return match ? match[1] : null;
+  }
+
+  convertToFloat(val: any): number {
+    if (typeof val === 'string') {
+      const cleaned = val.replace(/,/g, '').trim();
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return parseFloat(val) || 0;
+  }
+
+  convertDateFormat(dateStr: string): Date | null {
+    if (!dateStr) return null;
+    try {
+      const cleaned = dateStr.toString().replace(/[^\d.]/g, '');
+      if (cleaned.split('.').length === 3) {
+        const parts = cleaned.split('.');
+        let [day, month, year] = parts;
+        if (year.length === 2) year = `20${year}`;
+        const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+        return isNaN(date.getTime()) ? null : date;
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async getOrCreateService(
+    serviceName: string,
+    serviceType: ServiceType = 'VAS',
+    billingType: BillingType = 'PREPAID',
+    serviceCode?: string | null
+  ) {
+    let service = await prisma.service.findFirst({
+      where: { name: serviceName }
+    });
+
+    if (!service) {
+      service = await prisma.service.create({
+        data: {
+          name: serviceName,
+          type: serviceType,
+          billingType,
+          description: `Auto-created VAS service: ${serviceName}${serviceCode ? ` (${serviceCode})` : ''}`,
+          isActive: true
+        }
+      });
+      
+      await this.logActivity('Service', service.id, 'CREATE', `Created service ${serviceName}`);
+    }
+
+    return { service };
+  }
+
+  async getOrCreateServiceContract(serviceId: string, contractId: string) {
+    let serviceContract = await prisma.serviceContract.findFirst({
+      where: { serviceId, contractId }
+    });
+
+    if (!serviceContract) {
+      serviceContract = await prisma.serviceContract.create({
+        data: { serviceId, contractId }
+      });
+      
+      await this.logActivity('ServiceContract', serviceContract.id, 'CREATE', 'Created service contract connection');
+    }
+
+    return { serviceContract };
+  }
+
+  private mergeRecords(records: VasRecord[]): VasRecord[] {
+    const mergedMap = new Map<string, VasRecord>();
+
+    for (const record of records) {
+      const key = `${record.date}_${record.serviceName}_${record.group}`;
+      
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, { ...record });
+        if (record.quantity === 0 && record.amount !== 0) {
+          mergedMap.get(key)!.quantity = record.amount > 0 ? 1 : -1;
+        }
+      } else {
+        const existing = mergedMap.get(key)!;
+        
+        if (existing.price > 0 && record.price < 0) {
+          existing.quantity = Math.max(0, existing.quantity - Math.abs(record.quantity));
+          existing.amount += record.amount;
+          
+          if (existing.quantity === 0 && existing.amount < 0) {
+            existing.price = record.price;
+            existing.quantity = Math.abs(record.quantity);
+          }
+        } else if (existing.price < 0 && record.price < 0) {
+          existing.quantity += record.quantity;
+          existing.amount += record.amount;
+        } else if (existing.price < 0 && record.price > 0) {
+          existing.quantity = Math.max(0, Math.abs(existing.quantity) - record.quantity);
+          existing.amount += record.amount;
+          
+          if (existing.quantity === 0 && existing.amount > 0) {
+            existing.price = record.price;
+            existing.quantity = record.quantity;
+          }
+        }
+      }
+    }
+
+    for (const [_, record] of mergedMap) {
+      if (record.amount < 0 && record.quantity > 0) {
+        record.quantity = -record.quantity;
+      } else if (record.amount > 0 && record.quantity < 0) {
+        record.quantity = Math.abs(record.quantity);
+      }
+    }
+
+    return Array.from(mergedMap.values());
+  }
+
+  async importRecordsToDatabase(
+    records: VasRecord[]
+  ): Promise<{ logs: string[]; inserted: number; updated: number; errors: number }> {
+    const mergedRecords = this.mergeRecords(records);
+    
+    let inserted = 0;
+    let updated = 0;
+    let errors = 0;
+    const logs: string[] = [`Starting import of ${mergedRecords.length} merged records...`];
+
+    for (const [index, record] of mergedRecords.entries()) {
+      try {
+        const dateObj = this.convertDateFormat(record.date);
+        if (!dateObj) {
+          errors++;
+          logs.push(`❌ Record ${index+1}: Invalid date format - ${record.date}`);
+          continue;
+        }
+
+        const existing = await prisma.vasTransaction.findUnique({
+          where: {
+            providerId_date_serviceName_group: {
+              providerId: record.providerId,
+              date: dateObj,
+              serviceName: record.serviceName,
+              group: record.group
+            }
+          }
+        });
+
+        if (existing) {
+          await prisma.vasTransaction.update({
+            where: { id: existing.id },
+            data: {
+              price: record.price,
+              quantity: record.quantity,
+              amount: record.amount,
+              serviceCode: record.serviceCode
+            }
+          });
+          updated++;
+          logs.push(`🔄 Record ${index+1}: Updated ${record.serviceName} on ${record.date}`);
+        } else {
+          await prisma.vasTransaction.create({
+            data: {
+              providerId: record.providerId,
+              serviceId: record.serviceId,
+              date: dateObj,
+              group: record.group,
+              serviceName: record.serviceName,
+              serviceCode: record.serviceCode,
+              price: record.price,
+              quantity: record.quantity,
+              amount: record.amount
+            }
+          });
+          inserted++;
+          logs.push(`✅ Record ${index+1}: Created ${record.serviceName} on ${record.date}`);
+        }
+      } catch (error: any) {
+        errors++;
+        logs.push(`❌ Record ${index+1}: Failed - ${error.message || 'Unknown error'}`);
+      }
+    }
+
+    logs.push(
+      `\nImport summary:`,
+      `✅ ${inserted} inserted`,
+      `🔄 ${updated} updated`,
+      `❌ ${errors} failed`
+    );
+
+    return { logs, inserted, updated, errors };
+  }
+
+  async ensureDirectories(): Promise<void> {
+    const dirs = [FOLDER_PATH, PROCESSED_FOLDER, ERROR_FOLDER, path.join(PROJECT_ROOT, 'public', 'providers')];
+    for (const dir of dirs) {
+      await fs.mkdir(dir, { recursive: true });
+    }
+  }
+
+  async logActivity(
+    entityType: string,
+    entityId: string,
+    action: string,
+    description: string,
+    errorDetails?: string,
+    level: 'INFO' | 'WARNING' | 'ERROR' = 'INFO'
+  ): Promise<void> {
+    try {
+      await prisma.activityLog.create({
+        data: {
+          entityType,
+          entityId,
+          action,
+          description,
+          errorDetails,
+          level,
+          userId: this.currentUserId,
+          timestamp: new Date()
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log activity:', error);
+    }
+  }
+
+  async processAllFiles(): Promise<void> {
+    await this.ensureDirectories();
+    
+    const files = await glob(path.join(FOLDER_PATH, '*.xls*'));
+    
+    if (files.length === 0) {
+      console.log('📭 No files found in input folder');
+      return;
+    }
+    
+    console.log(`📂 Found ${files.length} file(s) to process\n`);
+    
+    for (const file of files) {
+      try {
+        const result = await this.processExcelFile(file);
+        
+        if (result.records.length > 0) {
+          const importResult = await this.importRecordsToDatabase(result.records);
+          console.log(`\n✅ Import complete for ${path.basename(file)}`);
+          console.log(`   Inserted: ${importResult.inserted}`);
+          console.log(`   Updated: ${importResult.updated}`);
+          console.log(`   Errors: ${importResult.errors}`);
+          
+          // Move file to provider directory
+          await this.moveFileToProviderDirectory(
+            file,
+            result.providerId,
+            result.providerName,
+            path.basename(file)
+          );
+        } else {
+          console.log(`⚠️  No valid records found in ${path.basename(file)}`);
+          
+          // Move to error folder
+          const errorFile = path.join(ERROR_FOLDER, path.basename(file));
+          await fs.rename(file, errorFile);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error processing ${path.basename(file)}:`, error);
+        
+        // Move to error folder
+        try {
+          const errorFile = path.join(ERROR_FOLDER, path.basename(file));
+          await fs.rename(file, errorFile);
+        } catch (moveError) {
+          console.error(`❌ Could not move file to error folder:`, moveError);
+        }
+      }
+    }
+    
+    console.log('\n🎉 All files processed!');
   }
 }
 
-if (require.main === module) {
-  const userId = process.argv[2];
-  const vasImporter = new VasImportService(userId);
-  vasImporter.processAllFiles()
-    .then(() => console.log('VAS import completed'))
-    .catch(error => {
-      console.error('VAS import failed:', error);
-      process.exit(1);
-    });
-}
-
 export { VasImportService };
+export type { FileParseResult, VasRecord, FileProcessResult, ProviderInfo, ContractInfo };
