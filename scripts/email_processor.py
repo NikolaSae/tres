@@ -1,3 +1,5 @@
+//scripts/email_processor.py
+
 import os
 import logging
 from email import message_from_file

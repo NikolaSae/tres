@@ -1,8 +1,9 @@
-// lib/mcp/internal-server.ts - Potpuno ažurirana verzija
+// lib/mcp/internal-server.ts - Potpuno ažurirana verzija sa Email Tools
 
 import { db } from '@/lib/db';
 import type { McpContext, McpResult, McpTool } from './types';
 import { WriteOperations } from './write-tools';
+import { EmailOperations } from './email-tools';
 import { logQuery } from './query-logger';
 
 /**
@@ -11,9 +12,11 @@ import { logQuery } from './query-logger';
  */
 export class InternalMcpServer {
   private writeOps: WriteOperations;
+  private emailOps: EmailOperations;
 
   constructor() {
     this.writeOps = new WriteOperations();
+    this.emailOps = new EmailOperations();
   }
 
   /**
@@ -22,12 +25,14 @@ export class InternalMcpServer {
   getToolsForRole(role: string): McpTool[] {
     const readTools = this.getReadTools();
     const writeTools = this.writeOps.getWriteToolsForRole(role);
+    const emailTools = this.emailOps.getEmailToolsForRole(role);
     const analyticsTools = this.getAnalyticsTools(role);
     const systemTools = this.getSystemTools(role);
 
     return [
       ...readTools.map(t => ({ ...t, category: 'read' as const })),
       ...writeTools.map(t => ({ ...t, category: 'write' as const })),
+      ...emailTools.map(t => ({ ...t, category: 'email' as const })),
       ...analyticsTools.map(t => ({ ...t, category: 'analytics' as const })),
       ...systemTools.map(t => ({ ...t, category: 'system' as const }))
     ];
@@ -71,6 +76,8 @@ export class InternalMcpServer {
           return await this.executeReadTool(toolName, params, context);
         case 'write':
           return await this.writeOps.executeWriteTool(toolName, params, context);
+        case 'email':
+          return await this.emailOps.executeEmailTool(toolName, params, context);
         case 'analytics':
           return await this.executeAnalyticsTool(toolName, params, context);
         case 'system':
