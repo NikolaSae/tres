@@ -258,7 +258,9 @@ model ParkingService {
   transactions ParkingTransaction[]
   // Relations
   contracts   Contract[]
-
+  lastReportSentAt  DateTime?
+  totalReportsSent  Int       @default(0)
+  reportSendHistory Json[]    // Array of send history objects
   // Added the inverse relation to LogEntry
   logEntries  LogEntry[]
   complaints  Complaint[]

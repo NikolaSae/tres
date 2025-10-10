@@ -4,6 +4,7 @@ import { Metadata } from "next";
 import { getParkingServices } from "@/actions/parking-services/getParkingServices";
 import ParkingServiceList from "@/components/parking-services/ParkingServiceList";
 import ParkingServiceFilters from "@/components/parking-services/ParkingServiceFilters";
+import ParkingReportSender from "@/components/parking-services/ParkingReportSender";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
@@ -57,14 +58,25 @@ export default async function ParkingServicesPage({
     searchTerm: awaitedSearchParams.searchTerm as string | undefined,
     isActive: awaitedSearchParams.isActive === "true" ? true : awaitedSearchParams.isActive === "false" ? false : undefined,
     page: awaitedSearchParams.page ? parseInt(awaitedSearchParams.page as string) : 1,
-    pageSize: awaitedSearchParams.pageSize ? parseInt(awaitedSearchParams.pageSize as string) : 10, // ili povećajte na 25, 50, itd.
+    pageSize: awaitedSearchParams.pageSize ? parseInt(awaitedSearchParams.pageSize as string) : 10,
     sortBy: awaitedSearchParams.sortBy as string | undefined,
     sortDirection: awaitedSearchParams.sortDirection as "asc" | "desc" | undefined,
   };
 
+  // Fetch all active parking services for report sender
+  const allServicesResult = await getParkingServices({
+    isActive: true,
+    page: 1,
+    pageSize: 1000 // Get all active services
+  });
+
+  const allActiveServices = allServicesResult.success && allServicesResult.data 
+    ? allServicesResult.data.parkingServices 
+    : [];
+
   return (
     <div className="container mx-auto py-6 space-y-6 top-0">
-      {/* Move button outside PageHeader */}
+      {/* Header */}
       <div className="flex justify-between items-start gap-4">
         <div>
           <h1 className="text-2xl font-bold">Parking Services</h1>
@@ -80,6 +92,10 @@ export default async function ParkingServicesPage({
         </Link>
       </div>
 
+      {/* Report Sender Section */}
+      <ParkingReportSender parkingServices={allActiveServices} />
+
+      {/* Services List */}
       <Card>
         <CardHeader>
           <CardTitle>Parking servisi</CardTitle>

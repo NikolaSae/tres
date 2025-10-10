@@ -37,7 +37,7 @@ export default async function ParkingServiceDetailsPage({
 }: {
   params: { id: string };
 }) {
-  const { id } = params;
+  const { id } = await params;
   const parkingServiceResult = await getParkingServiceById(id);
   
   if (!parkingServiceResult.success || !parkingServiceResult.data) {

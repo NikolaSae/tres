@@ -1,13 +1,13 @@
 // app/api/parking-services/[id]/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const service = await prisma.parkingService.findUnique({
+    const service = await db.parkingService.findUnique({
       where: { id: params.id },
       include: {
         // Dodajte relacije koje vam trebaju
@@ -35,7 +35,7 @@ export async function PATCH(
   try {
     const body = await request.json();
     
-    const updatedService = await prisma.parkingService.update({
+    const updatedService = await db.parkingService.update({
       where: { id: params.id },
       data: body
     });
