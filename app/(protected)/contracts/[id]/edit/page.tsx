@@ -131,9 +131,8 @@ async function getHumanitarianOrgs() {
 }
 
 async function getParkingServices() {
-  return db.service.findMany({
+  return db.parkingService.findMany({
     where: { 
-      type: 'PARKING',
       isActive: true 
     },
     select: { id: true, name: true },
