@@ -1,0 +1,3 @@
+.cube-wrapper:after {
+  background-color: var(--shadow-color, rgba(0,0,0,0.1));
+}

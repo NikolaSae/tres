@@ -1,7 +1,7 @@
 //components/parking-services/ParkingServiceList.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Table,
@@ -14,11 +14,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash, Eye, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ParkingServiceItem } from "@/lib/types/parking-service-types";
 import { formatDate } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { deleteService } from "@/actions/parking-services/delete";
 import { toast } from "sonner";
+
+interface Service {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface ParkingServiceItem {
+  id: string;
+  name: string;
+  description: string | null;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  additionalEmails: string[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastReportSentAt: Date | null;
+  totalReportsSent: number;
+  contractCount: number;
+  transactionCount: number;
+  services: Service[];
+}
 
 interface ParkingServiceListProps {
   parkingServices: ParkingServiceItem[];
@@ -27,6 +51,22 @@ interface ParkingServiceListProps {
   pageSize: number;
   totalPages: number;
 }
+
+const getServiceTypeColor = (type: string) => {
+  const colors: Record<string, string> = {
+    VAS: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    BULK: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    HUMANITARIAN: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    PARKING: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  };
+  return colors[type] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+};
+
+const extractServiceNumber = (serviceName: string): string => {
+  // Extract 4-digit number from service name (e.g., S___7181AleksinacZona1 -> 7181)
+  const match = serviceName.match(/\d{4}/);
+  return match ? match[0] : serviceName;
+};
 
 export default function ParkingServiceList({ 
   parkingServices, 
@@ -132,8 +172,10 @@ export default function ParkingServiceList({
                 </Button>
               </TableHead>
               <TableHead>Contact</TableHead>
-              <TableHead>Address</TableHead>
+              <TableHead>Connected Services</TableHead>
+              <TableHead>Contracts</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Last Report</TableHead>
               <TableHead>
                 <Button
                   variant="ghost"
@@ -150,7 +192,7 @@ export default function ParkingServiceList({
           <TableBody>
             {parkingServices.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No parking services found
                 </TableCell>
               </TableRow>
@@ -158,17 +200,57 @@ export default function ParkingServiceList({
 
             {parkingServices.map((service) => (
               <TableRow key={service.id}>
-                <TableCell className="font-medium">{service.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div>{service.name}</div>
+                  {service.address && (
+                    <div className="text-xs text-muted-foreground">{service.address}</div>
+                  )}
+                </TableCell>
                 <TableCell>
-                  {service.contactName}
+                  {service.contactName && <div>{service.contactName}</div>}
                   {service.email && <div className="text-xs text-muted-foreground">{service.email}</div>}
                   {service.phone && <div className="text-xs text-muted-foreground">{service.phone}</div>}
+                  {!service.contactName && !service.email && !service.phone && "-"}
                 </TableCell>
-                <TableCell>{service.address || "-"}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1 max-w-xs">
+                    {service.services && service.services.length > 0 ? (
+                      service.services.map((srv) => (
+                        <Badge
+                          key={srv.id}
+                          variant="outline"
+                          className={`text-xs ${getServiceTypeColor(srv.type)}`}
+                          title={srv.name} // Show full name on hover
+                        >
+                          {extractServiceNumber(srv.name)}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground text-sm">No services</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className="font-mono">
+                    {service.contractCount || 0}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <Badge variant={service.isActive ? "default" : "secondary"}>
                     {service.isActive ? "Active" : "Inactive"}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  {service.lastReportSentAt ? (
+                    <div className="text-sm">
+                      <div>{formatDate(service.lastReportSentAt)}</div>
+                      <div className="text-muted-foreground text-xs">
+                        Total: {service.totalReportsSent}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 <TableCell>{formatDate(service.createdAt)}</TableCell>
                 <TableCell className="text-right space-x-2">

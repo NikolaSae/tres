@@ -1,5 +1,4 @@
-//actions/parking-services/getServicesForParkingServiceContracts.ts
-
+// actions/parking-services/getServicesForParkingServiceContracts.ts
 'use server';
 
 import { db } from '@/lib/db';
@@ -9,10 +8,16 @@ export async function getServicesForParkingServiceContracts(
   showAll: boolean = false
 ) {
   try {
-    // Fetch services with their contract count
+    // Fetch services linked to contracts that belong to the given parking service
     const services = await db.service.findMany({
       where: {
-        parkingServiceId: parkingServiceId,
+        contracts: {
+          some: {
+            contract: {
+              parkingServiceId: parkingServiceId
+            }
+          }
+        }
       },
       include: {
         _count: {
@@ -24,9 +29,9 @@ export async function getServicesForParkingServiceContracts(
     });
 
     // Filter services based on whether they're linked to contracts
-    const filteredServices = showAll 
-      ? services 
-      : services.filter(service => service._count.contracts === 0);
+    const filteredServices = services;
+     // ? services
+     // : services.filter(service => service._count.contracts === 0);
 
     return {
       success: true,

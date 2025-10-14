@@ -7,9 +7,9 @@ import ParkingServiceFilters from "@/components/parking-services/ParkingServiceF
 import ParkingReportSender from "@/components/parking-services/ParkingReportSender";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle } from "lucide-react";
 import Link from "next/link";
-import PageHeader from "@/components/PageHeader";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 
 export const metadata: Metadata = {
@@ -20,6 +20,8 @@ export const metadata: Metadata = {
 interface ParkingServiceFilters {
   searchTerm?: string;
   isActive?: boolean | undefined;
+  serviceNumber?: string;
+  hasContracts?: boolean | undefined;
   page: number;
   pageSize: number;
   sortBy?: string;
@@ -75,13 +77,13 @@ export default async function ParkingServicesPage({
     : [];
 
   return (
-    <div className="container mx-auto py-6 space-y-6 top-0">
+    <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Parking Services</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Parking Services</h1>
           <p className="text-muted-foreground">
-            Upravljajte parking servisima za potrebe upravljanja ugovorima
+            Upravljajte parking servisima i šaljite izveštaje
           </p>
         </div>
         <Link href="/parking-services/new" passHref>
@@ -92,22 +94,41 @@ export default async function ParkingServicesPage({
         </Link>
       </div>
 
-      {/* Report Sender Section */}
-      <ParkingReportSender parkingServices={allActiveServices} />
+      {/* Tabs */}
+      <Tabs defaultValue="services" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="services">Parking Servisi</TabsTrigger>
+          <TabsTrigger value="reports">Slanje Izveštaja</TabsTrigger>
+        </TabsList>
 
-      {/* Services List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Parking servisi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ParkingServiceFilters initialFilters={filters} />
+        {/* Services List Tab */}
+        <TabsContent value="services" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Parking servisi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ParkingServiceFilters initialFilters={filters} />
 
-          <Suspense fallback={<ListSkeleton count={filters.pageSize} />}>
-            <ParkingServiceListFetcher filters={filters} />
-          </Suspense>
-        </CardContent>
-      </Card>
+              <Suspense fallback={<ListSkeleton count={filters.pageSize} />}>
+                <ParkingServiceListFetcher filters={filters} />
+              </Suspense>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Slanje Izveštaja</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ParkingReportSender parkingServices={allActiveServices} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

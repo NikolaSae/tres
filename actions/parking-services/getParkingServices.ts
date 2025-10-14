@@ -1,45 +1,31 @@
-//actions/parking-services/getParkingServices.ts
+// actions/parking-services/getParkingServices.ts
+'use server';
 
-"use server";
+import { db } from '@/lib/db';
 
-import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { ParkingServiceFilters, PaginatedParkingServices } from "@/lib/types/parking-service-types";
-import { parkingServiceFiltersSchema } from "@/schemas/parking-service";
+interface GetParkingServicesParams {
+  searchTerm?: string;
+  isActive?: boolean;
+  serviceNumber?: string;
+  hasContracts?: boolean;
+  page: number;
+  pageSize: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
 
-export async function getParkingServices(
-  filters: ParkingServiceFilters = {}
-): Promise<{ success: boolean; data?: PaginatedParkingServices; error?: string }> {
+export async function getParkingServices(params: GetParkingServicesParams) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      // For data retrieval actions, you might return an empty list or specific error
-      // depending on your security policy for unauthorized users.
-      // Returning an error might be safer if the data is sensitive.
-      return { success: false, error: "Unauthorized" };
-    }
+    const { searchTerm, isActive, page, pageSize, sortBy, sortDirection } = params;
 
-    const validatedFilters = parkingServiceFiltersSchema.parse(filters);
-    const {
-      searchTerm,
-      isActive,
-      sortBy = "name",
-      sortDirection = "asc",
-      page = 1,
-      pageSize = 10,
-    } = validatedFilters;
-
-    const skip = (page - 1) * pageSize;
-
+    // Build where clause
     const where: any = {};
 
     if (searchTerm) {
       where.OR = [
-        { name: { contains: searchTerm, mode: "insensitive" } },
-        { description: { contains: searchTerm, mode: "insensitive" } },
-        { contactName: { contains: searchTerm, mode: "insensitive" } },
-        { email: { contains: searchTerm, mode: "insensitive" } },
-        { address: { contains: searchTerm, mode: "insensitive" } },
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+        { email: { contains: searchTerm, mode: 'insensitive' } },
       ];
     }
 
@@ -47,25 +33,82 @@ export async function getParkingServices(
       where.isActive = isActive;
     }
 
+    // Build orderBy clause
+    const orderBy: any = {};
+    if (sortBy) {
+      orderBy[sortBy] = sortDirection || 'asc';
+    } else {
+      orderBy.createdAt = 'desc';
+    }
+
+    // Get total count
     const totalCount = await db.parkingService.count({ where });
 
+    // Get paginated results with related services
     const parkingServices = await db.parkingService.findMany({
       where,
-      orderBy: {
-        [sortBy]: sortDirection,
-      },
-      skip,
+      orderBy,
+      skip: (page - 1) * pageSize,
       take: pageSize,
+      include: {
+        transactions: {
+          select: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              }
+            }
+          },
+          distinct: ['serviceId'],
+        },
+        _count: {
+          select: {
+            contracts: true,
+            transactions: true,
+          }
+        }
+      },
+    });
+
+    // Transform data to include unique services
+    const transformedServices = parkingServices.map(ps => {
+      // Get unique services from transactions
+      const uniqueServices = Array.from(
+        new Map(
+          ps.transactions
+            .filter(t => t.service)
+            .map(t => [t.service.id, t.service])
+        ).values()
+      );
+
+      return {
+        id: ps.id,
+        name: ps.name,
+        description: ps.description,
+        contactName: ps.contactName,
+        email: ps.email,
+        phone: ps.phone,
+        address: ps.address,
+        additionalEmails: ps.additionalEmails,
+        isActive: ps.isActive,
+        createdAt: ps.createdAt,
+        updatedAt: ps.updatedAt,
+        lastReportSentAt: ps.lastReportSentAt,
+        totalReportsSent: ps.totalReportsSent,
+        contractCount: ps._count.contracts,
+        transactionCount: ps._count.transactions,
+        services: uniqueServices,
+      };
     });
 
     const totalPages = Math.ceil(totalCount / pageSize);
 
-    // Uklonjen logActivity poziv - ne treba log za GET operacije
-
     return {
       success: true,
       data: {
-        parkingServices,
+        parkingServices: transformedServices,
         totalCount,
         page,
         pageSize,
@@ -73,12 +116,11 @@ export async function getParkingServices(
       },
     };
   } catch (error) {
-    console.error("Error fetching parking services:", error);
-     // Handle Zod validation errors specifically if needed
-     // if (error instanceof z.ZodError) { ... }
+    console.error('Error fetching parking services:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to fetch parking services",
+      error: 'Failed to fetch parking services. Please try again.',
+      data: null,
     };
   }
 }

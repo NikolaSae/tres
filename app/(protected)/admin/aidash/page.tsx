@@ -1,6 +1,5 @@
-// app/(protected)/admin/aidash/page.tsx
+////app/(protected)/admin/aidash/page.tsx
 'use client';
-
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -53,6 +52,189 @@ interface SystemHealth {
   }>;
 }
 
+// 3D Box Loader Component
+const BoxLoader = () => {
+  return (
+    <div className="box-loader-wrapper">
+      <style>{`
+        .box-loader-wrapper {
+          width: 200px;
+          height: 320px;
+          position: relative;
+          transform-style: preserve-3d;
+        }
+
+        @media(max-width: 480px) {
+          .box-loader-wrapper {
+            zoom: 0.44;
+          }
+        }
+
+        .box-loader-wrapper:before,
+        .box-loader-wrapper:after {
+          --r: 20.5deg;
+          content: '';
+          width: 320px;
+          height: 140px;
+          position: absolute;
+          right: 32%;
+          bottom: -11px;
+          background: #121621;
+          transform: translateZ(200px) rotate(var(--r));
+          animation: mask 3s linear forwards infinite;
+        }
+
+        .box-loader-wrapper:after {
+          --r: -20.5deg;
+          right: auto;
+          left: 32%;
+        }
+
+        .loader-ground {
+          position: absolute;
+          left: -50px;
+          bottom: -120px;
+          transform-style: preserve-3d;
+          transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1);
+        }
+
+        .loader-ground > div {
+          transform: rotateX(90deg) rotateY(0deg) translate(-48px, -120px) translateZ(100px) scale(0);
+          width: 200px;
+          height: 200px;
+          background: linear-gradient(45deg, rgba(39, 94, 254, 1) 0%, rgba(39, 94, 254, 1) 50%, #2f71ff 50%, #2f71ff 100%);
+          transform-style: preserve-3d;
+          animation: ground 3s linear forwards infinite;
+        }
+
+        .loader-ground > div:before,
+        .loader-ground > div:after {
+          --rx: 90deg;
+          --ry: 0deg;
+          --x: 44px;
+          --y: 162px;
+          --z: -50px;
+          content: '';
+          width: 156px;
+          height: 300px;
+          opacity: 0;
+          background: linear-gradient(rgba(39, 94, 254, 1), rgba(39, 94, 254, 0));
+          position: absolute;
+          transform: rotateX(var(--rx)) rotateY(var(--ry)) translate(var(--x), var(--y)) translateZ(var(--z));
+          animation: ground-shine 3s linear forwards infinite;
+        }
+
+        .loader-ground > div:after {
+          --rx: 90deg;
+          --ry: 90deg;
+          --x: 0;
+          --y: 177px;
+          --z: 150px;
+        }
+
+        .loader-box {
+          position: absolute;
+          animation: 3s linear forwards infinite;
+          transform: translate(var(--x), var(--y));
+        }
+
+        .loader-box > div {
+          background-color: rgba(39, 94, 254, 1);
+          width: 48px;
+          height: 48px;
+          position: relative;
+          transform-style: preserve-3d;
+          animation: 3s ease forwards infinite;
+          transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0);
+        }
+
+        .loader-box > div:before,
+        .loader-box > div:after {
+          content: '';
+          position: absolute;
+          background-color: inherit;
+          width: inherit;
+          height: inherit;
+        }
+
+        .loader-box > div:before {
+          transform: rotateX(90deg) rotateY(0deg) translate(0, -24px) translateZ(24px);
+          filter: brightness(1.2);
+        }
+
+        .loader-box > div:after {
+          transform: rotateX(0deg) rotateY(90deg) translate(24px, 0) translateZ(24px);
+          filter: brightness(1.4);
+        }
+
+        .loader-box.box0 { --x: -220px; --y: -120px; left: 58px; top: 108px; animation-name: box-move0; }
+        .loader-box.box1 { --x: -260px; --y: 120px; left: 25px; top: 120px; animation-name: box-move1; }
+        .loader-box.box2 { --x: 120px; --y: -190px; left: 58px; top: 64px; animation-name: box-move2; }
+        .loader-box.box3 { --x: 280px; --y: -40px; left: 91px; top: 120px; animation-name: box-move3; }
+        .loader-box.box4 { --x: 60px; --y: 200px; left: 58px; top: 132px; animation-name: box-move4; }
+        .loader-box.box5 { --x: -220px; --y: -120px; left: 25px; top: 76px; animation-name: box-move5; }
+        .loader-box.box6 { --x: -260px; --y: 120px; left: 91px; top: 76px; animation-name: box-move6; }
+        .loader-box.box7 { --x: -240px; --y: 200px; left: 58px; top: 87px; animation-name: box-move7; }
+
+        .loader-box.box0 > div { animation-name: box-scale0; }
+        .loader-box.box1 > div { animation-name: box-scale1; }
+        .loader-box.box2 > div { animation-name: box-scale2; }
+        .loader-box.box3 > div { animation-name: box-scale3; }
+        .loader-box.box4 > div { animation-name: box-scale4; }
+        .loader-box.box5 > div { animation-name: box-scale5; }
+        .loader-box.box6 > div { animation-name: box-scale6; }
+        .loader-box.box7 > div { animation-name: box-scale7; }
+
+        @keyframes box-move0 { 12% { transform: translate(var(--x), var(--y)); } 25%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+        @keyframes box-move1 { 16% { transform: translate(var(--x), var(--y)); } 29%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+        @keyframes box-move2 { 20% { transform: translate(var(--x), var(--y)); } 33%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+        @keyframes box-move3 { 24% { transform: translate(var(--x), var(--y)); } 37%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+        @keyframes box-move4 { 28% { transform: translate(var(--x), var(--y)); } 41%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+        @keyframes box-move5 { 32% { transform: translate(var(--x), var(--y)); } 45%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+        @keyframes box-move6 { 36% { transform: translate(var(--x), var(--y)); } 49%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+        @keyframes box-move7 { 40% { transform: translate(var(--x), var(--y)); } 53%, 52% { transform: translate(0, 0); } 80% { transform: translate(0, -32px); } 90%, 100% { transform: translate(0, 188px); } }
+
+        @keyframes box-scale0 { 6% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 14%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+        @keyframes box-scale1 { 10% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 18%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+        @keyframes box-scale2 { 14% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 22%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+        @keyframes box-scale3 { 18% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 26%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+        @keyframes box-scale4 { 22% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 30%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+        @keyframes box-scale5 { 26% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 34%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+        @keyframes box-scale6 { 30% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 38%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+        @keyframes box-scale7 { 34% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(0); } 42%, 100% { transform: rotateY(-47deg) rotateX(-15deg) rotateZ(15deg) scale(1); } }
+
+        @keyframes ground {
+          0%, 65% { transform: rotateX(90deg) rotateY(0deg) translate(-48px, -120px) translateZ(100px) scale(0); }
+          75%, 90% { transform: rotateX(90deg) rotateY(0deg) translate(-48px, -120px) translateZ(100px) scale(1); }
+          100% { transform: rotateX(90deg) rotateY(0deg) translate(-48px, -120px) translateZ(100px) scale(0); }
+        }
+
+        @keyframes ground-shine {
+          0%, 70% { opacity: 0; }
+          75%, 87% { opacity: 0.2; }
+          100% { opacity: 0; }
+        }
+
+        @keyframes mask {
+          0%, 65% { opacity: 0; }
+          66%, 100% { opacity: 1; }
+        }
+      `}</style>
+      
+      <div className="box-loader-wrapper">
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <div key={i} className={`loader-box box${i}`}>
+            <div></div>
+          </div>
+        ))}
+        <div className="loader-ground">
+          <div></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const StatCard = ({ title, value, subtitle, icon: Icon, color = "default" }: {
   title: string;
   value: number;
@@ -94,7 +276,7 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color = "default" }: {
 };
 
 const ChatMessage = ({ message, index }: { message?: { role?: string; content?: string }, index: number }) => {
-  if (!message || !message.role) return null; // sigurnosna zaštita
+  if (!message || !message.role) return null;
 
   return (
     <motion.div
@@ -122,7 +304,6 @@ const ChatMessage = ({ message, index }: { message?: { role?: string; content?: 
     </motion.div>
   );
 };
-
 
 export default function AiDashboard() {
   const [stats, setStats] = useState<McpStats | null>(null);
@@ -153,52 +334,50 @@ export default function AiDashboard() {
   const [toolsUsage, setToolsUsage] = useState<any[]>([]);
   
   const fetchDashboardData = async (showRefreshIndicator = false) => {
-  try {
-    if (showRefreshIndicator) setRefreshing(true);
-    else setLoading(true);
-    
-    const [statsRes, healthRes, toolsRes] = await Promise.all([
-      fetch('/api/admin/mcp/stats'),
-      fetch('/api/admin/mcp/system-health'),
-      fetch('/api/admin/mcp/tools-usage')
-    ]);
-
-    if (statsRes.ok) {
-      const statsData = await statsRes.json();
-      setStats(statsData);
+    try {
+      if (showRefreshIndicator) setRefreshing(true);
+      else setLoading(true);
       
-      // Debug log da vidimo šta API vraća
-      console.log('Stats API response:', statsData);
-    } else {
-      console.error('Stats API failed:', await statsRes.text());
-    }
+      const [statsRes, healthRes, toolsRes] = await Promise.all([
+        fetch('/api/admin/mcp/stats'),
+        fetch('/api/admin/mcp/system-health'),
+        fetch('/api/admin/mcp/tools-usage')
+      ]);
 
-    if (healthRes.ok) {
-      const healthData = await healthRes.json();
-      setHealth({
-        users: healthData.users,
-        contracts: healthData.contracts,
-        complaints: healthData.complaints,
-        humanitarians: healthData.humanitarians
-      });
-    } else {
-      console.error('Health API failed:', await healthRes.text());
-    }
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+        console.log('Stats API response:', statsData);
+      } else {
+        console.error('Stats API failed:', await statsRes.text());
+      }
 
-    if (toolsRes.ok) {
-      const toolsData = await toolsRes.json();
-      setToolsUsage(toolsData.tools || []);
-      console.log('Tools usage API response:', toolsData);
-    } else {
-      console.error('Tools API failed:', await toolsRes.text());
+      if (healthRes.ok) {
+        const healthData = await healthRes.json();
+        setHealth({
+          users: healthData.users,
+          contracts: healthData.contracts,
+          complaints: healthData.complaints,
+          humanitarians: healthData.humanitarians
+        });
+      } else {
+        console.error('Health API failed:', await healthRes.text());
+      }
+
+      if (toolsRes.ok) {
+        const toolsData = await toolsRes.json();
+        setToolsUsage(toolsData.tools || []);
+        console.log('Tools usage API response:', toolsData);
+      } else {
+        console.error('Tools API failed:', await toolsRes.text());
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-};
+  };
 
   const searchUserLogs = async () => {
     if (!searchEmail) return;
@@ -225,75 +404,72 @@ export default function AiDashboard() {
   };
 
   const sendMessage = async () => {
-  if (!inputMessage.trim() || chatLoading) return;
+    if (!inputMessage.trim() || chatLoading) return;
 
-  const userMessage = inputMessage;
-  const newMessages = [...messages, { role: 'user', content: userMessage }];
-  setMessages(newMessages);
-  setInputMessage('');
-  setChatLoading(true);
+    const userMessage = inputMessage;
+    const newMessages = [...messages, { role: 'user', content: userMessage }];
+    setMessages(newMessages);
+    setInputMessage('');
+    setChatLoading(true);
 
-  try {
-    const lowerInput = userMessage.toLowerCase();
-    
-    // Special handling za humanitarne organizacije
-    if (lowerInput.includes('humanitarne') || lowerInput.includes('kratki brojevi')) {
-      const response = await fetch(`/api/admin/mcp/search-humanitarian-orgs?q=&limit=50`);
-      if (response.ok) {
-        const data = await response.json();
-        const results = data.results || [];
-        const content = results.length
-          ? results
-              .map(
-                (org: any, idx: number) =>
-                  `${idx + 1}. ${org.name} - Kratki broj: ${org.shortNumber || 'N/A'}${
-                    org.phone ? ` - Telefon: ${org.phone}` : ''
-                  }`
-              )
-              .join('\n')
-          : 'Nema pronađenih humanitarnih organizacija sa kratkim brojevima.';
-        setMessages([...newMessages, { role: 'assistant', content }]);
+    try {
+      const lowerInput = userMessage.toLowerCase();
+      
+      if (lowerInput.includes('humanitarne') || lowerInput.includes('kratki brojevi')) {
+        const response = await fetch(`/api/admin/mcp/search-humanitarian-orgs?q=&limit=50`);
+        if (response.ok) {
+          const data = await response.json();
+          const results = data.results || [];
+          const content = results.length
+            ? results
+                .map(
+                  (org: any, idx: number) =>
+                    `${idx + 1}. ${org.name} - Kratki broj: ${org.shortNumber || 'N/A'}${
+                      org.phone ? ` - Telefon: ${org.phone}` : ''
+                    }`
+                )
+                .join('\n')
+            : 'Nema pronađenih humanitarnih organizacija sa kratkim brojevima.';
+          setMessages([...newMessages, { role: 'assistant', content }]);
+        } else {
+          setMessages([...newMessages, { role: 'assistant', content: 'Greška pri dohvaćanju humanitarnih organizacija.' }]);
+        }
       } else {
-        setMessages([...newMessages, { role: 'assistant', content: 'Greška pri dohvaćanju humanitarnih organizacija.' }]);
-      }
-    } else {
-      // ✅ OVDE JE POPRAVKA - šalji 'message' umesto 'messages'
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage  // ✅ Promenjena linija
-        })
-      });
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            message: userMessage
+          })
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Chat API response:', data); // Debug log
-        
-        // ✅ API vraća { response: string, timestamp: string }
-        setMessages([...newMessages, { 
-          role: 'assistant', 
-          content: data.response || 'Nema odgovora' 
-        }]);
-      } else {
-        const errorData = await response.text();
-        console.error('Chat API error:', response.status, errorData);
-        setMessages([...newMessages, { 
-          role: 'assistant', 
-          content: 'Greška, pokušajte ponovo.' 
-        }]);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Chat API response:', data);
+          
+          setMessages([...newMessages, { 
+            role: 'assistant', 
+            content: data.response || 'Nema odgovora' 
+          }]);
+        } else {
+          const errorData = await response.text();
+          console.error('Chat API error:', response.status, errorData);
+          setMessages([...newMessages, { 
+            role: 'assistant', 
+            content: 'Greška, pokušajte ponovo.' 
+          }]);
+        }
       }
+    } catch (error) {
+      console.error('Chat error:', error);
+      setMessages([...newMessages, { 
+        role: 'assistant', 
+        content: 'Greška u komunikaciji.' 
+      }]);
+    } finally {
+      setChatLoading(false);
     }
-  } catch (error) {
-    console.error('Chat error:', error);
-    setMessages([...newMessages, { 
-      role: 'assistant', 
-      content: 'Greška u komunikaciji.' 
-    }]);
-  } finally {
-    setChatLoading(false);
-  }
-};
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -304,32 +480,28 @@ export default function AiDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 relative">
-            <div className="absolute inset-0 rounded-full border-4 border-blue-200 dark:border-blue-800"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
-          </div>
-          <p className="text-muted-foreground">Učitavam dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-950 flex items-center justify-center">
+        <div className="text-center space-y-8">
+          <BoxLoader />
+          <p className="text-gray-400 text-lg">Učitavam dashboard...</p>
         </div>
       </div>
     );
   }
 
   const availableTools = toolsUsage.length > 0 
-  ? toolsUsage 
-  : [
-      { name: 'get_active_contracts', count: 0, actualName: 'get_contracts' },
-      { name: 'search_providers', count: 0, actualName: 'get_providers' },
-      { name: 'pending_complaints', count: 0, actualName: 'get_complaints' },
-      { name: 'system_statistics', count: 0, actualName: 'get_system_health' },
-      { name: 'search_humanitarian_orgs', count: 0, actualName: 'search_entities' }
-    ];
+    ? toolsUsage 
+    : [
+        { name: 'get_active_contracts', count: 0 },
+        { name: 'search_providers', count: 0 },
+        { name: 'pending_complaints', count: 0 },
+        { name: 'system_statistics', count: 0 },
+        { name: 'search_humanitarian_orgs', count: 0 }
+      ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto p-6 space-y-8">
-        {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -355,7 +527,6 @@ export default function AiDashboard() {
           </Button>
         </motion.div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Ukupno upita"
@@ -385,7 +556,6 @@ export default function AiDashboard() {
           />
         </div>
 
-        {/* Enhanced Tabs */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -411,7 +581,6 @@ export default function AiDashboard() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Enhanced AI Chat */}
             <TabsContent value="chat">
               <Card className="shadow-xl border-0 bg-white dark:bg-gray-800 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-b">
@@ -475,7 +644,6 @@ export default function AiDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Enhanced Analytics */}
             <TabsContent value="analytics">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="shadow-lg border-0 bg-white dark:bg-gray-800">
@@ -512,17 +680,7 @@ export default function AiDashboard() {
                       ) : (
                         <div className="text-center py-8">
                           <Zap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">
-                            {stats?.totalQueries === 0 
-                              ? 'MCP sistem nije korišćen još uvek' 
-                              : 'Učitavam podatke o tools-ima...'}
-                          </p>
-                          {stats?.debug && (
-                            <div className="mt-4 text-xs text-muted-foreground bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">
-                              <strong>Debug:</strong> Ukupno upita: {stats.totalQueries}, 
-                              Unique tools: {stats.debug.uniqueTools?.join(', ') || 'none'}
-                            </div>
-                          )}
+                          <p className="text-muted-foreground">Nema podataka o tools-ima</p>
                         </div>
                       )}
                     </div>
@@ -579,7 +737,6 @@ export default function AiDashboard() {
               </div>
             </TabsContent>
 
-            {/* Enhanced User Logs */}
             <TabsContent value="logs">
               <Card className="shadow-lg border-0 bg-white dark:bg-gray-800">
                 <CardHeader>
@@ -609,58 +766,57 @@ export default function AiDashboard() {
                   </div>
 
                   <div className="space-y-4">
-                    {userLogs.length
-                      ? userLogs.map((log, idx) => {
-                          let toolName = 'Nepoznat';
-                          let args: any = null;
+                    {userLogs.length ? (
+                      userLogs.map((log, idx) => {
+                        let toolName = 'Nepoznat';
+                        let args: any = null;
 
-                          try {
-                            const details = JSON.parse(log.details || '{}');
-                            toolName = details.toolName || 'Nepoznat';
-                            args = details.parameters || null;
-                          } catch (err) {
-                            console.error('Error parsing log details:', err);
-                          }
+                        try {
+                          const details = JSON.parse(log.details || '{}');
+                          toolName = details.toolName || 'Nepoznat';
+                          args = details.parameters || null;
+                        } catch (err) {
+                          console.error('Error parsing log details:', err);
+                        }
 
-                          return (
-                            <motion.div 
-                              key={`userLog-${log.id}-${idx}`}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: idx * 0.1 }}
-                              className="border rounded-xl p-4 bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-700 hover:shadow-md transition-all duration-200"
-                            >
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                                    <Zap className="h-4 w-4" />
-                                  </div>
-                                  <span className="font-medium">{toolName}</span>
+                        return (
+                          <motion.div 
+                            key={`userLog-${log.id}-${idx}`}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className="border rounded-xl p-4 bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-700 hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                                  <Zap className="h-4 w-4" />
                                 </div>
-                                <span className="text-sm text-muted-foreground bg-white dark:bg-gray-800 px-3 py-1 rounded-full border">
-                                  {new Date(log.createdAt).toLocaleString('sr-RS')}
-                                </span>
+                                <span className="font-medium">{toolName}</span>
                               </div>
-                              {args && (
-                                <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-3 rounded-lg overflow-auto border">
-                                  {JSON.stringify(args, null, 2)}
-                                </pre>
-                              )}
-                            </motion.div>
-                          );
-                        })
-                      : (
-                        <div className="text-center py-12">
-                          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">Nema pronađenih logova za ovog korisnika</p>
-                        </div>
-                      )}
+                              <span className="text-sm text-muted-foreground bg-white dark:bg-gray-800 px-3 py-1 rounded-full border">
+                                {new Date(log.createdAt).toLocaleString('sr-RS')}
+                              </span>
+                            </div>
+                            {args && (
+                              <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-3 rounded-lg overflow-auto border">
+                                {JSON.stringify(args, null, 2)}
+                              </pre>
+                            )}
+                          </motion.div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-12">
+                        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">Nema pronađenih logova za ovog korisnika</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Enhanced Available Tools */}
             <TabsContent value="tools">
               <Card className="shadow-lg border-0 bg-white dark:bg-gray-800">
                 <CardHeader>
