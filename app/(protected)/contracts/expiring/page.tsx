@@ -371,15 +371,29 @@ const ExpiringContractsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={() => router.back()}
-            className="flex items-center gap-2"
+            className="
+              relative overflow-hidden
+              inline-flex items-center justify-center gap-2
+              px-4 py-2 rounded-lg
+              text-white font-medium text-sm
+              bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+              shadow-md shadow-blue-600/20
+              hover:shadow-lg hover:shadow-blue-600/30
+              hover:-translate-y-0.5
+              active:translate-y-0
+              transition-all duration-300 ease-in-out
+              before:absolute before:inset-0
+              before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+              before:translate-x-[-200%]
+              hover:before:translate-x-[200%]
+              before:transition-transform before:duration-700
+            "
           >
             <ArrowLeft className="h-4 w-4" />
             Nazad
-          </Button>
+          </button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Ugovori koji ističu</h1>
             <p className="text-muted-foreground">
@@ -388,25 +402,54 @@ const ExpiringContractsPage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={handleRefresh}
             disabled={contractsLoading || statisticsLoading || timelineLoading}
-            className="flex items-center gap-2"
+            className="
+              relative overflow-hidden
+              inline-flex items-center justify-center gap-2
+              px-4 py-2 rounded-lg
+              text-white font-medium text-sm
+              bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+              shadow-md shadow-blue-600/20
+              hover:shadow-lg hover:shadow-blue-600/30
+              hover:-translate-y-0.5
+              active:translate-y-0
+              transition-all duration-300 ease-in-out
+              disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
+              before:absolute before:inset-0
+              before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+              before:translate-x-[-200%]
+              hover:before:translate-x-[200%]
+              before:transition-transform before:duration-700
+            "
           >
             <RefreshCw className={`h-4 w-4 ${(contractsLoading || statisticsLoading || timelineLoading) ? 'animate-spin' : ''}`} />
             Osveži
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
             onClick={handleExport}
-            className="flex items-center gap-2"
+            className="
+              relative overflow-hidden
+              inline-flex items-center justify-center gap-2
+              px-4 py-2 rounded-lg
+              text-white font-medium text-sm
+              bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+              shadow-md shadow-blue-600/20
+              hover:shadow-lg hover:shadow-blue-600/30
+              hover:-translate-y-0.5
+              active:translate-y-0
+              transition-all duration-300 ease-in-out
+              before:absolute before:inset-0
+              before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+              before:translate-x-[-200%]
+              hover:before:translate-x-[200%]
+              before:transition-transform before:duration-700
+            "
           >
             <Download className="h-4 w-4" />
             Izvezi
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -649,13 +692,29 @@ const ExpiringContractsPage: React.FC = () => {
             </div>
 
             <div className="flex items-end">
-              <Button
-                variant="outline"
+              <button
                 onClick={clearFilters}
-                className="w-full"
+                className="
+                  w-full
+                  relative overflow-hidden
+                  inline-flex items-center justify-center
+                  px-4 py-2 rounded-lg
+                  text-white font-medium text-sm
+                  bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+                  shadow-md shadow-blue-600/20
+                  hover:shadow-lg hover:shadow-blue-600/30
+                  hover:-translate-y-0.5
+                  active:translate-y-0
+                  transition-all duration-300 ease-in-out
+                  before:absolute before:inset-0
+                  before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+                  before:translate-x-[-200%]
+                  hover:before:translate-x-[200%]
+                  before:transition-transform before:duration-700
+                "
               >
                 Obriši filtere
-              </Button>
+              </button>
             </div>
           </div>
         </CardContent>
@@ -681,9 +740,28 @@ const ExpiringContractsPage: React.FC = () => {
       <div className="text-center py-8 text-red-500">
         {contractsError}
         <div className="mt-2">
-          <Button onClick={fetchContracts} variant="outline" size="sm">
+          <button 
+            onClick={fetchContracts}
+            className="
+              relative overflow-hidden
+              inline-flex items-center justify-center
+              px-4 py-2 rounded-lg
+              text-white font-medium text-sm
+              bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+              shadow-md shadow-blue-600/20
+              hover:shadow-lg hover:shadow-blue-600/30
+              hover:-translate-y-0.5
+              active:translate-y-0
+              transition-all duration-300 ease-in-out
+              before:absolute before:inset-0
+              before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+              before:translate-x-[-200%]
+              hover:before:translate-x-[200%]
+              before:transition-transform before:duration-700
+            "
+          >
             Pokušaj ponovo
-          </Button>
+          </button>
         </div>
       </div>
     ) : contracts.length === 0 ? (
@@ -692,14 +770,30 @@ const ExpiringContractsPage: React.FC = () => {
         <p className="text-sm text-muted-foreground mt-1">
           Nije pronađen nijedan ugovor koji ističe u narednih 60 dana.
         </p>
-        <Button 
-          variant="outline" 
-          className="mt-4"
+        <button 
           onClick={fetchContracts}
+          className="
+            mt-4
+            relative overflow-hidden
+            inline-flex items-center justify-center gap-2
+            px-4 py-2 rounded-lg
+            text-white font-medium text-sm
+            bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+            shadow-md shadow-blue-600/20
+            hover:shadow-lg hover:shadow-blue-600/30
+            hover:-translate-y-0.5
+            active:translate-y-0
+            transition-all duration-300 ease-in-out
+            before:absolute before:inset-0
+            before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+            before:translate-x-[-200%]
+            hover:before:translate-x-[200%]
+            before:transition-transform before:duration-700
+          "
         >
-          <RefreshCw className="mr-2 h-4 w-4" />
+          <RefreshCw className="h-4 w-4" />
           Osveži podatke
-        </Button>
+        </button>
       </div>
     ) : (
       <>
@@ -709,36 +803,73 @@ const ExpiringContractsPage: React.FC = () => {
           serverTime={serverTime}
           onContractUpdate={fetchContracts}
         />
-      </>
+        </>
     )}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-2 py-4">
+  </CardContent>
+</Card>
+
+      {/* Pagination */}
+      {contracts.length > 0 && pagination.totalPages > 1 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                Stranica {pagination.page} od {pagination.totalPages} 
-                ({formatNumber(pagination.total)} ukupno ugovora)
+                Stranica {pagination.page} od {pagination.totalPages} ({formatNumber(pagination.total)} ukupno ugovora)
               </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
+              <div className="flex items-center gap-2">
+                <button
                   onClick={() => changePage(pagination.page - 1)}
-                  disabled={pagination.page <= 1 || contractsLoading}
+                  disabled={pagination.page === 1}
+                  className="
+                    relative overflow-hidden
+                    inline-flex items-center justify-center
+                    px-4 py-2 rounded-lg
+                    text-white font-medium text-sm
+                    bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+                    shadow-md shadow-blue-600/20
+                    hover:shadow-lg hover:shadow-blue-600/30
+                    hover:-translate-y-0.5
+                    active:translate-y-0
+                    transition-all duration-300 ease-in-out
+                    disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
+                    before:absolute before:inset-0
+                    before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+                    before:translate-x-[-200%]
+                    hover:before:translate-x-[200%]
+                    before:transition-transform before:duration-700
+                  "
                 >
                   Prethodna
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
+                </button>
+                <button
                   onClick={() => changePage(pagination.page + 1)}
-                  disabled={pagination.page >= pagination.totalPages || contractsLoading}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="
+                    relative overflow-hidden
+                    inline-flex items-center justify-center
+                    px-4 py-2 rounded-lg
+                    text-white font-medium text-sm
+                    bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+                    shadow-md shadow-blue-600/20
+                    hover:shadow-lg hover:shadow-blue-600/30
+                    hover:-translate-y-0.5
+                    active:translate-y-0
+                    transition-all duration-300 ease-in-out
+                    disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
+                    before:absolute before:inset-0
+                    before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+                    before:translate-x-[-200%]
+                    hover:before:translate-x-[200%]
+                    before:transition-transform before:duration-700
+                  "
                 >
                   Sledeća
-                </Button>
+                </button>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

@@ -87,10 +87,28 @@ export default async function ParkingServicesPage({
           </p>
         </div>
         <Link href="/parking-services/new" passHref>
-          <Button>
+          <button
+            className="
+              relative overflow-hidden
+              inline-flex items-center justify-center
+              px-6 py-3 rounded-xl
+              text-white font-semibold text-sm
+              bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+              shadow-lg shadow-blue-600/30
+              hover:shadow-xl hover:shadow-blue-600/40
+              hover:-translate-y-1
+              active:translate-y-0
+              transition-all duration-300 ease-in-out
+              before:absolute before:inset-0
+              before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent
+              before:translate-x-[-200%]
+              hover:before:translate-x-[200%]
+              before:transition-transform before:duration-700
+            "
+          >
             <PlusCircle className="mr-2 h-4 w-4" />
             Dodaj novi servis
-          </Button>
+          </button>
         </Link>
       </div>
 

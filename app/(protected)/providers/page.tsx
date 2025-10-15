@@ -5,13 +5,30 @@ import { BlacklistSection } from "@/components/blacklist/BlacklistSection";
 import { auth } from "@/auth";
 import { UserRole } from "@prisma/client";
 import { Suspense } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata: Metadata = {
   title: "Providers | Management Dashboard",
   description: "View and manage all providers and blacklist in the system",
 };
+
+// Loading fallback with styled spinner
+function LoadingFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border shadow-sm">
+      <div className="relative w-32 h-32">
+        <div className="absolute inset-0 rounded-full border-4 border-gray-300 dark:border-gray-600"></div>
+        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-600 border-r-blue-500 animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 animate-pulse shadow-lg shadow-purple-500/50"></div>
+        </div>
+      </div>
+      <p className="mt-6 text-sm text-gray-600 dark:text-gray-400 animate-pulse font-medium">
+        Loading data...
+      </p>
+    </div>
+  );
+}
 
 export default async function ProvidersPage() {
   const session = await auth();
@@ -31,15 +48,17 @@ export default async function ProvidersPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Providers & Security</h1>
-          <p className="text-gray-500">
+          <h1 className="text-3xl font-bold tracking-wide text-gray-900 dark:text-gray-100">
+            Providers & Security
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             Manage providers and sender blacklist for your system
           </p>
         </div>
         <div className="flex items-center gap-4">
           <a
             href="/providers/new"
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4"
+            className="relative inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out overflow-hidden h-11 px-6 text-white bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:-translate-y-0.5 active:translate-y-0"
           >
             Create Provider
           </a>
@@ -48,27 +67,45 @@ export default async function ProvidersPage() {
       
       {/* Tabs */}
       <Tabs defaultValue="providers" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="providers">Providers</TabsTrigger>
-          <TabsTrigger value="blacklist">Sender Blacklist</TabsTrigger>
+        <TabsList className="grid w-full max-w-md grid-cols-2 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 p-1 rounded-xl shadow-sm">
+          <TabsTrigger 
+            value="providers"
+            className="rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md dark:data-[state=active]:bg-gray-700"
+          >
+            Providers
+          </TabsTrigger>
+          <TabsTrigger 
+            value="blacklist"
+            className="rounded-lg font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-md dark:data-[state=active]:bg-gray-700"
+          >
+            Sender Blacklist
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="providers" className="mt-6 space-y-4">
-          <div className="border-b border-gray-200 pb-2">
-            <h2 className="text-lg font-semibold text-gray-900">Providers</h2>
-            <p className="text-sm text-gray-500">View and manage all providers in the system</p>
+          <div className="border-b-2 border-purple-200 dark:border-purple-800 pb-3">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-wide">
+              Providers
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              View and manage all providers in the system
+            </p>
           </div>
-          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+          <Suspense fallback={<LoadingFallback />}>
             <ProviderList />
           </Suspense>
         </TabsContent>
         
         <TabsContent value="blacklist" className="mt-6 space-y-4">
-          <div className="border-b border-gray-200 pb-2">
-            <h2 className="text-lg font-semibold text-gray-900">Sender Blacklist</h2>
-            <p className="text-sm text-gray-500">Manage blacklisted senders and check for matches in BulkService data</p>
+          <div className="border-b-2 border-purple-200 dark:border-purple-800 pb-3">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-wide">
+              Sender Blacklist
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Manage blacklisted senders and check for matches in BulkService data
+            </p>
           </div>
-          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+          <Suspense fallback={<LoadingFallback />}>
             <BlacklistSection />
           </Suspense>
         </TabsContent>
