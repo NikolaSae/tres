@@ -1,11 +1,12 @@
 // next.config.mjs
+import bundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     domains: [
       'localhost',
-      '*.app.github.dev' // Dozvoli slike sa GitHub Codespaces domena
+      '*.app.github.dev', // Dozvoli slike sa GitHub Codespaces domena
     ],
   },
   experimental: {
@@ -43,4 +44,10 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Konfiguracija za bundle analyzer
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+// Kombinuj sa NextConfig i eksportuj kao ES module
+export default withBundleAnalyzer(nextConfig);

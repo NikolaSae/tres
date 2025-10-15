@@ -199,11 +199,7 @@ result[permission.resource].push(permission);
   return result;
 }
 
-/**
- * Check if current user has specific permissions and throw error if not
- * @param permissionName The name of the permission to check
- * @throws Error if user doesn't have permission
- */
+
 export async function requirePermission(permissionName: string): Promise<void> {
   const hasPermission = await checkPermission(permissionName);
   
