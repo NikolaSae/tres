@@ -35,6 +35,7 @@ export interface DataFilterOptions {
     providerIds?: string[];
     serviceTypes?: string[];
     productIds?: string[];
+    parkingServiceIds?: string[];
     searchQuery?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
@@ -45,12 +46,14 @@ interface DataFiltersProps {
     onFilterChange?: (filters: DataFilterOptions) => void;
     showDateRange?: boolean;
     showProviders?: boolean;
+    showParkingServices?: boolean;
     showServiceTypes?: boolean;
     showProducts?: boolean;
     showSearch?: boolean;
     showSort?: boolean;
     className?: string;
     providersData?: { id: string; name: string }[];
+    parkingServicesData?: FilterData[];
     serviceTypesData?: { id: string; name: string }[];
     productsData?: { id: string; name: string }[];
 }
