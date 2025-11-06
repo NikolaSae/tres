@@ -9,6 +9,8 @@ interface NavLinkProps {
   children: React.ReactNode;
   isActive?: boolean;
   variant?: "mint" | "ocean" | "purple" | "emerald";
+  onClick?: () => void;
+  className?: string;
 }
 
 const variantStyles = {
@@ -22,12 +24,21 @@ export const NavLink: React.FC<NavLinkProps> = ({
   href, 
   children, 
   isActive = false,
-  variant = "mint"
+  variant = "mint",
+  onClick,
+  className
 }) => {
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <div className="relative">
       <Link
         href={href}
+        onClick={handleClick}
         className={cn(
           "relative overflow-hidden",
           "inline-flex items-center justify-center gap-2",
@@ -45,7 +56,8 @@ export const NavLink: React.FC<NavLinkProps> = ({
           "before:translate-x-[-200%]",
           "hover:before:translate-x-[200%]",
           "before:transition-transform before:duration-700",
-          isActive && "ring-2 ring-yellow-400/60 shadow-xl"
+          isActive && "ring-2 ring-yellow-400/60 shadow-xl",
+          className
         )}
       >
         {children}

@@ -28,22 +28,46 @@ interface AnalyticsDashboardProps {
   }>;
 }
 
+// Async komponente za svaki widget - omogućava paralelno učitavanje
+async function KpiDashboardWrapper({ filters }: { filters: any }) {
+  const [financialData, salesData, complaintData] = await Promise.all([
+    getFinancialData({ period: "monthly", months: 3 }),
+    getSalesMetrics({ period: "monthly", months: 3 }),
+    getComplaintStats({ period: "monthly", months: 3 })
+  ]);
+
+  return (
+    <KpiDashboard
+      financialData={financialData}
+      salesData={salesData}
+      complaintData={complaintData}
+    />
+  );
+}
+
+async function FinancialOverviewWrapper() {
+  const data = await getFinancialData({ period: "monthly", months: 3 });
+  return <FinancialOverview data={data} />;
+}
+
+async function ComplaintAnalyticsWrapper() {
+  const data = await getComplaintStats({ period: "monthly", months: 3 });
+  return <ComplaintAnalytics data={data} />;
+}
+
 export default async function AnalyticsDashboard({ searchParams }: AnalyticsDashboardProps) {
-    // Optional: Check if the user has permission to access the page
+    // Provera dozvola - ovo može biti brzo
     const canAccess = await canAccessAnalyticsPage();
     if (!canAccess) {
-        // Redirect to access denied or home page if not allowed
-         redirect('/'); // Or '/access-denied'
+        redirect('/');
     }
 
-    // Await searchParams before using
     const resolvedSearchParams = await searchParams;
 
     function getFirstValue(value: string | string[] | undefined): string | undefined {
         return Array.isArray(value) ? value[0] : value;
     }
 
-    // Build filters from searchParams
     const filters = {
         period: getFirstValue(resolvedSearchParams?.period) || 'monthly',
         dateRange: {
@@ -56,47 +80,29 @@ export default async function AnalyticsDashboard({ searchParams }: AnalyticsDash
         searchQuery: getFirstValue(resolvedSearchParams?.q) || '',
     };
 
-    // For initial data load - prefetch on the server
-    const initialFinancialData = await getFinancialData({
-        period: "monthly",
-        months: 3
-    });
-
-    const initialSalesData = await getSalesMetrics({
-        period: "monthly",
-        months: 3
-    });
-
-    const initialComplaintData = await getComplaintStats({
-        period: "monthly",
-        months: 3
-    });
-
     return (
-        <div className="container mx-auto py-8 space-y-8 top-0">
-        {/* Title section */}
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-            <p className="text-muted-foreground">
-                Monitor performance metrics and business insights
-            </p>
-        </div>
+        <div className="container mx-auto py-8 space-y-8">
+            {/* Ovo se prikazuje odmah - statički sadržaj */}
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+                <p className="text-muted-foreground">
+                    Monitor performance metrics and business insights
+                </p>
+            </div>
 
-        {/* Moved filter below title with responsive width */}
-        <div className="true">
-            <Suspense fallback={<Skeleton className="h-10 w-full" />}>
-                <DataFilters initialFilters={filters} />
-            </Suspense>
-        </div>
+            {/* Filteri - mogu biti immediately visible */}
+            <div className="w-full">
+                <Suspense fallback={<Skeleton className="h-10 w-full" />}>
+                    <DataFilters initialFilters={filters} />
+                </Suspense>
+            </div>
 
+            {/* KPI Dashboard - učitava se nezavisno */}
             <Suspense fallback={<KpiSkeleton />}>
-                <KpiDashboard
-                    financialData={initialFinancialData}
-                    salesData={initialSalesData}
-                    complaintData={initialComplaintData}
-                />
+                <KpiDashboardWrapper filters={filters} />
             </Suspense>
 
+            {/* Tabs sa odvojenim suspense granicama */}
             <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -107,8 +113,9 @@ export default async function AnalyticsDashboard({ searchParams }: AnalyticsDash
 
                 <TabsContent value="overview" className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {/* Svaki chart se učitava nezavisno */}
                         <Suspense fallback={<ChartSkeleton />}>
-                            <FinancialOverview data={initialFinancialData} />
+                            <FinancialOverviewWrapper />
                         </Suspense>
 
                         <Suspense fallback={<ChartSkeleton />}>
@@ -116,7 +123,7 @@ export default async function AnalyticsDashboard({ searchParams }: AnalyticsDash
                         </Suspense>
 
                         <Suspense fallback={<ChartSkeleton />}>
-                            <ComplaintAnalytics data={initialComplaintData} />
+                            <ComplaintAnalyticsWrapper />
                         </Suspense>
                     </div>
                 </TabsContent>

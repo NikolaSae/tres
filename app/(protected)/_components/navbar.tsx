@@ -1,14 +1,13 @@
 // Path: /app/(protected)/_components/navbar.tsx
 "use client";
 
-"use client";
-
 import * as React from "react";
 import { ChevronDown } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ClientSideUserButton } from "@/components/auth/client-side-user-button";
 import { NavLink } from "@/components/ui/nav-link";
+import Link from "next/link";
 
 interface DropdownItem {
   href: string;
@@ -25,7 +24,6 @@ interface CustomDropdownProps {
 const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActive }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const timeoutRef = React.useRef<NodeJS.Timeout>();
-  const router = useRouter();
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) {
@@ -38,6 +36,11 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
     timeoutRef.current = setTimeout(() => {
       setIsOpen(false);
     }, 100);
+  };
+
+  // Jednostavno zatvaramo dropdown kada korisnik klikne
+  const handleItemClick = () => {
+    setIsOpen(false);
   };
 
   React.useEffect(() => {
@@ -88,16 +91,13 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
         <>
           <div className="absolute left-0 top-full w-full h-2 bg-transparent" />
           
-          <div className="absolute left-0 top-full mt-2 w-[250px] bg-popover border rounded-md shadow-lg z-50">
+          <div className="absolute left-0 top-full mt-2 w-[250px] bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-200">
             <ul className="grid gap-1 p-4">
               {items.map((item) => (
                 <li key={item.href}>
-                  <NavLink
+                  <Link
                     href={item.href}
-                    onClick={() => {
-                      console.log("[NAVBAR] Dropdown link clicked:", item.href);
-                      setIsOpen(false);
-                    }}
+                    onClick={handleItemClick}
                     className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground w-full text-left"
                   >
                     <div className="text-sm font-medium leading-none">{item.title}</div>
@@ -106,7 +106,7 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
                         {item.description}
                       </p>
                     )}
-                  </NavLink>
+                  </Link>
                 </li>
               ))}
             </ul>

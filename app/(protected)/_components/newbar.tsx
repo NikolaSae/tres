@@ -1,3 +1,4 @@
+// Path: /app/(protected)/_components/newbar.tsx
 "use client";
 
 import Link from "next/link";
