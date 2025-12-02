@@ -53,8 +53,30 @@ export async function generateAllHumanitarianReports(
       };
     }
 
-    organizations.sort((a, b) => a.name.localeCompare(b.name));
-    console.log(`🏢 Processing ${organizations.length} organizations for ${paymentType}`);
+// ISPRAVNO SORTIRANJE PO shortNumber (ascending) – 100% radi
+organizations.sort((a, b) => {
+  const getNum = (short: string | null | undefined): number => {
+    if (!short) return Infinity;
+    const trimmed = short.trim();
+    if (!trimmed) return Infinity;
+    const num = parseInt(trimmed, 10);
+    return isNaN(num) ? Infinity : num;
+  };
+
+  const numA = getNum(a.shortNumber);
+  const numB = getNum(b.shortNumber);
+
+  if (numA !== numB) {
+    return numA - numB; // manji shortNumber → ranije
+  }
+
+  // Ako imaju isti broj ili oba nemaju → po imenu
+  return a.name.localeCompare(b.name);
+});
+console.log(`Obrada ${organizations.length} organizacija – redosled po shortNumber:`);
+organizations.forEach((org, i) => {
+  console.log(`${String(i + 1).padStart(2)}. ${String(org.shortNumber || 'NULL').padEnd(6)} → ${org.name}`);
+});
 
     // 🔹 Izbor generatora
     const generator = paymentType === 'prepaid' 

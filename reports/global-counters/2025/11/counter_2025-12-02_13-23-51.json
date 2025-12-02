@@ -1,0 +1,155 @@
+{
+  "totalReports": 24,
+  "validReportsCount": 24,
+  "createdAt": "2025-12-02T13:23:51.341Z",
+  "lastUpdated": "2025-12-02T13:23:54.409Z",
+  "month": 11,
+  "year": 2025,
+  "generationType": "complete-reports",
+  "processedOrganizations": [
+    {
+      "name": "Eparhija raško-prizrenska",
+      "timestamp": "2025-12-02T13:23:51.345Z",
+      "value": 164100,
+      "counterAssigned": 1
+    },
+    {
+      "name": "Humanitarna fondacija ZA NAŠE HEROJE",
+      "timestamp": "2025-12-02T13:23:51.535Z",
+      "value": 600,
+      "counterAssigned": 2
+    },
+    {
+      "name": "Svetionik",
+      "timestamp": "2025-12-02T13:23:51.640Z",
+      "value": 3400,
+      "counterAssigned": 3
+    },
+    {
+      "name": "Udruženje UVEK SA DECOM",
+      "timestamp": "2025-12-02T13:23:51.727Z",
+      "value": 3000,
+      "counterAssigned": 4
+    },
+    {
+      "name": "Блиц Фондација",
+      "timestamp": "2025-12-02T13:23:51.793Z",
+      "value": 1200,
+      "counterAssigned": 5
+    },
+    {
+      "name": "Верско добротворно старатељство Архиепископије београдско-карловачке СПЦ",
+      "timestamp": "2025-12-02T13:23:51.922Z",
+      "value": 23800,
+      "counterAssigned": 6
+    },
+    {
+      "name": "Епархија нишка „Добри Самарјанин“",
+      "timestamp": "2025-12-02T13:23:52.064Z",
+      "value": 400,
+      "counterAssigned": 7
+    },
+    {
+      "name": "Национално удружење родитеља деце оболеле од рака-НУРДОР",
+      "timestamp": "2025-12-02T13:23:52.130Z",
+      "value": 2400,
+      "counterAssigned": 8
+    },
+    {
+      "name": "Удружење „Српска Солидарност“",
+      "timestamp": "2025-12-02T13:23:52.212Z",
+      "value": 3400,
+      "counterAssigned": 9
+    },
+    {
+      "name": "Удружење Подели радост",
+      "timestamp": "2025-12-02T13:23:52.298Z",
+      "value": 600,
+      "counterAssigned": 10
+    },
+    {
+      "name": "Удружење ТЕЛОК",
+      "timestamp": "2025-12-02T13:23:52.424Z",
+      "value": 34800,
+      "counterAssigned": 11
+    },
+    {
+      "name": "УНИЦЕФ",
+      "timestamp": "2025-12-02T13:23:52.522Z",
+      "value": 22300,
+      "counterAssigned": 12
+    },
+    {
+      "name": "ФОНДАЦИЈА  ПОМОЗИСРЦЕМ",
+      "timestamp": "2025-12-02T13:23:52.590Z",
+      "value": 400,
+      "counterAssigned": 13
+    },
+    {
+      "name": "Фондација – Хуманост без граница",
+      "timestamp": "2025-12-02T13:23:52.765Z",
+      "value": 485800,
+      "counterAssigned": 14
+    },
+    {
+      "name": "Фондација „ Буди хуман - Александар Шапић“",
+      "timestamp": "2025-12-02T13:23:53.292Z",
+      "value": 962900,
+      "counterAssigned": 15
+    },
+    {
+      "name": "Фондација „Подржи живот“",
+      "timestamp": "2025-12-02T13:23:53.362Z",
+      "value": 4600,
+      "counterAssigned": 16
+    },
+    {
+      "name": "Фондација Заједно за младе ",
+      "timestamp": "2025-12-02T13:23:53.592Z",
+      "value": 1200,
+      "counterAssigned": 17
+    },
+    {
+      "name": "Фондација Једро",
+      "timestamp": "2025-12-02T13:23:53.658Z",
+      "value": 19200,
+      "counterAssigned": 18
+    },
+    {
+      "name": "Фондација Тамара Мисирлић",
+      "timestamp": "2025-12-02T13:23:53.824Z",
+      "value": 8400,
+      "counterAssigned": 19
+    },
+    {
+      "name": "Фондација ТАТЕ НОВОСАЂАНИ",
+      "timestamp": "2025-12-02T13:23:53.913Z",
+      "value": 200,
+      "counterAssigned": 20
+    },
+    {
+      "name": "Хуманитарна организација  „Покрени живот“",
+      "timestamp": "2025-12-02T13:23:54.109Z",
+      "value": 236200,
+      "counterAssigned": 21
+    },
+    {
+      "name": "Хуманитарна организација „Срби за Србе“",
+      "timestamp": "2025-12-02T13:23:54.235Z",
+      "value": 34800,
+      "counterAssigned": 22
+    },
+    {
+      "name": "Хуманитарна организација Принцип",
+      "timestamp": "2025-12-02T13:23:54.312Z",
+      "value": 3000,
+      "counterAssigned": 23
+    },
+    {
+      "name": "Хуманитарна организација Сви за Космет",
+      "timestamp": "2025-12-02T13:23:54.409Z",
+      "value": 7500,
+      "counterAssigned": 24
+    }
+  ]
+}
