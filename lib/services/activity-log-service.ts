@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 import { LogSeverity, LogActionType, LogEntityType } from "@prisma/client";
 
 interface ActivityLogParams {
-  action: LogActionType;
-  entityType: LogEntityType;
+  action: string;
+  entityType: string;
   entityId: string | null;
   details?: string;
   severity?: LogSeverity;

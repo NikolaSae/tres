@@ -39,8 +39,8 @@ export async function createBulkService(data: unknown) {
 
     // Logovanje aktivnosti – koristimo Prisma enum vrednosti
     await ActivityLogService.log({
-      action: LogActionType.CREATE_BULK_SERVICE, // ← mora da postoji u enum-u!
-      entityType: LogEntityType.BULK_SERVICE,
+      action: "CREATE_BULK_SERVICE", // ← mora da postoji u enum-u!
+      entityType: "BULK_SERVICE",
       entityId: bulkService.id,
       details: `Kreiran novi bulk servis: ${bulkService.service_name} za ${bulkService.provider_name}`,
       severity: LogSeverity.INFO,
