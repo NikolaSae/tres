@@ -6,7 +6,7 @@ import { NextRequest } from 'next/server';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await auth();
@@ -95,10 +95,9 @@ export async function GET(
   }
 }
 
-// Dodajte i DELETE endpoint ako je potreban za brisanje logova
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await auth();
