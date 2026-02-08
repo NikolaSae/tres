@@ -8,17 +8,20 @@ import { getProductById } from '@/actions/products/get';
 
 
 interface ProductDetailsPageProps {
-    params: {
+    params: Promise<{
         id: string; // ID proizvoda iz URL-a
-    };
+    }>;
 }
 
 // Dinamička generacija metapodataka
 export async function generateMetadata(
     { params }: ProductDetailsPageProps,
 ): Promise<Metadata> {
+    // Await params in Next.js 15+
+    const { id } = await params;
+    
     // Dohvatanje proizvoda za naslov (može biti null ako nije pronađen)
-    const result = await getProductById(params.id);
+    const result = await getProductById(id);
     const product = result.data;
 
     return {
@@ -32,7 +35,7 @@ export async function generateMetadata(
 // Ovo je Server Komponenta
 export default async function ProductDetailsPage({ params }: ProductDetailsPageProps) {
 
-    const { id } = params; // Dohvatamo ID iz URL-a
+    const { id } = await params; // Dohvatamo ID iz URL-a
 
     // Dohvatanje podataka o proizvodu sa Servera koristeći AŽURIRANU akciju
     const result = await getProductById(id); // Akcija getProductById je ažurirana
