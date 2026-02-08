@@ -1,6 +1,5 @@
 //app/api/bulk-services/[id]/route.ts
 
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getBulkServiceById } from '@/actions/bulk-services/getBulkServiceById';
@@ -9,7 +8,7 @@ import { deleteBulkService } from '@/actions/bulk-services/delete';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -18,7 +17,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const bulkService = await getBulkServiceById(params.id);
+    const { id } = await params;
+    const bulkService = await getBulkServiceById(id);
     
     if (!bulkService) {
       return NextResponse.json({ error: 'Bulk service not found' }, { status: 404 });
@@ -33,7 +33,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -42,8 +42,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    const { id } = await params;
     const data = await req.json();
-    const updatedBulkService = await updateBulkService(params.id, data);
+    const updatedBulkService = await updateBulkService(id, data);
     
     return NextResponse.json(updatedBulkService);
   } catch (error) {
@@ -59,7 +60,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -68,7 +69,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    await deleteBulkService(params.id);
+    const { id } = await params;
+    await deleteBulkService(id);
     
     return NextResponse.json({ success: true });
   } catch (error) {
