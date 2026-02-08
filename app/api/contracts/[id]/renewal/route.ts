@@ -1,12 +1,12 @@
 // /app/api/contracts/[id]/renewal/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth'; // Updated import path
+import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { ContractRenewalSubStatus } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contractId = params.id;
+    const { id: contractId } = await params;
 
     const renewal = await db.contractRenewal.findFirst({
       where: { contractId },
@@ -49,7 +49,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -57,7 +57,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contractId = params.id;
+    const { id: contractId } = await params;
     const body = await request.json();
     
     const {
@@ -145,7 +145,7 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -153,7 +153,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contractId = params.id;
+    const { id: contractId } = await params;
     const body = await request.json();
     
     const {

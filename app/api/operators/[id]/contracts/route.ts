@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -15,7 +15,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
     
-    const operatorId = params.id;
+    const { id: operatorId } = await params;
     
     // Check if operator exists
     const operator = await db.operator.findUnique({

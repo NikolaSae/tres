@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -15,8 +15,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const awaitedParams = await params;
-    const parkingServiceId = awaitedParams.id;
+    const { id: parkingServiceId } = await params;
 
     const parkingService = await db.parkingService.findUnique({
       where: {
@@ -49,7 +48,7 @@ export async function GET(
         },
         attachments: true,
         reminders: true,
-        operator: { // Include the operator relation here
+        operator: {
            select: {
               id: true,
               name: true,

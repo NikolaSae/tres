@@ -6,11 +6,10 @@ import { ServiceType } from "@prisma/client";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Pravilno koristimo params.id
-    const parkingId = params.id;
+    const { id: parkingId } = await params;
 
     if (!parkingId) {
       return new NextResponse("Parking service ID is required", { status: 400 });
@@ -53,7 +52,6 @@ export async function GET(
             description: serviceContract.service.description,
             specificTerms: serviceContract.specificTerms,
             contractId: contract.id,
-            // Dodajemo ostale potrebne informacije
             type: serviceContract.service.type,
             isActive: serviceContract.service.isActive
           });

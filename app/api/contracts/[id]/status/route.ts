@@ -5,10 +5,10 @@ import { ContractStatus, ContractRenewalSubStatus } from '@prisma/client';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const contractId = params.id;
+    const { id: contractId } = await params;
     const body = await request.json();
     const { newStatus, comments } = body;
 
@@ -104,8 +104,6 @@ export async function PATCH(
         console.log('✅ Renewal record created successfully');
       } catch (renewalError) {
         console.error('❌ Error creating renewal record:', renewalError);
-        // Ne prekidamo proces ako renewal kreiranje ne uspe
-        // ali logujemo grešku
       }
     }
 
@@ -119,7 +117,6 @@ export async function PATCH(
   } catch (error) {
     console.error('❌ Error in updateContractStatus API:', error);
     
-    // Specifične greške za Prisma
     if (error && typeof error === 'object' && 'code' in error) {
       const prismaError = error as any;
       console.error('Prisma error code:', prismaError.code);
@@ -156,7 +153,7 @@ function validateStatusChange(currentStatus: ContractStatus, newStatus: Contract
     [ContractStatus.PENDING]: [ContractStatus.ACTIVE, ContractStatus.RENEWAL_IN_PROGRESS, ContractStatus.TERMINATED],
     [ContractStatus.RENEWAL_IN_PROGRESS]: [ContractStatus.ACTIVE, ContractStatus.EXPIRED, ContractStatus.TERMINATED],
     [ContractStatus.EXPIRED]: [ContractStatus.RENEWAL_IN_PROGRESS, ContractStatus.TERMINATED],
-    [ContractStatus.TERMINATED]: [] // No transitions from terminated
+    [ContractStatus.TERMINATED]: []
   };
 
   const allowedTransitions = validTransitions[currentStatus] || [];
