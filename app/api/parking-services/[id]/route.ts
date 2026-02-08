@@ -4,11 +4,14 @@ import { db } from '@/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }   // ← changed
 ) {
   try {
+    const params = await context.params;          // ← await here
+    const { id } = params;
+
     const service = await db.parkingService.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         // Dodajte relacije koje vam trebaju
       }
@@ -30,13 +33,16 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }   // ← changed
 ) {
   try {
+    const params = await context.params;          // ← await here
+    const { id } = params;
+
     const body = await request.json();
     
     const updatedService = await db.parkingService.update({
-      where: { id: params.id },
+      where: { id },
       data: body
     });
 
