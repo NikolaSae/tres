@@ -6,12 +6,12 @@ import { UserRole } from "@prisma/client";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     const user = session?.user;
-
+    const { id } = await params;
     // Провера ауторизације
     if (!user || ![UserRole.ADMIN, UserRole.MANAGER].includes(user.role as UserRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

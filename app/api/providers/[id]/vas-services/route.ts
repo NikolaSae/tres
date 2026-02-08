@@ -6,12 +6,12 @@ import { ServiceType } from "@prisma/client";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const awaitedParams = await params;
     const providerId = awaitedParams.id;
-
+    const { id } = await params;
     if (!providerId) {
       return new NextResponse("Provider ID is required", { status: 400 });
     }

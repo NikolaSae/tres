@@ -4,10 +4,11 @@ import { db } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
-    const providerName = decodeURIComponent(params.name);
+    const awaitedParams = await params;
+    const providerName = decodeURIComponent(awaitedParams.name);
     
     console.log('Looking up provider by name:', providerName);
 
