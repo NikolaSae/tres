@@ -6,15 +6,15 @@ import { auth } from "@/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ComplaintStatus, UserRole } from "@prisma/client"; // ← uklonjen ComplaintEntityType (ne postoji)
-import { ComplaintImportData } from "@/lib/types/complaint-types"; // ← promenjeno
+import { ComplaintStatus, UserRole, LogSeverity } from "@prisma/client";
+import { ComplaintImportData } from "@/lib/types/complaint-types"; // ili ComplaintFormData ako si ga dodao
 
 const updateComplaintSchema = z.object({
   id: z.string().min(1),
-  title: z.string().min(5, "Title must be at least 5 characters").max(100, "Title cannot exceed 100 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  title: z.string().min(5, "Naslov mora imati najmanje 5 karaktera").max(100, "Naslov ne sme prelaziti 100 karaktera"),
+  description: z.string().min(10, "Opis mora imati najmanje 10 karaktera"),
   
-  entityType: z.string().optional(), // ← promenjeno u string jer enum ne postoji
+  entityType: z.string().optional(),
   serviceId: z.string().optional().nullable(),
   productId: z.string().optional().nullable(),
   providerId: z.string().optional().nullable(),
@@ -33,7 +33,7 @@ export type UpdateComplaintFormData = z.infer<typeof updateComplaintSchema>;
 export async function updateComplaint(data: UpdateComplaintFormData) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return { error: "Unauthorized. Please sign in to update a complaint." };
     }
 
@@ -44,45 +44,42 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
     });
 
     if (!existingComplaint) {
-      return { error: "Complaint not found" };
+      return { error: "Pritužba nije pronađena" };
     }
 
     const user = await db.user.findUnique({
-  where: { id: session.user.id },
-  select: { role: true },
-});
+      where: { id: session.user.id },
+      select: { role: true },
+    });
 
-const isSubmitter = existingComplaint.submittedById === session.user.id;
-const isAssigned = existingComplaint.assignedAgentId === session.user.id;
+    const isSubmitter = existingComplaint.submittedById === session.user.id;
+    const isAssigned = existingComplaint.assignedAgentId === session.user.id;
 
-// Ispravljena provera dozvola – koristi direktno enum vrednosti
-const allowedRoles = [UserRole.ADMIN, UserRole.MANAGER, UserRole.AGENT];
-const isStaff = user?.role && allowedRoles.includes(user.role as any); // ili bolje dole
+    // Jedna čista i type-safe provera dozvola
+    const isStaff =
+      user?.role === UserRole.ADMIN ||
+      user?.role === UserRole.MANAGER ||
+      user?.role === UserRole.AGENT;
 
-// Bolja i type-safe varijanta (preporučena)
-const isStaff = user?.role === UserRole.ADMIN ||
-                user?.role === UserRole.MANAGER ||
-                user?.role === UserRole.AGENT;
+    const canUpdate = isStaff || isSubmitter || isAssigned;
 
-const canUpdate = isStaff || isSubmitter || isAssigned;
-
-if (!canUpdate) {
-  return { error: "Nemate dozvolu da ažurirate ovu pritužbu" };
-}
+    if (!canUpdate) {
+      return { error: "Nemate dozvolu da ažurirate ovu pritužbu" };
+    }
 
     let updateData: any = {};
-    
-    // Always allow these fields
+
+    // Polja koja svako može menjati
     updateData.title = validatedData.title;
     updateData.description = validatedData.description;
     updateData.priority = validatedData.priority;
     updateData.financialImpact = validatedData.financialImpact;
 
-    // Staff-only fields
-    if ([UserRole.ADMIN, UserRole.MANAGER, UserRole.AGENT].includes(user?.role as UserRole)) {
+    // Polja rezervisana za staff
+    if (isStaff) {
       updateData.entityType = validatedData.entityType;
-      
-      // Reset related IDs
+
+      // Resetujemo sve povezane ID-eve
       updateData.serviceId = null;
       updateData.productId = null;
       updateData.providerId = null;
@@ -90,7 +87,7 @@ if (!canUpdate) {
       updateData.parkingServiceId = null;
       updateData.bulkServiceId = null;
 
-      // Set correct ID based on entityType (string-based)
+      // Postavljamo tačan ID na osnovu entityType (string)
       switch (validatedData.entityType) {
         case "PROVIDER":
           updateData.providerId = validatedData.providerId;
@@ -111,19 +108,19 @@ if (!canUpdate) {
           updateData.productId = validatedData.productId;
           break;
       }
-      
-      // Status handling (same as before)
+
+      // Promena statusa
       if (validatedData.status && validatedData.status !== existingComplaint.status) {
         updateData.status = validatedData.status;
-        
-        if (validatedData.status === "RESOLVED" && !existingComplaint.resolvedAt) {
+
+        if (validatedData.status === ComplaintStatus.RESOLVED && !existingComplaint.resolvedAt) {
           updateData.resolvedAt = new Date();
         }
-        
-        if (validatedData.status === "CLOSED" && !existingComplaint.closedAt) {
+
+        if (validatedData.status === ComplaintStatus.CLOSED && !existingComplaint.closedAt) {
           updateData.closedAt = new Date();
         }
-        
+
         await db.complaintStatusHistory.create({
           data: {
             complaintId: existingComplaint.id,
@@ -133,30 +130,30 @@ if (!canUpdate) {
           },
         });
       }
-      
-      // Assignment handling (same as before)
+
+      // Promena dodele agenta
       if (validatedData.assignedAgentId !== existingComplaint.assignedAgentId) {
         updateData.assignedAgentId = validatedData.assignedAgentId;
-        
+
         if (validatedData.assignedAgentId && !existingComplaint.assignedAgentId) {
           updateData.assignedAt = new Date();
-          updateData.status = "ASSIGNED";
-          
-          if (existingComplaint.status !== "ASSIGNED") {
+          updateData.status = ComplaintStatus.ASSIGNED;
+
+          if (existingComplaint.status !== ComplaintStatus.ASSIGNED) {
             await db.complaintStatusHistory.create({
               data: {
                 complaintId: existingComplaint.id,
                 previousStatus: existingComplaint.status,
-                newStatus: "ASSIGNED",
+                newStatus: ComplaintStatus.ASSIGNED,
                 changedById: session.user.id,
               },
             });
           }
-          
+
           await db.notification.create({
             data: {
-              title: "Complaint Assigned",
-              message: `You have been assigned to handle complaint: "${existingComplaint.title}"`,
+              title: "Pritužba vam je dodeljena",
+              message: `Dodeljena vam je pritužba: "${existingComplaint.title}"`,
               type: "COMPLAINT_ASSIGNED",
               userId: validatedData.assignedAgentId,
               entityType: "complaint",
@@ -172,22 +169,64 @@ if (!canUpdate) {
       data: updateData,
     });
 
-    // ... ostatak koda (activity log, notifications, revalidate, redirect) ostaje isti
+    // Logovanje aktivnosti
+    await db.activityLog.create({
+      data: {
+        action: "COMPLAINT_UPDATED",
+        entityType: "complaint",
+        entityId: existingComplaint.id,
+        details: `Pritužba ažurirana: ${existingComplaint.title}`,
+        userId: session.user.id,
+        severity: LogSeverity.INFO,
+      },
+    });
+
+    // Notifikacije za submittera
+    if (existingComplaint.submittedById !== session.user.id) {
+      await db.notification.create({
+        data: {
+          title: "Pritužba ažurirana",
+          message: `Vaša pritužba "${existingComplaint.title}" je ažurirana.`,
+          type: "COMPLAINT_UPDATED",
+          userId: existingComplaint.submittedById,
+          entityType: "complaint",
+          entityId: existingComplaint.id,
+        },
+      });
+    }
+
+    // Notifikacija za dodeljenog agenta (ako je ažuriranje relevantno)
+    if (
+      existingComplaint.assignedAgentId &&
+      existingComplaint.assignedAgentId !== session.user.id &&
+      existingComplaint.assignedAgentId === updateData.assignedAgentId
+    ) {
+      await db.notification.create({
+        data: {
+          title: "Dodeljena pritužba ažurirana",
+          message: `Pritužba "${existingComplaint.title}" koju vodite je ažurirana.`,
+          type: "COMPLAINT_UPDATED",
+          userId: existingComplaint.assignedAgentId,
+          entityType: "complaint",
+          entityId: existingComplaint.id,
+        },
+      });
+    }
 
     revalidatePath(`/complaints/${updatedComplaint.id}`);
     redirect(`/complaints/${updatedComplaint.id}`);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return {
-        error: "Validation failed",
+        error: "Validacija neuspešna",
         formErrors: error.format(),
       };
     }
-    
+
     console.error("[COMPLAINT_UPDATE_ERROR]", error);
-    
+
     return {
-      error: "Failed to update complaint. Please try again.",
+      error: "Neuspešno ažuriranje pritužbe. Pokušajte ponovo.",
     };
   }
 }
