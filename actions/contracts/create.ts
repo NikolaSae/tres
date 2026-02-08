@@ -67,11 +67,15 @@ export async function createContract(data: ContractFormData) {
       };
     }
 
+    // Kreiranje ugovora – operatorId se dodaje SAMO ako je revenue sharing aktivan i operatorId je validan string
     const newContract = await db.contract.create({
       data: {
         ...dbData,
-        // Ispravljena provera: operatorId se dodaje SAMO ako je revenue sharing aktivan I operatorId postoji kao validan string
-        ...(dbData.isRevenueSharing && dbData.operatorId && typeof dbData.operatorId === 'string' && { operatorId: dbData.operatorId }),
+        ...(dbData.isRevenueSharing && 
+            dbData.operatorId && 
+            typeof dbData.operatorId === 'string' && 
+            dbData.operatorId.trim() !== '' && 
+            { operatorId: dbData.operatorId }),
         services: {
           create: dbData.services?.map(service => ({
             serviceId: service.serviceId,
