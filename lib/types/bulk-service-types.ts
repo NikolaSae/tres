@@ -73,6 +73,7 @@ export interface BulkServiceImportResult {
   importErrors: string[]; // Errors at the file parsing level (e.g., malformed CSV)
   error?: string | null; // Overall error message for the import process
   createdCount?: number; // Number of records actually created in the database
+  updatedCount?: number;
   createdServices?: { id: string; name: string }[]; // Polje za novokreirane servise
   // createdProviders?: { id: string; name: string }[]; // UKLONJENO: Polje za novokreirane provajdere
 }
