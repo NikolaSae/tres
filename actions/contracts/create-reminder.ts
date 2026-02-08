@@ -14,22 +14,20 @@ const createReminderSchema = z.object({
   }).refine((date) => date > new Date(), {
     message: 'Datum podsetnika mora biti u budućnosti',
   }),
-  message: z.string().optional(),
+  message: z.string().optional(), // ← ostaje za validaciju, ali se ne šalje u DB
   isDismissed: z.boolean().default(false),
+  reminderType: z.string().min(1, 'Tip podsetnika je obavezan').default('manual'), // ← NOVO: dodato u šemu
 });
 
 type CreateReminderFormData = z.infer<typeof createReminderSchema>;
 
 export async function createReminder(data: CreateReminderFormData) {
-  // Provera autentifikacije
   const session = await auth();
   if (!session?.user?.id) {
     return { error: 'Morate biti prijavljeni da biste kreirali podsetnik.' };
   }
 
-  // Validacija
   const validationResult = createReminderSchema.safeParse(data);
-
   if (!validationResult.success) {
     return {
       error: 'Validacija neuspešna.',
@@ -43,11 +41,11 @@ export async function createReminder(data: CreateReminderFormData) {
     const reminder = await db.contractReminder.create({
       data: {
         contractId: validatedData.contractId,
-        reminderDate: validatedData.remindAt,     // ← tačno ime polja u modelu
-        message: validatedData.message || null,
-        isAcknowledged: validatedData.isDismissed, // ← tačno ime polja u modelu
-        // Opciono: beleži ko je kreirao
+        reminderDate: validatedData.remindAt,
+        reminderType: validatedData.reminderType,          // ← OBAVEZNO DODATO
+        isAcknowledged: validatedData.isDismissed,
         acknowledgedById: session.user.id,
+        // message se ne šalje jer ne postoji u modelu
       },
     });
 
