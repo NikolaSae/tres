@@ -19,14 +19,14 @@ export const metadata: Metadata = {
 export default async function OperatorsPage({
   searchParams,
 }: {
-  searchParams: {
+  searchParams: Promise<{
     search?: string;
     active?: "all" | "active" | "inactive";
     sortBy?: "name" | "code" | "createdAt";
     sortOrder?: "asc" | "desc";
     page?: string;
     pageSize?: string;
-  };
+  }>;
 }) {
   const searchParamsData = await searchParams;
   
