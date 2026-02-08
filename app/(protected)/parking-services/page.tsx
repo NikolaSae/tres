@@ -52,7 +52,7 @@ async function ParkingServiceListFetcher({ filters }: { filters: ParkingServiceF
 export default async function ParkingServicesPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const awaitedSearchParams = await searchParams;
 
