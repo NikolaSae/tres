@@ -569,6 +569,7 @@ model ContractReminder {
   isAcknowledged   Boolean  @default(false)
   acknowledgedById String?
   acknowledgedBy   User?    @relation(fields: [acknowledgedById], references: [id])
+  message          String?  @db.Text
 
   createdAt        DateTime @default(now())
 
