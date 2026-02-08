@@ -8,7 +8,7 @@ import { auth } from '@/auth';
 
 const createReminderSchema = z.object({
   contractId: z.string().min(1, 'ID ugovora je obavezan'),
-  remindAt: z.coerce.date({ 
+  remindAt: z.coerce.date({
     invalid_type_error: 'Datum podsetnika mora biti validan datum',
     required_error: 'Datum podsetnika je obavezan',
   }).refine((date) => date > new Date(), {
@@ -43,11 +43,11 @@ export async function createReminder(data: CreateReminderFormData) {
     const reminder = await db.contractReminder.create({
       data: {
         contractId: validatedData.contractId,
-        reminderDate: validatedData.remindAt,  // ← promenjeno u reminderDate (tačno ime polja u modelu)
+        reminderDate: validatedData.remindAt,     // ← tačno ime polja u modelu
         message: validatedData.message || null,
-        isAcknowledged: validatedData.isDismissed,  // ← isAcknowledged umesto isDismissed (tačno ime polja)
-        // Opciono: ako želiš da beležiš ko je kreirao
-        // acknowledgedById: session.user.id,
+        isAcknowledged: validatedData.isDismissed, // ← tačno ime polja u modelu
+        // Opciono: beleži ko je kreirao
+        acknowledgedById: session.user.id,
       },
     });
 
@@ -57,13 +57,11 @@ export async function createReminder(data: CreateReminderFormData) {
       success: 'Podsetnik uspešno kreiran.',
       reminderId: reminder.id,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Greška pri kreiranju podsetnika:', error);
 
-    if (error instanceof Error && 'code' in error) {
-      if (error.code === 'P2003') {
-        return { error: 'Ugovor sa datim ID-om ne postoji.' };
-      }
+    if (error?.code === 'P2003') {
+      return { error: 'Ugovor sa datim ID-om ne postoji.' };
     }
 
     return { error: 'Neuspešno kreiranje podsetnika.' };
