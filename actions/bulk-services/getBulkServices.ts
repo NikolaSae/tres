@@ -4,7 +4,7 @@
 
 import { db } from "@/lib/db";
 import { ServerError } from "@/lib/exceptions";
-import { BulkServicesFilters } from "@/lib/types/bulk-service-types";
+import { BulkServiceFilters } from "@/lib/types/bulk-service-types";
 import { getCurrentUser } from "@/lib/session";
 
 export async function getBulkServices({
@@ -16,7 +16,7 @@ export async function getBulkServices({
   limit = 10,
   sortBy = "createdAt",
   sortOrder = "desc",
-}: BulkServicesFilters) {
+}: BulkServiceFilters) {
   try {
     const currentUser = await getCurrentUser();
     
