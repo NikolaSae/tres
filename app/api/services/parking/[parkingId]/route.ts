@@ -5,8 +5,9 @@ import { auth } from '@/auth';
 // Handler for getting parking services associated with a parking service provider
 export async function GET(
   request: NextRequest,
-  { params }: { params: { parkingId: string } }
+  { params }: { params: Promise<{ parkingId: string }> }
 ) {
+    const { parkingId } = await params;
   try {
     const session = await auth();
     
@@ -16,8 +17,6 @@ export async function GET(
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    
-    const parkingId = params.parkingId;
     
     if (!parkingId) {
       return new NextResponse(JSON.stringify({ error: 'Parking Service ID is required' }), {

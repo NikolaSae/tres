@@ -5,8 +5,9 @@ import { auth } from '@/lib/auth';
 // Handler for getting humanitarian services associated with a humanitarian organization
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orgId: string } }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
+    const { orgId } = await params;
   try {
     const session = await auth();
     
@@ -17,7 +18,6 @@ export async function GET(
       });
     }
     
-    const orgId = params.orgId;
     
     if (!orgId) {
       return new NextResponse(JSON.stringify({ error: 'Humanitarian Organization ID is required' }), {

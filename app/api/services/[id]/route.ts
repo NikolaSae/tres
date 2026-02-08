@@ -15,21 +15,18 @@ import { auth } from '@/auth';
 import { currentRole } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
 
-// Handler za GET za dohvatanje pojedinačnog servisa po ID-u
-// Dohvata više detalja (sa relacijama) nego GET na /api/services
-// Usklađen sa Service modelom u schema.prisma.
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } } // Hvatanje dinamičkog segmenta rute ([id])
-): Promise<NextResponse<ServiceWithDetails | { error: string }>> { // Explicitno tipiziramo povratnu vrednost
-    // Provera da li je korisnik ulogovan
+    { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse<ServiceWithDetails | { error: string }>> {
+    const { id } = await params;
      const session = await auth();
      if (!session?.user) {
        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
      }
      // Provera uloge ako je potrebna
 
-    const { id } = params; // Dobijanje ID-a iz URL-a
+    
 
     try {
         // Dohvatanje servisa sa relacijama iz schema.prisma Service modela
@@ -83,15 +80,14 @@ export async function GET(
 // Koristi ažuriranu actions/services/update.ts akciju
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
-): Promise<NextResponse> { // Vraća NextResponse
-     // Provera autorizacije - samo ADMIN ili MANAGER mogu ažurirati servise
+    { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+    const { id } = await params;
      const role = await currentRole();
-     if (role !== UserRole.ADMIN && role !== UserRole.MANAGER) { // Prilagodite uloge
-       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-     }
+    if (role !== UserRole.ADMIN && role !== UserRole.MANAGER) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    const { id } = params; // Dobijanje ID-a iz URL-a
 
     try {
         const values: ServiceFormData = await request.json(); // Očekujemo JSON telo zahteva
@@ -135,20 +131,17 @@ export async function PUT(
 }
 
 
-// Handler za DELETE za brisanje servisa po ID-u
-// Koristi ažuriranu actions/services/delete.ts akciju
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
-): Promise<NextResponse> { // Vraća NextResponse
-     // Provera autorizacije - samo ADMIN može brisati servise (ili viša uloga)
+    { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+    const { id } = await params;
      const role = await currentRole();
      // Možda samo ADMIN može brisati, a MANAGER samo ažurirati? Prilagodite uloge.
      if (role !== UserRole.ADMIN) {
        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
      }
 
-    const { id } = params; // Dobijanje ID-a iz URL-a
 
     try {
         // Pozivanje AŽURIRANE Server Akcije za brisanje servisa
