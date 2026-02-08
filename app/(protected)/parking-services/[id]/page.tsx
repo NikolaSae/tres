@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 export default async function ParkingServiceDetailsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
   const parkingServiceResult = await getParkingServiceById(id);

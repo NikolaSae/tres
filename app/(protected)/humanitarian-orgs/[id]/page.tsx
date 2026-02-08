@@ -16,9 +16,9 @@ import DetailSkeleton from "@/components/skeletons/DetailSkeleton";
 import { Banknote, FileText, ClipboardList, AlertCircle } from 'lucide-react'; // Added Banknote
 
 interface HumanitarianOrgDetailsPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 async function getHumanitarianOrgDetails(orgId: string): Promise<HumanitarianOrgWithDetails | null> {

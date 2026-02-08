@@ -20,9 +20,9 @@ export const metadata: Metadata = {
 };
 
 interface OperatorDetailsPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function OperatorDetailsPage({ params }: OperatorDetailsPageProps) {
