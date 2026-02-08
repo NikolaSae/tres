@@ -6,9 +6,9 @@ import { db } from "@/lib/db";
 import { ServerError } from "@/lib/exceptions";
 import { getCurrentUser } from "@/lib/session";
 import { formatBulkServiceCSV } from "@/lib/bulk-services/csv-processor"; // Ispravno ime exportovane funkcije
-import { BulkServicesFilter } from "@/lib/types/bulk-service-types";
+import { BulkServicesFilters } from "@/lib/types/bulk-service-types";
 
-export async function exportBulkServices(filters?: BulkServicesFilter) {
+export async function exportBulkServices(filters?: BulkServicesFilters) {
   try {
     const currentUser = await getCurrentUser();
     
