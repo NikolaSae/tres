@@ -12,7 +12,7 @@ interface ProductDetailsPageProps {
         id: string; // ID proizvoda iz URL-a
     }>;
 }
-
+//izmena
 // Dinamička generacija metapodataka
 export async function generateMetadata(
     { params }: ProductDetailsPageProps,
