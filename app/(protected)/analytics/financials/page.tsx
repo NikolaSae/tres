@@ -8,9 +8,9 @@ import { getVasFinancialData, getParkingFinancialData } from "./actions";
 import { db } from '@/lib/db';
 
 interface FinancialAnalyticsPageProps {
-  searchParams: {
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 }
 
 async function fetchProvidersForFilters() {
@@ -91,6 +91,9 @@ export default async function FinancialAnalyticsPage({
     return null;
   }
 
+  // Await searchParams in Next.js 15+
+  const params = await searchParams;
+
   const filters: DataFilterOptions = {
     dateRange: { from: null, to: null },
     sortBy: 'date',
@@ -103,15 +106,15 @@ export default async function FinancialAnalyticsPage({
   };
 
   // Get search params safely
-  const dateFrom = searchParams?.dateFrom;
-  const dateTo = searchParams?.dateTo;
-  const providers = searchParams?.providers;
-  const parkingServices = searchParams?.parkingServices;
-  const serviceTypes = searchParams?.serviceTypes;
-  const products = searchParams?.products;
-  const q = searchParams?.q;
-  const sort = searchParams?.sort;
-  const order = searchParams?.order;
+  const dateFrom = params?.dateFrom;
+  const dateTo = params?.dateTo;
+  const providers = params?.providers;
+  const parkingServices = params?.parkingServices;
+  const serviceTypes = params?.serviceTypes;
+  const products = params?.products;
+  const q = params?.q;
+  const sort = params?.sort;
+  const order = params?.order;
 
   // Apply date range filter
   if (typeof dateFrom === 'string') {
