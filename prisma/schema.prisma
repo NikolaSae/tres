@@ -754,7 +754,15 @@ model Complaint {
   @@index([priority])
   @@index([humanitarianOrgId])
 }
-
+enum ComplaintEntityType {
+  SERVICE
+  PRODUCT
+  PROVIDER
+  HUMANITARIAN_ORG
+  PARKING_SERVICE
+  BULK_SERVICE
+  OTHER
+}
 model ComplaintStatusHistory {
   id             String          @id @default(cuid())
   complaintId    String
