@@ -67,13 +67,11 @@ export async function createContract(data: ContractFormData) {
       };
     }
 
-    // Kreiranje ugovora – operatorId se dodaje SAMO ako je revenue sharing aktivan
-    // Ako nije aktivan → operatorId se NE šalje (Prisma će ga postaviti na null jer je String?)
+    // Create contract with conditional operatorId
     const newContract = await db.contract.create({
       data: {
         ...dbData,
-        // Uslovno dodaj operatorId samo ako postoji i ako je revenue sharing
-        ...(dbData.isRevenueSharing && dbData.operatorId && { operatorId: dbData.operatorId }),
+        ...(dbData.isRevenueSharing && { operatorId: dbData.operatorId }),
         services: {
           create: dbData.services?.map(service => ({
             serviceId: service.serviceId,
