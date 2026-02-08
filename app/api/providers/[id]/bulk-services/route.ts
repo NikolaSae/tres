@@ -1,17 +1,15 @@
 // Path: app/api/providers/[id]/bulk-services/route.ts
 
-// Path: app/api/providers/[id]/bulk-services/route.ts
-
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ServiceType } from "@prisma/client";
 
 export async function GET(
   req: Request,
-  { params: { id } }: { params: { id: string } } // IZMENA: Destrukturirano 'id' direktno iz params
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const providerId = id; // Koristimo destrukturirani 'id'
+    const { id: providerId } = await params;
 
     if (!providerId) {
       return new NextResponse("Provider ID is required", { status: 400 });
@@ -27,7 +25,6 @@ export async function GET(
     }
 
     // Dohvati servise tipa 'BULK' koji su povezani sa ovim provajderom
-    // preko relacije ka BulkService modelu.
     const services = await db.service.findMany({
       where: {
         type: ServiceType.BULK,
