@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { calculateContractRevenue } from "@/lib/contracts/revenue-calculator";
 import { RevenueBreakdown } from "@/components/contracts/RevenueBreakdown";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   try {
     const { id } = await params;
 
@@ -45,9 +45,9 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 interface ContractPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 async function getContract(id: string) {
