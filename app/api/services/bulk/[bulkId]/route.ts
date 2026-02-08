@@ -1,12 +1,15 @@
+// app/api/services/bulk/[bulkId]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ providerId: string }> }
+  { params }: { params: Promise<{ bulkId: string }> }   // ← changed providerId → bulkId
 ) {
-    const { providerId } = await params;
+  const { bulkId } = await params;   // ← also changed here
+
   try {
     const session = await auth();
     
@@ -16,11 +19,9 @@ export async function GET(
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    
 
-    
-    if (!providerId) {
-      return new NextResponse(JSON.stringify({ error: 'Provider ID is required' }), {
+    if (!bulkId) {
+      return new NextResponse(JSON.stringify({ error: 'Bulk provider ID is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -32,7 +33,7 @@ export async function GET(
         type: 'BULK',
         bulkServices: {
           some: {
-            providerId: providerId
+            providerId: bulkId   // ← use bulkId here (it's the provider ID)
           }
         },
         isActive: true,
