@@ -1,10 +1,18 @@
-// /lib/security/permission-checker.ts
+
+// lib/security/permission-checker.ts
+"use server";
+
 import { db } from "@/lib/db";
 import { getCurrentUser } from "./auth-helpers";
+import { getPermissionsForRole } from "./permissions";
 import { UserRole } from "@prisma/client";
 
+// ═══════════════════════════════════════════════════════════════
+// OLD SYSTEM (kept for backward compatibility)
+// ═══════════════════════════════════════════════════════════════
+
 type EntityType = "contract" | "complaint" | "service" | "provider" |
-                 "humanitarian" | "report" | "user" | "analytics"; // Added 'analytics' if needed for analytics view permissions
+                 "humanitarian" | "report" | "user" | "analytics";
 
 type ActionType = "view" | "create" | "update" | "delete";
 
@@ -17,7 +25,7 @@ const rolePermissionMap: Record<UserRole, Record<EntityType, ActionType[]>> = {
         humanitarian: ["view", "create", "update", "delete"],
         report: ["view", "create", "update", "delete"],
         user: ["view", "create", "update", "delete"],
-        analytics: ["view"], // Assume Admins can view analytics
+        analytics: ["view"],
     },
     MANAGER: {
         contract: ["view", "create", "update"],
@@ -27,7 +35,7 @@ const rolePermissionMap: Record<UserRole, Record<EntityType, ActionType[]>> = {
         humanitarian: ["view", "create", "update"],
         report: ["view", "create", "update"],
         user: ["view"],
-        analytics: ["view"], // Assume Managers can view analytics
+        analytics: ["view"],
     },
     AGENT: {
         contract: ["view"],
@@ -37,7 +45,7 @@ const rolePermissionMap: Record<UserRole, Record<EntityType, ActionType[]>> = {
         humanitarian: ["view"],
         report: ["view"],
         user: ["view"],
-        analytics: [], // Assume Agents cannot view general analytics, adjust if needed
+        analytics: [],
     },
     USER: {
         contract: [],
@@ -47,7 +55,7 @@ const rolePermissionMap: Record<UserRole, Record<EntityType, ActionType[]>> = {
         humanitarian: ["view"],
         report: [],
         user: [],
-        analytics: [], // Assume regular Users cannot view analytics
+        analytics: [],
     },
 };
 
@@ -60,9 +68,8 @@ export async function canPerformAction(
     if (!user || !user.role) return false;
 
     const userRole = user.role as UserRole;
-    // Check if the entityType exists in the map for the user's role
     if (!rolePermissionMap[userRole] || !rolePermissionMap[userRole][entityType]) {
-         return false; // Role or EntityType not configured in map
+         return false;
     }
 
     const allowedActions = rolePermissionMap[userRole][entityType] || [];
@@ -71,8 +78,6 @@ export async function canPerformAction(
         return false;
     }
 
-    // Additional entity-specific checks can be added here
-    // For example, check if a user can only update complaints they submitted
     if (entityId && entityType === "complaint" && action === "update" && userRole === UserRole.USER) {
         const complaint = await db.complaint.findUnique({
             where: { id: entityId }
@@ -84,30 +89,207 @@ export async function canPerformAction(
     return true;
 }
 
-// Add and export helper functions for specific view permissions
+// ═══════════════════════════════════════════════════════════════
+// NEW SYSTEM (using permissions.ts)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Check if current user has a specific permission (new system)
+ */
+async function hasPermission(permissionName: string): Promise<boolean> {
+  const user = await getCurrentUser();
+  
+  if (!user?.role) {
+    return false;
+  }
+
+  const userPermissions = getPermissionsForRole(user.role as UserRole);
+  return userPermissions.includes(permissionName);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYTICS PERMISSIONS (using OLD system for now)
+// ═══════════════════════════════════════════════════════════════
+
+export const canAccessAnalyticsPage = async (): Promise<boolean> => {
+    const user = await getCurrentUser();
+    if (!user || !user.role) return false;
+    const userRole = user.role as UserRole;
+    return rolePermissionMap[userRole]?.['analytics']?.includes('view') || false;
+};
+
 export const canViewComplaintData = async (): Promise<boolean> => {
-    return canPerformAction('analytics', 'view'); // Assuming analytics 'view' covers data views
-    // OR if you want separate permissions per data type:
-    // return canPerformAction('complaint', 'view'); // If permission is tied to complaint entity
+    return canPerformAction('analytics', 'view');
 };
 
 export const canViewFinancialData = async (): Promise<boolean> => {
-     return canPerformAction('analytics', 'view'); // Assuming analytics 'view' covers data views
-     // OR if you want separate permissions per data type:
-     // return canPerformAction('report', 'view'); // If permission is tied to report entity
+    return canPerformAction('analytics', 'view');
 };
 
 export const canViewSalesData = async (): Promise<boolean> => {
-     return canPerformAction('analytics', 'view'); // Assuming analytics 'view' covers data views
-     // OR if you want separate permissions per data type:
-     // return canPerformAction('service', 'view'); // If permission is tied to service entity
+    return canPerformAction('analytics', 'view');
 };
 
-// You might also need a general check for accessing the analytics page itself
-export const canAccessAnalyticsPage = async (): Promise<boolean> => {
-     const user = await getCurrentUser();
-     if (!user || !user.role) return false;
-     const userRole = user.role as UserRole;
-      // Check if the user's role is configured to view 'analytics'
-     return rolePermissionMap[userRole]?.['analytics']?.includes('view') || false;
+export const canViewProviderData = async (): Promise<boolean> => {
+    return canPerformAction('analytics', 'view');
 };
+
+// ═══════════════════════════════════════════════════════════════
+// REPORTS PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canGenerateReports(): Promise<boolean> {
+    return canPerformAction('report', 'create');
+}
+
+export async function canScheduleReports(): Promise<boolean> {
+    return canPerformAction('report', 'create');
+}
+
+export async function canViewReports(): Promise<boolean> {
+    return canPerformAction('report', 'view');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SERVICES PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canCreateService(): Promise<boolean> {
+    return canPerformAction('service', 'create');
+}
+
+export async function canUpdateService(): Promise<boolean> {
+    return canPerformAction('service', 'update');
+}
+
+export async function canDeleteService(): Promise<boolean> {
+    return canPerformAction('service', 'delete');
+}
+
+export async function canViewService(): Promise<boolean> {
+    return canPerformAction('service', 'view');
+}
+
+export async function canImportServices(): Promise<boolean> {
+    return canPerformAction('service', 'create');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRODUCTS PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canCreateProduct(): Promise<boolean> {
+    return hasPermission("create_product");
+}
+
+export async function canUpdateProduct(): Promise<boolean> {
+    return hasPermission("update_product");
+}
+
+export async function canDeleteProduct(): Promise<boolean> {
+    return hasPermission("delete_product");
+}
+
+export async function canViewProduct(): Promise<boolean> {
+    return hasPermission("view_product");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPLAINTS PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canCreateComplaint(): Promise<boolean> {
+    return canPerformAction('complaint', 'create');
+}
+
+export async function canUpdateComplaint(complaintId?: string): Promise<boolean> {
+    return canPerformAction('complaint', 'update', complaintId);
+}
+
+export async function canDeleteComplaint(): Promise<boolean> {
+    return canPerformAction('complaint', 'delete');
+}
+
+export async function canViewComplaint(): Promise<boolean> {
+    return canPerformAction('complaint', 'view');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONTRACTS PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canCreateContract(): Promise<boolean> {
+    return canPerformAction('contract', 'create');
+}
+
+export async function canUpdateContract(): Promise<boolean> {
+    return canPerformAction('contract', 'update');
+}
+
+export async function canDeleteContract(): Promise<boolean> {
+    return canPerformAction('contract', 'delete');
+}
+
+export async function canViewContract(): Promise<boolean> {
+    return canPerformAction('contract', 'view');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROVIDERS PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canCreateProvider(): Promise<boolean> {
+    return canPerformAction('provider', 'create');
+}
+
+export async function canUpdateProvider(): Promise<boolean> {
+    return canPerformAction('provider', 'update');
+}
+
+export async function canDeleteProvider(): Promise<boolean> {
+    return canPerformAction('provider', 'delete');
+}
+
+export async function canViewProvider(): Promise<boolean> {
+    return canPerformAction('provider', 'view');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HUMANITARIAN ORGS PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canCreateHumanitarianOrg(): Promise<boolean> {
+    return canPerformAction('humanitarian', 'create');
+}
+
+export async function canUpdateHumanitarianOrg(): Promise<boolean> {
+    return canPerformAction('humanitarian', 'update');
+}
+
+export async function canDeleteHumanitarianOrg(): Promise<boolean> {
+    return canPerformAction('humanitarian', 'delete');
+}
+
+export async function canViewHumanitarianOrg(): Promise<boolean> {
+    return canPerformAction('humanitarian', 'view');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USERS PERMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function canCreateUser(): Promise<boolean> {
+    return canPerformAction('user', 'create');
+}
+
+export async function canUpdateUser(): Promise<boolean> {
+    return canPerformAction('user', 'update');
+}
+
+export async function canDeleteUser(): Promise<boolean> {
+    return canPerformAction('user', 'delete');
+}
+
+export async function canViewUser(): Promise<boolean> {
+    return canPerformAction('user', 'view');
+}
