@@ -1,173 +1,118 @@
-// app/api/contracts/[id]/status/route.ts
+// /app/api/contracts/[id]/status/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { ContractStatus, ContractRenewalSubStatus } from '@prisma/client';
 
-export async function PATCH(
+export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     const { id: contractId } = await params;
-    const body = await request.json();
-    const { newStatus, comments } = body;
-
-    console.log('🔍 API Route - Starting updateContractStatus:', { contractId, newStatus, comments });
-
-    // Validacija input parametara
-    if (!contractId || !contractId.trim()) {
-      console.error('❌ Invalid contractId:', contractId);
-      return NextResponse.json({
-        success: false,
-        message: 'Contract ID is required'
-      }, { status: 400 });
+    const { status, comments } = await request.json();
+    
+    // Validate status
+    const validStatuses = [
+      'ACTIVE',
+      'EXPIRED',
+      'TERMINATED',
+      'PENDING',
+      'RENEWAL_IN_PROGRESS',
+      'RENEWED'
+    ];
+    
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
-
-    if (!Object.values(ContractStatus).includes(newStatus)) {
-      console.error('❌ Invalid contract status:', newStatus);
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid contract status'
-      }, { status: 400 });
-    }
-
-    // Validacija da ugovor postoji
+    
+    // Check if contract exists
     const existingContract = await db.contract.findUnique({
       where: { id: contractId },
       include: {
         renewals: {
-          orderBy: {
-            createdAt: "desc"
-          },
+          orderBy: { createdAt: 'desc' },
           take: 1
         }
       }
     });
-
-    console.log('📄 Found contract:', existingContract ? 'Yes' : 'No');
-    if (!existingContract) {
-      console.error('❌ Contract not found with ID:', contractId);
-      return NextResponse.json({
-        success: false,
-        message: 'Contract not found'
-      }, { status: 404 });
-    }
-
-    console.log('🏷️ Current status:', existingContract.status, '-> New status:', newStatus);
-
-    // Validacija business logike
-    const validationResult = validateStatusChange(existingContract.status, newStatus);
-    console.log('✅ Validation result:', validationResult);
     
-    if (!validationResult.isValid) {
-      console.error('❌ Status change validation failed:', validationResult.message);
-      return NextResponse.json({
-        success: false,
-        message: validationResult.message
-      }, { status: 400 });
+    if (!existingContract) {
+      return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
-
+    
     // Update contract status
-    console.log('💾 Updating contract status...');
     const updatedContract = await db.contract.update({
       where: { id: contractId },
       data: {
-        status: newStatus,
-        updatedAt: new Date()
-      }
-    });
-
-    console.log('✅ Contract updated successfully');
-
-    // If starting renewal, create a new renewal record
-    if (newStatus === ContractStatus.RENEWAL_IN_PROGRESS) {
-      console.log('🔄 Creating renewal record...');
-      
-      try {
-        await db.contractRenewal.create({
-          data: {
-            contractId: contractId,
-            subStatus: ContractRenewalSubStatus.DOCUMENT_COLLECTION,
-            proposedStartDate: existingContract.endDate,
-            proposedEndDate: new Date(existingContract.endDate.getTime() + (365 * 24 * 60 * 60 * 1000)), // +1 year
-            proposedRevenue: existingContract.revenuePercentage,
-            documentsReceived: false,
-            legalApproved: false,
-            financialApproved: false,
-            technicalApproved: false,
-            managementApproved: false,
-            signatureReceived: false,
-            comments: comments || 'Renewal process started',
-            createdById: 'system', // Replace with actual user ID from session
+        status,
+        lastModifiedById: session.user.id
+      },
+      include: {
+        provider: { select: { name: true } },
+        humanitarianOrg: { select: { name: true } },
+        parkingService: { select: { name: true } },
+        renewals: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            createdBy: { select: { name: true, email: true } },
+            lastModifiedBy: { select: { name: true, email: true } }
           }
-        });
-        console.log('✅ Renewal record created successfully');
-      } catch (renewalError) {
-        console.error('❌ Error creating renewal record:', renewalError);
+        }
       }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `Contract status updated to ${newStatus.replace(/_/g, ' ').toLowerCase()}`,
-      contract: updatedContract,
-      shouldRefresh: true
     });
-
-  } catch (error) {
-    console.error('❌ Error in updateContractStatus API:', error);
     
-    if (error && typeof error === 'object' && 'code' in error) {
-      const prismaError = error as any;
-      console.error('Prisma error code:', prismaError.code);
-      console.error('Prisma error meta:', prismaError.meta);
+    // Handle renewal process logic
+    if (existingContract.renewals.length > 0) {
+      const latestRenewal = existingContract.renewals[0];
       
-      if (prismaError.code === 'P2025') {
-        return NextResponse.json({
-          success: false,
-          message: 'Contract not found or already deleted'
-        }, { status: 404 });
-      }
-      
-      if (prismaError.code === 'P2002') {
-        return NextResponse.json({
-          success: false,
-          message: 'Database constraint violation'
-        }, { status: 400 });
+      if (status !== 'RENEWAL_IN_PROGRESS' && existingContract.status === 'RENEWAL_IN_PROGRESS') {
+        // Status changed from RENEWAL_IN_PROGRESS to something else
+        let renewalUpdate: any = {
+          lastModifiedById: session.user.id
+        };
+        
+        if (comments) {
+          const existingNotes = latestRenewal.internalNotes || '';
+          renewalUpdate.internalNotes = existingNotes 
+            ? `${existingNotes}\n\nStatus changed to ${status}: ${comments}`
+            : `Status changed to ${status}: ${comments}`;
+        } else {
+          const existingNotes = latestRenewal.internalNotes || '';
+          renewalUpdate.internalNotes = existingNotes 
+            ? `${existingNotes}\n\nStatus changed to ${status}`
+            : `Status changed to ${status}`;
+        }
+        
+        // Update renewal status based on contract status
+        if (status === 'RENEWED') {
+          renewalUpdate.subStatus = 'FINAL_PROCESSING';
+          renewalUpdate.signatureReceived = true;
+        } else if (status === 'TERMINATED' || status === 'EXPIRED') {
+          renewalUpdate.subStatus = 'DOCUMENT_COLLECTION'; // Reset or keep as is
+        }
+        
+        await db.contractRenewal.update({
+          where: { id: latestRenewal.id },
+          data: renewalUpdate
+        });
       }
     }
-
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to update contract status: ' + (error instanceof Error ? error.message : 'Unknown error')
-    }, { status: 500 });
+    
+    return NextResponse.json({ 
+      contract: updatedContract,
+      message: 'Contract status updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating contract status:', error);
+    return NextResponse.json(
+      { error: 'Failed to update status' },
+      { status: 500 }
+    );
   }
-}
-
-function validateStatusChange(currentStatus: ContractStatus, newStatus: ContractStatus) {
-  console.log('🔍 Validating status change:', { currentStatus, newStatus });
-  
-  const validTransitions: Record<ContractStatus, ContractStatus[]> = {
-    [ContractStatus.DRAFT]: [ContractStatus.ACTIVE, ContractStatus.TERMINATED],
-    [ContractStatus.ACTIVE]: [ContractStatus.RENEWAL_IN_PROGRESS, ContractStatus.EXPIRED, ContractStatus.TERMINATED],
-    [ContractStatus.PENDING]: [ContractStatus.ACTIVE, ContractStatus.RENEWAL_IN_PROGRESS, ContractStatus.TERMINATED],
-    [ContractStatus.RENEWAL_IN_PROGRESS]: [ContractStatus.ACTIVE, ContractStatus.EXPIRED, ContractStatus.TERMINATED],
-    [ContractStatus.EXPIRED]: [ContractStatus.RENEWAL_IN_PROGRESS, ContractStatus.TERMINATED],
-    [ContractStatus.TERMINATED]: []
-  };
-
-  const allowedTransitions = validTransitions[currentStatus] || [];
-  console.log('📋 Allowed transitions from', currentStatus, ':', allowedTransitions);
-  
-  if (!allowedTransitions.includes(newStatus)) {
-    const errorMessage = `Cannot change status from ${currentStatus.replace(/_/g, ' ')} to ${newStatus.replace(/_/g, ' ')}`;
-    console.error('❌ Invalid transition:', errorMessage);
-    return {
-      isValid: false,
-      message: errorMessage
-    };
-  }
-
-  console.log('✅ Status change validation passed');
-  return { isValid: true, message: '' };
 }
