@@ -21,11 +21,14 @@ export const metadata: Metadata = {
 export default async function EditBulkServicePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  // Await params in Next.js 15+
+  const { id } = await params;
+
   // Fetch the bulk service, services, and providers
   const [bulkService, services, providers] = await Promise.all([
-    getBulkServiceById(params.id),
+    getBulkServiceById(id),
     getAllServices({ type: "BULK" }),
     getAllProviders({ isActive: true }),
   ]);
@@ -39,7 +42,7 @@ export default async function EditBulkServicePage({
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button variant="outline" size="icon" asChild>
-            <Link href={`/bulk-services/${params.id}`}>
+            <Link href={`/bulk-services/${id}`}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

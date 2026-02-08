@@ -7,9 +7,9 @@ import { HumanitarianOrg } from '@prisma/client';
 import { HumanitarianOrgForm } from "@/components/humanitarian-orgs/HumanitarianOrgForm";
 
 interface EditHumanitarianOrgPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 async function getHumanitarianOrgDetails(orgId: string): Promise<HumanitarianOrg | null> {
