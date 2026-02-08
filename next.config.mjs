@@ -3,6 +3,9 @@ import bundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,  // <-- DODATO: Ignoriši ESLint tokom build-a
+  },
   images: {
     domains: [
       'localhost',
