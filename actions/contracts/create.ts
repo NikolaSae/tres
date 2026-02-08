@@ -1,5 +1,4 @@
-// Path: /actions/contracts/create.ts
-// Path: /actions/contracts/create.ts
+// actions/contracts/create.ts
 'use server';
 
 import { db } from '@/lib/db';
@@ -11,7 +10,6 @@ import { ContractType } from '@prisma/client';
 
 export async function createContract(data: ContractFormData) {
   try {
-    // Debug logs to help troubleshoot form submissions
     console.log("[CREATE_CONTRACT] Received data:", {
       ...data,
       startDate: data.startDate,
@@ -22,7 +20,6 @@ export async function createContract(data: ContractFormData) {
       services: data.services?.length
     });
 
-    // Validate contract type
     const validContractTypes = Object.values(ContractType);
     if (!validContractTypes.includes(data.type)) {
       return {
@@ -32,7 +29,6 @@ export async function createContract(data: ContractFormData) {
       };
     }
 
-    // PRVO VALIDACIJA SA ZOD SCHEMA - sa string datumima
     const validationResult = contractSchema.safeParse(data);
     if (!validationResult.success) {
       console.error("[CREATE_CONTRACT] Validation failed:", validationResult.error);
@@ -43,43 +39,40 @@ export async function createContract(data: ContractFormData) {
       };
     }
 
-    // NAKON validacije, pripremi podatke za bazu - konvertuj datume
     const dbData = {
       ...data,
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),
       revenuePercentage: Number(data.revenuePercentage),
       operatorRevenue: data.isRevenueSharing ? Number(data.operatorRevenue) : 0,
-      operatorId: data.isRevenueSharing ? data.operatorId : null,
-      // Clear irrelevant IDs based on contract type
+      // operatorId se ne postavlja ovde – vidi dole
       providerId: data.type === ContractType.PROVIDER ? data.providerId : null,
       humanitarianOrgId: data.type === ContractType.HUMANITARIAN ? data.humanitarianOrgId : null,
       parkingServiceId: data.type === ContractType.PARKING ? data.parkingServiceId : null,
     };
 
-    // Authorization check
     const session = await auth();
     if (!session?.user?.id) {
       return { error: "Unauthorized", success: false };
     }
 
-    // Check for duplicate contract number
     const existingContract = await db.contract.findUnique({
       where: { contractNumber: dbData.contractNumber },
     });
-    
+
     if (existingContract) {
-      return { 
-        error: "Contract number already exists", 
+      return {
+        error: "Contract number already exists",
         success: false,
         existingId: existingContract.id
       };
     }
 
-    // Create contract
     const newContract = await db.contract.create({
       data: {
         ...dbData,
+        // Operator ID samo ako je revenue sharing aktivan
+        ...(dbData.isRevenueSharing && { operatorId: dbData.operatorId }),
         services: {
           create: dbData.services?.map(service => ({
             serviceId: service.serviceId,
@@ -98,7 +91,6 @@ export async function createContract(data: ContractFormData) {
       }
     });
 
-    // Create activity log
     await db.activityLog.create({
       data: {
         action: "CONTRACT_CREATED",
@@ -110,7 +102,6 @@ export async function createContract(data: ContractFormData) {
       },
     });
 
-    // Revalidate cache
     revalidatePath('/contracts');
     revalidatePath(`/contracts/${newContract.id}`);
 
@@ -124,7 +115,6 @@ export async function createContract(data: ContractFormData) {
   } catch (error: any) {
     console.error("[CONTRACT_CREATE_ERROR]", error);
 
-    // Handle specific error cases
     if (error.code === 'P2002') {
       return {
         error: "Data conflict",
