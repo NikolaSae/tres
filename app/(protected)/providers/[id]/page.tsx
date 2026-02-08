@@ -1,136 +1,84 @@
-// /app/(protected)/providers/[id]/page.tsx
- 
+// /app/(protected)/products/[id]/page.tsx
+
 import { Metadata } from "next";
-import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
-
-import { getProviderDetails } from '@/actions/providers/getProviderDetails';
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil } from "lucide-react";
-import Link from "next/link";
-import PageHeader from "@/components/PageHeader";
-import DetailSkeleton from "@/components/skeletons/DetailSkeleton";
-
-import ProviderDetails from "@/components/providers/ProviderDetails";
-import ProviderContracts from "@/components/providers/ProviderContracts";
-// Uvezite preimenovanu komponentu
-import ProviderServicesOverview from "@/components/providers/ProviderServicesOverview";
+// Uvozimo AŽURIRANU ProductDetails komponentu
+import { ProductDetails } from "@/components/products/ProductDetails"; // Ova komponenta je ažurirana
+// Uvozimo AŽURIRANU Server Akciju za dohvatanje pojedinačnog proizvoda
+import { getProductById } from '@/actions/products/get';
 
 
-interface ProviderDetailsPageProps {
+interface ProductDetailsPageProps {
     params: Promise<{
-        id: string;
+        id: string; // ID proizvoda iz URL-a
     }>;
 }
 
-export async function generateMetadata({ params }: ProviderDetailsPageProps): Promise<Metadata> {
-     const { id } = await params;
-     const providerResult = await getProviderDetails(id);
+// Dinamička generacija metapodataka
+export async function generateMetadata(
+    { params }: ProductDetailsPageProps,
+): Promise<Metadata> {
+    // Await params in Next.js 15+
+    const { id } = await params;
+    
+    // Dohvatanje proizvoda za naslov (može biti null ako nije pronađen)
+    const result = await getProductById(id);
+    const product = result.data;
 
-     return {
-         title: providerResult.success && providerResult.data ? `${providerResult.data.name} | Provider Details` : 'Provider Not Found',
-         description: providerResult.success && providerResult.data ? `Details for provider ${providerResult.data.name}.` : 'Details for provider.',
-     };
+    return {
+        title: product ? `${product.name} Details | Management Dashboard` : "Product Details | Management Dashboard",
+        description: product ? `Details for product: ${product.name} (Code: ${product.code})` : "Product details page.",
+    };
 }
 
-async function ProviderDetailsFetcher({ providerId }: { providerId: string }) {
-    const providerResult = await getProviderDetails(providerId);
 
-    if (!providerResult.success || !providerResult.data) {
-        notFound();
+// Stranica za prikaz detalja pojedinačnog proizvoda
+// Ovo je Server Komponenta
+export default async function ProductDetailsPage({ params }: ProductDetailsPageProps) {
+
+    const { id } = await params; // Dohvatamo ID iz URL-a
+
+    // Dohvatanje podataka o proizvodu sa Servera koristeći AŽURIRANU akciju
+    const result = await getProductById(id); // Akcija getProductById je ažurirana
+
+    // Provera da li je došlo do greške ili proizvod nije pronađen
+    if (result.error || !result.data) {
+         // Renderujte poruku o grešci ili 404 stranicu
+         return (
+             <div className="p-6 text-center text-red-500">
+                 {result.error || "Product not found."}
+             </div>
+         );
     }
 
-    const provider = providerResult.data;
-    return <ProviderDetails provider={provider} />;
-}
-
-async function ProviderContractsFetcher({ providerId }: { providerId: string }) {
-    return <ProviderContracts providerId={providerId} />;
-}
-
-// Nova async Server Komponenta za dohvatanje i renderovanje ProviderServicesOverview
-async function ProviderServicesOverviewFetcher({ providerId, providerName }: { providerId: string; providerName: string }) {
-    // ProviderServicesOverview je Client komponenta koja će sama pozvati server akciju
-    return <ProviderServicesOverview providerId={providerId} providerName={providerName} />;
-}
+    const product = result.data; // Proizvod je pronađen i dohvaćen
 
 
-export default async function ProviderDetailsPage({ params }: ProviderDetailsPageProps) {
-    const { id: providerId } = await params;
-
-    const providerHeaderResult = await getProviderDetails(providerId);
-
-     if (!providerHeaderResult.success || !providerHeaderResult.data) {
-         notFound();
-     }
-
-     const providerForHeader = providerHeaderResult.data;
-
-
+    // Renderujemo AŽURIRANU ProductDetails komponentu, prosleđujući ID proizvoda
+    {/* ProductDetails komponenta sada koristi useProduct hook */}
     return (
-        <div className="container mx-auto py-6 space-y-6">
-            <PageHeader
-                title={providerForHeader.name}
-                description={`Details for provider: ${providerId}`}
-                actions={
-                    <Link href={`/providers/${providerId}/edit`} passHref>
-                        <Button>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit Provider
-                        </Button>
-                    </Link>
-                }
-                backLink={{
-                    href: "/providers",
-                    label: "Back to Providers",
-                }}
-            />
+        <div className="p-6 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    {/* Naslov */}
+                    <h1 className="text-2xl font-bold tracking-tight">Product Details</h1>
+                    <p className="text-gray-500">
+                       Details for product: <span className="font-medium">{product.name}</span>
+                    </p>
+                </div>
+                 {/* Opciono: Link ili dugme za povratak na listu */}
+                  {/* <Link href={`/products`}>
+                      <Button variant="outline">Back to Products List</Button>
+                  </Link> */}
+                  {/* Opciono: Link ili dugme za izmenu */}
+                   {/* <Link href={`/products/${product.id}/edit`}>
+                       <Button>Edit Product</Button>
+                   </Link> */}
+            </div>
 
-            <Tabs defaultValue="details">
-                <TabsList className="mb-4">
-                    <TabsTrigger value="details">Details</TabsTrigger>
-                    <TabsTrigger value="contracts">Contracts</TabsTrigger>
-                    <TabsTrigger value="services-overview">Services Overview</TabsTrigger> {/* NOVI TAB */}
-                </TabsList>
+            {/* Renderujemo AŽURIRANU ProductDetails komponentu */}
+            {/* Komponenta dohvaća svoje podatke klijentski koristeći useProduct hook */}
+            <ProductDetails productId={id} />
 
-                <TabsContent value="details">
-                    <Card>
-                        <CardContent className="pt-6">
-                            <Suspense fallback={<DetailSkeleton />}>
-                                <ProviderDetailsFetcher providerId={providerId} />
-                            </Suspense>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="contracts">
-                     <Card>
-                        <CardContent className="pt-6">
-                            <Suspense fallback={<DetailSkeleton />}>
-                                <ProviderContractsFetcher providerId={providerId} />
-                            </Suspense>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* NOVI TAB CONTENT: Services Overview */}
-                <TabsContent value="services-overview">
-                    <Card>
-                        <CardContent className="pt-6">
-                            <Suspense fallback={<DetailSkeleton />}>
-                                <ProviderServicesOverviewFetcher
-                                    providerId={providerId}
-                                    providerName={providerForHeader.name}
-                                />
-                            </Suspense>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-            </Tabs>
         </div>
     );
 }
