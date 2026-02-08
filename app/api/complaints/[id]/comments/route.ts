@@ -11,7 +11,7 @@ const commentSchema = z.object({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -19,7 +19,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const complaintId = params.id;
+    const { id: complaintId } = await params;
 
     // Check if complaint exists
     const complaint = await db.complaint.findUnique({
@@ -66,7 +66,7 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -74,7 +74,7 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const complaintId = params.id;
+    const { id: complaintId } = await params;
     const body = await req.json();
     
     const validatedData = commentSchema.safeParse(body);
@@ -142,7 +142,7 @@ export async function POST(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -150,7 +150,7 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const complaintId = params.id;
+    const { id: complaintId } = await params;
     const searchParams = new URL(req.url).searchParams;
     const commentId = searchParams.get("commentId");
 

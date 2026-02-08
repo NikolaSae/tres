@@ -6,25 +6,21 @@ import { db } from '@/lib/db';
 import { HumanitarianOrgWithDetails } from '@/lib/types/humanitarian-org-types';
 import { updateHumanitarianOrg } from '@/actions/humanitarian-orgs/update';
 import { deleteHumanitarianOrg } from '@/actions/humanitarian-orgs/delete';
-
-// Uvozimo funkcije za proveru autentifikacije i uloge
-import { auth } from '@/auth'; // Za dobijanje sesije
-import { currentRole } from "@/lib/auth"; // Za dobijanje uloge
-import { UserRole } from "@prisma/client"; // Uvozimo enum za uloge
-
+import { auth } from '@/auth';
+import { currentRole } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 // Handler za GET za dohvatanje pojedinačne humanitarne organizacije po ID-u
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<HumanitarianOrgWithDetails | { error: string }>> {
-    // Provera da li je korisnik ulogovan
-     const session = await auth();
-     if (!session?.user) {
-       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-     }
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const { id } = params;
+    const { id } = await params;
 
     try {
         const organization = await db.humanitarianOrg.findUnique({
@@ -79,15 +75,14 @@ export async function GET(
 // Handler za PUT za ažuriranje humanitarne organizacije po ID-u
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-     // Provera uloge korisnika - samo ADMIN ili MANAGER mogu ažurirati
      const role = await currentRole();
      if (role !== UserRole.ADMIN && role !== UserRole.MANAGER) {
        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
      }
 
-    const { id } = params;
+    const { id } = await params;
 
     try {
         const values = await request.json();
@@ -115,21 +110,17 @@ export async function PUT(
     }
 }
 
-
 // Handler za DELETE za brisanje humanitarne organizacije po ID-u
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-     // Provera uloge korisnika - samo ADMIN može brisati
      const role = await currentRole();
-     // Možda samo ADMIN može brisati, a MANAGER samo ažurirati? Podesite prema potrebi.
      if (role !== UserRole.ADMIN) {
        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
      }
 
-
-    const { id } = params;
+    const { id } = await params;
 
     try {
         const result = await deleteHumanitarianOrg(id);

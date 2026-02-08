@@ -6,7 +6,7 @@ import { updateHumanitarianRenewalSchema } from "@/schemas/humanitarian-renewal"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,8 +14,10 @@ export async function GET(
       return NextResponse.json({ error: "Neautorizovan pristup" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const renewal = await db.humanitarianContractRenewal.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         contract: {
           include: {
@@ -57,7 +59,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -65,10 +67,11 @@ export async function PUT(
       return NextResponse.json({ error: "Neautorizovan pristup" }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const validatedFields = updateHumanitarianRenewalSchema.safeParse({
       ...body,
-      id: params.id
+      id
     });
 
     if (!validatedFields.success) {
@@ -78,7 +81,7 @@ export async function PUT(
       );
     }
 
-    const { id, contractId, humanitarianOrgId, ...data } = validatedFields.data;
+    const { id: renewalId, contractId, humanitarianOrgId, ...data } = validatedFields.data;
 
     // Proveri postojanje obnove
     const existingRenewal = await db.humanitarianContractRenewal.findUnique({
@@ -163,7 +166,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -179,8 +182,10 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
+
     const renewal = await db.humanitarianContractRenewal.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         contract: true,
         humanitarianOrg: true
@@ -199,7 +204,7 @@ export async function DELETE(
     }
 
     await db.humanitarianContractRenewal.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     // Log aktivnost
@@ -207,7 +212,7 @@ export async function DELETE(
       data: {
         action: "DELETE_HUMANITARIAN_RENEWAL",
         entityType: "humanitarian_renewal",
-        entityId: params.id,
+        entityId: id,
         details: `Obrisana obnova ugovora ${renewal.contract.contractNumber} za ${renewal.humanitarianOrg.name}`,
         userId: session.user.id,
         severity: "WARNING"
