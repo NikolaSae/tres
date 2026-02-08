@@ -5,7 +5,7 @@ import { Metadata } from "next";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 
-export async function generateMetadata(props: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const params = await props.params;
   const id = params.id;
   
