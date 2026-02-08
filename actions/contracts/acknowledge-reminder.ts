@@ -2,38 +2,54 @@
 'use server';
 
 import { db } from '@/lib/db';
+import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 
+export async function acknowledgeReminder(reminderId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: 'Morate biti prijavljeni da biste potvrdili podsetnik.' };
+  }
 
-export async function acknowledgeReminder(reminderId: string): Promise<{ success?: string; reminderId?: string; error?: string }> {
-    if (!reminderId) {
-        return { error: 'Reminder ID is required.' };
+  if (!reminderId) {
+    return { error: 'Reminder ID je obavezan.' };
+  }
+
+  try {
+    const reminder = await db.contractReminder.findUnique({
+      where: { id: reminderId },
+      select: {
+        id: true,
+        contractId: true,
+        isAcknowledged: true,
+        acknowledgedById: true,
+      },
+    });
+
+    if (!reminder) {
+      return { error: 'Podsetnik nije pronađen.' };
     }
 
-    try {
-        const reminderToUpdate = await db.reminder.findUnique({
-            where: { id: reminderId },
-        });
-
-        if (!reminderToUpdate) {
-             return { error: 'Reminder not found.' };
-        }
-
-        const updatedReminder = await db.reminder.update({
-            where: { id: reminderId },
-            data: {
-                isDismissed: true,
-
-            },
-        });
-
-         revalidatePath(`/contracts/${updatedReminder.contractId}`);
-
-
-        return { success: 'Reminder acknowledged.', reminderId: updatedReminder.id };
-
-    } catch (error) {
-        console.error(`Error acknowledging reminder ${reminderId}:`, error);
-        return { error: 'Failed to acknowledge reminder.' };
+    if (reminder.isAcknowledged) {
+      return { info: 'Podsetnik je već potvrđen.' };
     }
+
+    const updated = await db.contractReminder.update({
+      where: { id: reminderId },
+      data: {
+        isAcknowledged: true,
+        acknowledgedById: session.user.id, // ← beleži ko je potvrdio
+      },
+    });
+
+    revalidatePath(`/contracts/${updated.contractId}`);
+
+    return {
+      success: 'Podsetnik uspešno potvrđen.',
+      reminderId: updated.id,
+    };
+  } catch (error) {
+    console.error(`Greška pri potvrđivanju podsetnika ${reminderId}:`, error);
+    return { error: 'Neuspešno potvrđivanje podsetnika.' };
+  }
 }
