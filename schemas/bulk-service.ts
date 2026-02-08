@@ -30,6 +30,10 @@ export const bulkServiceSchema = z.object({
   serviceId: z.string().uuid("Invalid service ID"),
   
   providerId: z.string().uuid("Invalid provider ID"),
+  datumNaplate:     z.coerce.date({              // ← added
+    required_error: "Datum naplate is required",
+    invalid_type_error: "Datum naplate must be a valid date",
+  }),
 });
 
 // Extended validation schema for bulk service with optional fields (for updates)

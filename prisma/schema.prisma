@@ -652,7 +652,7 @@ model BulkService {
   sender_name   String // Sender Name iz CSV
   requests      Int // Requests iz CSV
   message_parts Int // Message parts iz CSV
-  datumNaplate  DateTime
+  datumNaplate  DateTime?
 
   // Relations
   serviceId     String
