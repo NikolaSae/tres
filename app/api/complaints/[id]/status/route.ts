@@ -12,7 +12,7 @@ const statusUpdateSchema = z.object({
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -20,7 +20,7 @@ export async function PUT(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const complaintId = params.id;
+    const { id: complaintId } = await params;
     const body = await req.json();
     
     const validatedData = statusUpdateSchema.safeParse(body);
@@ -159,7 +159,7 @@ export async function PUT(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -167,7 +167,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const complaintId = params.id;
+    const { id: complaintId } = await params;
 
     // Check if complaint exists
     const complaint = await db.complaint.findUnique({

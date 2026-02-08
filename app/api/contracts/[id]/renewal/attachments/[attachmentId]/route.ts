@@ -7,7 +7,7 @@ import path from 'path';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; attachmentId: string } }
+  { params }: { params: Promise<{ id: string; attachmentId: string }> }
 ) {
   try {
     const session = await auth();
@@ -15,7 +15,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: contractId, attachmentId } = params;
+    const { id: contractId, attachmentId } = await params;
 
     // Find the attachment
     const attachment = await db.contractRenewalAttachment.findUnique({
