@@ -67,11 +67,11 @@ export async function createContract(data: ContractFormData) {
       };
     }
 
-    // Create contract with conditional operatorId
     const newContract = await db.contract.create({
       data: {
         ...dbData,
-        ...(dbData.isRevenueSharing && { operatorId: dbData.operatorId }),
+        // Ispravljena provera: operatorId se dodaje SAMO ako je revenue sharing aktivan I operatorId postoji kao validan string
+        ...(dbData.isRevenueSharing && dbData.operatorId && typeof dbData.operatorId === 'string' && { operatorId: dbData.operatorId }),
         services: {
           create: dbData.services?.map(service => ({
             serviceId: service.serviceId,
