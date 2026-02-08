@@ -19,9 +19,9 @@ export const metadata: Metadata = {
 };
 
 interface EditOperatorPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function EditOperatorPage({ params }: EditOperatorPageProps) {

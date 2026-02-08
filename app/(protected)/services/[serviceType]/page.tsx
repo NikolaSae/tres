@@ -9,9 +9,9 @@ import { ServiceType } from "@prisma/client";
 
 
 interface ServicesByTypePageProps {
-    params: {
+    params: Promise<{
         serviceType: string;
-    };
+    }>;
 }
 
 export async function generateMetadata(

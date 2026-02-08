@@ -21,9 +21,9 @@ import ProviderServicesOverview from "@/components/providers/ProviderServicesOve
 
 
 interface ProviderDetailsPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 export async function generateMetadata({ params }: ProviderDetailsPageProps): Promise<Metadata> {

@@ -20,9 +20,12 @@ export const metadata: Metadata = {
 export default async function BulkServiceDetailsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const bulkService = await getBulkServiceById(params.id);
+  // Await params in Next.js 15+
+  const { id } = await params;
+
+  const bulkService = await getBulkServiceById(id);
 
   if (!bulkService) {
     notFound();
@@ -43,7 +46,7 @@ export default async function BulkServiceDetailsPage({
           />
         </div>
         <Button asChild>
-          <Link href={`/bulk-services/${params.id}/edit`}>
+          <Link href={`/bulk-services/${id}/edit`}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Link>

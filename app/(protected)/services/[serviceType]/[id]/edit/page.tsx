@@ -7,10 +7,10 @@ import { ServiceType } from "@prisma/client";
 
 
 interface EditServicePageProps {
-    params: {
+    params: Promise<{
         serviceType: string;
         id: string;
-    };
+    }>;
 }
 
 export async function generateMetadata(

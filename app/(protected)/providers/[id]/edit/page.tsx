@@ -2,15 +2,15 @@
 import { Metadata } from "next";
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
-import { Provider } from '@prisma/client'; // Uvoz Provider modela
+import { Provider } from '@prisma/client';
 
 import { ProviderForm } from "@/components/providers/ProviderForm";
 
 
 interface EditProviderPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 // Funkcija za dohvatanje detalja provajdera na serveru
