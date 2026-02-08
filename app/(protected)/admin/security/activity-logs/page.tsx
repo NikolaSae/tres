@@ -1,5 +1,4 @@
-// Path: app/(protected)/admin/security/activity-logs/page.tsx
-
+//app/(protected)/admin/security/activity-logs/page.tsx"
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import ActivityLog from "@/components/security/ActivityLog";
@@ -10,23 +9,25 @@ const initialLogsParamsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
 });
 
+interface PageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
 export default async function ActivityLogsPage({
   searchParams,
-}: {
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
+}: PageProps) {
   const session = await auth();
 
   if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "MANAGER")) {
     return <div>Unauthorized</div>;
   }
 
-  // Await searchParams before accessing properties
-  const awaitedSearchParams = await searchParams;
+  // Await searchParams (Next.js 15 compatibility)
+  const params = await searchParams;
 
   const initialParams = {
-    page: awaitedSearchParams?.page,
-    limit: awaitedSearchParams?.limit,
+    page: params?.page,
+    limit: params?.limit,
   };
 
   const validatedInitialParams = initialLogsParamsSchema.parse(initialParams);
