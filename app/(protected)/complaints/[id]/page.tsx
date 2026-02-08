@@ -13,15 +13,14 @@ import ComplaintDetailPageClient from "./ComplaintDetailPageClient"; // Import t
 
 // Define metadata for the page
 export const metadata: Metadata = {
-  title: "Complaint Details",
-  description: "View and manage complaint details",
+  title: "Complaint Details",
+  description: "View and manage complaint details",
 };
 
 // Fetch data on the server
-export default async function ComplaintDetailPageServer({ params }: { params: { id: string } }) {
-    // KORIGOVANO: Await params pre pristupa njegovim svojstvima
-    const awaitedParams = await params;
-    const { id } = awaitedParams;
+export default async function ComplaintDetailPageServer({ params }: { params: Promise<{ id: string }> }) {
+    // Await params in Next.js 15+
+    const { id } = await params;
 
     // Fetch complaint details
     // Assuming getComplaintById action exists and fetches all necessary relations (comments, history, etc.)
