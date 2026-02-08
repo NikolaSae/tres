@@ -1,0 +1,167 @@
+{
+  "totalReports": 26,
+  "validReportsCount": 26,
+  "createdAt": "2026-02-03T09:02:02.011Z",
+  "lastUpdated": "2026-02-03T09:02:07.838Z",
+  "month": 1,
+  "year": 2026,
+  "generationType": "complete-reports",
+  "processedOrganizations": [
+    {
+      "name": "Eparhija raško-prizrenska",
+      "timestamp": "2026-02-03T09:02:02.014Z",
+      "value": 222500,
+      "counterAssigned": 1
+    },
+    {
+      "name": "Национално удружење родитеља деце оболеле од рака-НУРДОР",
+      "timestamp": "2026-02-03T09:02:02.234Z",
+      "value": 4100,
+      "counterAssigned": 2
+    },
+    {
+      "name": "Удружење „Српска Солидарност“",
+      "timestamp": "2026-02-03T09:02:02.349Z",
+      "value": 1400,
+      "counterAssigned": 3
+    },
+    {
+      "name": "Хуманитарна организација Принцип",
+      "timestamp": "2026-02-03T09:02:02.437Z",
+      "value": 1000,
+      "counterAssigned": 4
+    },
+    {
+      "name": "Фондација ДЕЛИЈЕ",
+      "timestamp": "2026-02-03T09:02:02.520Z",
+      "value": 2400,
+      "counterAssigned": 5
+    },
+    {
+      "name": "Фондација – Хуманост без граница",
+      "timestamp": "2026-02-03T09:02:02.928Z",
+      "value": 265700,
+      "counterAssigned": 6
+    },
+    {
+      "name": "Блиц Фондација",
+      "timestamp": "2026-02-03T09:02:03.005Z",
+      "value": 1400,
+      "counterAssigned": 7
+    },
+    {
+      "name": "Верско добротворно старатељство Архиепископије београдско-карловачке СПЦ",
+      "timestamp": "2026-02-03T09:02:03.130Z",
+      "value": 40800,
+      "counterAssigned": 8
+    },
+    {
+      "name": "Humanitarna fondacija ZA NAŠE HEROJE",
+      "timestamp": "2026-02-03T09:02:03.487Z",
+      "value": 600,
+      "counterAssigned": 9
+    },
+    {
+      "name": "Фондација „ Буди хуман - Александар Шапић“",
+      "timestamp": "2026-02-03T09:02:05.656Z",
+      "value": 966600,
+      "counterAssigned": 10
+    },
+    {
+      "name": "Удружење ТЕЛОК",
+      "timestamp": "2026-02-03T09:02:05.957Z",
+      "value": 800,
+      "counterAssigned": 11
+    },
+    {
+      "name": "Svetionik",
+      "timestamp": "2026-02-03T09:02:06.057Z",
+      "value": 600,
+      "counterAssigned": 12
+    },
+    {
+      "name": "ФОНДАЦИЈА  ПОМОЗИСРЦЕМ",
+      "timestamp": "2026-02-03T09:02:06.145Z",
+      "value": 1800,
+      "counterAssigned": 13
+    },
+    {
+      "name": "Фондација Једро",
+      "timestamp": "2026-02-03T09:02:06.229Z",
+      "value": 13200,
+      "counterAssigned": 14
+    },
+    {
+      "name": "Хуманитарна организација  „Покрени живот“",
+      "timestamp": "2026-02-03T09:02:06.709Z",
+      "value": 245200,
+      "counterAssigned": 15
+    },
+    {
+      "name": "Udruženje Debra",
+      "timestamp": "2026-02-03T09:02:06.792Z",
+      "value": 2000,
+      "counterAssigned": 16
+    },
+    {
+      "name": "Fondacija Anja Radonjić",
+      "timestamp": "2026-02-03T09:02:06.872Z",
+      "value": 400,
+      "counterAssigned": 17
+    },
+    {
+      "name": "Хуманитарна организација Сви за Космет",
+      "timestamp": "2026-02-03T09:02:07.113Z",
+      "value": 5400,
+      "counterAssigned": 18
+    },
+    {
+      "name": "Фондација Заједно за младе ",
+      "timestamp": "2026-02-03T09:02:07.195Z",
+      "value": 200,
+      "counterAssigned": 19
+    },
+    {
+      "name": "Фондација „Подржи живот“",
+      "timestamp": "2026-02-03T09:02:07.271Z",
+      "value": 9200,
+      "counterAssigned": 20
+    },
+    {
+      "name": "Фондација Тамара Мисирлић",
+      "timestamp": "2026-02-03T09:02:07.354Z",
+      "value": 27400,
+      "counterAssigned": 21
+    },
+    {
+      "name": "Удружење Подели радост",
+      "timestamp": "2026-02-03T09:02:07.434Z",
+      "value": 4400,
+      "counterAssigned": 22
+    },
+    {
+      "name": "Фондација ТАТЕ НОВОСАЂАНИ",
+      "timestamp": "2026-02-03T09:02:07.513Z",
+      "value": 800,
+      "counterAssigned": 23
+    },
+    {
+      "name": "Udruženje UVEK SA DECOM",
+      "timestamp": "2026-02-03T09:02:07.597Z",
+      "value": 2900,
+      "counterAssigned": 24
+    },
+    {
+      "name": "Хуманитарна организација „Срби за Србе“",
+      "timestamp": "2026-02-03T09:02:07.762Z",
+      "value": 40600,
+      "counterAssigned": 25
+    },
+    {
+      "name": "УНИЦЕФ",
+      "timestamp": "2026-02-03T09:02:07.838Z",
+      "value": 22900,
+      "counterAssigned": 26
+    }
+  ]
+}
