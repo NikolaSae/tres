@@ -271,6 +271,7 @@ model ParkingService {
 // Contract models
 enum ContractStatus {
   ACTIVE
+  DRAFT
   EXPIRED
   PENDING
   RENEWAL_IN_PROGRESS // Used when a renewal process has been started
