@@ -14,15 +14,11 @@ export async function createContract(data: ContractFormData) {
       ...data,
       startDate: data.startDate,
       endDate: data.endDate,
-      operatorId: dbData.isRevenueSharing ? dbData.operatorId : null,
-    services: {
-      create: dbData.services?.map(service => ({
-        serviceId: service.serviceId,
-        specificTerms: service.specificTerms || null
-      })) || []
-    },
-    createdById: session.user.id,
-  },
+      operatorId: data.operatorId,
+      operatorRevenue: data.operatorRevenue,
+      isRevenueSharing: data.isRevenueSharing,
+      services: data.services?.length
+    });
 
     const validContractTypes = Object.values(ContractType);
     if (!validContractTypes.includes(data.type)) {
@@ -49,7 +45,6 @@ export async function createContract(data: ContractFormData) {
       endDate: new Date(data.endDate),
       revenuePercentage: Number(data.revenuePercentage),
       operatorRevenue: data.isRevenueSharing ? Number(data.operatorRevenue) : 0,
-      // operatorId se ne postavlja ovde – vidi dole
       providerId: data.type === ContractType.PROVIDER ? data.providerId : null,
       humanitarianOrgId: data.type === ContractType.HUMANITARIAN ? data.humanitarianOrgId : null,
       parkingServiceId: data.type === ContractType.PARKING ? data.parkingServiceId : null,
@@ -75,8 +70,9 @@ export async function createContract(data: ContractFormData) {
     const newContract = await db.contract.create({
       data: {
         ...dbData,
-        // Operator ID samo ako je revenue sharing aktivan
-        ...(dbData.isRevenueSharing && { operatorId: dbData.operatorId }),
+        // Fix: always include operatorId – fallback to null if not sharing revenue
+        // Note: If operatorId is required in schema, make it optional (String?) or provide a dummy value
+        operatorId: dbData.isRevenueSharing ? dbData.operatorId : null,
         services: {
           create: dbData.services?.map(service => ({
             serviceId: service.serviceId,
