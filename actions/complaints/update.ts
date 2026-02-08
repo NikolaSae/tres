@@ -48,16 +48,27 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
     }
 
     const user = await db.user.findUnique({
-      where: { id: session.user.id },
-    });
+  where: { id: session.user.id },
+  select: { role: true },
+});
 
-    const isSubmitter = existingComplaint.submittedById === session.user.id;
-    const isAssigned = existingComplaint.assignedAgentId === session.user.id;
-    const canUpdate = [UserRole.ADMIN, UserRole.MANAGER, UserRole.AGENT].includes(user?.role as UserRole) || isSubmitter || isAssigned;
+const isSubmitter = existingComplaint.submittedById === session.user.id;
+const isAssigned = existingComplaint.assignedAgentId === session.user.id;
 
-    if (!canUpdate) {
-      return { error: "You don't have permission to update this complaint" };
-    }
+// Ispravljena provera dozvola – koristi direktno enum vrednosti
+const allowedRoles = [UserRole.ADMIN, UserRole.MANAGER, UserRole.AGENT];
+const isStaff = user?.role && allowedRoles.includes(user.role as any); // ili bolje dole
+
+// Bolja i type-safe varijanta (preporučena)
+const isStaff = user?.role === UserRole.ADMIN ||
+                user?.role === UserRole.MANAGER ||
+                user?.role === UserRole.AGENT;
+
+const canUpdate = isStaff || isSubmitter || isAssigned;
+
+if (!canUpdate) {
+  return { error: "Nemate dozvolu da ažurirate ovu pritužbu" };
+}
 
     let updateData: any = {};
     
