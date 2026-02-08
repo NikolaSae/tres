@@ -1,4 +1,4 @@
-C:\xampp\htdocs\fin-app-hub\actions\reports\get-scheduled-reports.ts
+//actions\reports\get-scheduled-reports.ts
 "use server";
 
 import { db } from "@/lib/db";
