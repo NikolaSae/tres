@@ -14,11 +14,15 @@ export async function createContract(data: ContractFormData) {
       ...data,
       startDate: data.startDate,
       endDate: data.endDate,
-      operatorId: data.operatorId,
-      operatorRevenue: data.operatorRevenue,
-      isRevenueSharing: data.isRevenueSharing,
-      services: data.services?.length
-    });
+      operatorId: dbData.isRevenueSharing ? dbData.operatorId : null,
+    services: {
+      create: dbData.services?.map(service => ({
+        serviceId: service.serviceId,
+        specificTerms: service.specificTerms || null
+      })) || []
+    },
+    createdById: session.user.id,
+  },
 
     const validContractTypes = Object.values(ContractType);
     if (!validContractTypes.includes(data.type)) {
