@@ -18,7 +18,7 @@ export async function addContractService(input: AddContractServiceInput): Promis
     }
 
     try {
-         const existingLink = await db.contractsOnServices.findUnique({
+         const existingLink = await db.serviceContract.findUnique({
              where: {
                  contractId_serviceId: {
                      contractId: input.contractId,
@@ -35,7 +35,7 @@ export async function addContractService(input: AddContractServiceInput): Promis
          }
 
 
-        const createdLink = await db.contractsOnServices.create({
+        const createdLink = await db.serviceContract.create({
             data: {
                 contractId: input.contractId,
                 serviceId: input.serviceId,
@@ -72,7 +72,7 @@ export async function removeContractService(linkId: string): Promise<{ success?:
     }
 
     try {
-        const linkToRemove = await db.contractsOnServices.findUnique({
+        const linkToRemove = await db.serviceContract.findUnique({
             where: { id: linkId },
         });
 
@@ -80,7 +80,7 @@ export async function removeContractService(linkId: string): Promise<{ success?:
             return { error: 'Service link not found.' };
         }
 
-        await db.contractsOnServices.delete({
+        await db.serviceContract.delete({
             where: { id: linkId },
         });
 
