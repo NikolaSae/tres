@@ -50,7 +50,7 @@ export async function addContractService(input: AddContractServiceInput): Promis
              id: createdLink.id,
              serviceId: createdLink.serviceId,
              service: createdLink.service as any,
-             specificTerms: createdLink.specificTerms,
+             specificTerms: createdLink.specificTerms ?? undefined,
          };
 
 
