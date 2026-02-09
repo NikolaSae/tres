@@ -88,9 +88,6 @@ export interface UnifiedHumanitarianReport {
   error?: string;
 }
 
-
-
-
 export type PaymentType = 'prepaid' | 'postpaid';
-export type TemplateType = 'telekom' | 'globaltel';
+export type TemplateType = 'telekom' | 'globaltel' | 'mts'; // Added 'mts'
 export type GenerationType = 'templates' | 'complete-reports';

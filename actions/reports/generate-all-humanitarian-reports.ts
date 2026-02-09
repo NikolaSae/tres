@@ -1,15 +1,13 @@
-// actions/reports/generate-all-humanitarian-reports.ts - IMPROVED VERSION
 // /actions/reports/generate-all-humanitarian-reports.ts
 'use server';
 
-import { generateAllHumanitarianReports as innerGenerate } from './humanitarian/index';
+import { generateAllHumanitarianReports as innerGenerate, TemplateType, PaymentType } from './humanitarian/index';
 
 export async function generateAllHumanitarianReports(
   month: number,
   year: number,
-  paymentType: 'prepaid' | 'postpaid',
-  templateType: 'telekom' | 'mts' = 'telekom'
+  paymentType: PaymentType,
+  templateType: TemplateType = 'telekom'
 ) {
   return innerGenerate(month, year, paymentType, templateType);
-  
 }
