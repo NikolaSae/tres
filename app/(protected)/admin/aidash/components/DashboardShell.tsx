@@ -26,27 +26,28 @@ export function DashboardShell({ initialData }: DashboardShellProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Aktivni korisnici"
-            value={data.users?.active || 0}
-            subtitle={`od ${data.users?.total || 0} ukupno`}
+            value={data.health.users?.active || 0}
+            subtitle={`od ${data.health.users?.total || 0} ukupno`}
             icon="Users"
             color="success"
           />
           <StatCard
             title="Aktivni ugovori"
-            value={data.contracts?.active || 0}
-            subtitle={`od ${data.contracts?.total || 0} ukupno`}
+            value={data.health.contracts?.active || 0}
+            subtitle={`od ${data.health.contracts?.total || 0} ukupno`}
             icon="Database"
             color="success"
           />
           <StatCard
             title="Na čekanju"
-            value={data.complaints?.pending || 0}
+            value={data.health.complaints?.pending || 0}
             icon="AlertCircle"
             color="warning"
           />
+
           <StatCard
             title="Humanitarni"
-            value={data.humanitarians?.length || 0}
+            value={data.health.humanitarians?.length || 0}
             icon="MessageCircle"
             color="default"
           />
