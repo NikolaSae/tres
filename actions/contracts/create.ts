@@ -74,24 +74,30 @@ export async function createContract(data: ContractFormData) {
       typeof dbData.operatorId === 'string' && 
       dbData.operatorId.trim() !== ''
         ? dbData.operatorId
-        : undefined;
+        : null;
 
-    // Remove operatorId from dbData to avoid type conflicts
-    const { operatorId: _, ...dbDataWithoutOperatorId } = dbData;
+    // Build contract data explicitly
+    const contractData: any = {
+      name: dbData.name,
+      contractNumber: dbData.contractNumber,
+      type: dbData.type,
+      status: dbData.status,
+      startDate: dbData.startDate,
+      endDate: dbData.endDate,
+      revenuePercentage: dbData.revenuePercentage,
+      description: dbData.description,
+      operatorRevenue: dbData.operatorRevenue,
+      isRevenueSharing: dbData.isRevenueSharing,
+      operatorId: operatorIdValue,
+      providerId: dbData.providerId,
+      humanitarianOrgId: dbData.humanitarianOrgId,
+      parkingServiceId: dbData.parkingServiceId,
+      createdById: session.user.id,
+    };
 
-    // Kreiranje ugovora – operatorId se dodaje SAMO ako je revenue sharing aktivan i operatorId je validan string
+    // Create contract first
     const newContract = await db.contract.create({
-      data: {
-        ...dbDataWithoutOperatorId,
-        ...(operatorIdValue && { operatorId: operatorIdValue }),
-        services: {
-          create: dbData.services?.map(service => ({
-            serviceId: service.serviceId,
-            specificTerms: service.specificTerms || null
-          })) || []
-        },
-        createdById: session.user.id,
-      },
+      data: contractData,
       include: {
         services: true,
         provider: true,
@@ -101,6 +107,17 @@ export async function createContract(data: ContractFormData) {
         createdBy: true,
       }
     });
+
+    // Then create service contracts
+    if (dbData.services && dbData.services.length > 0) {
+      await db.serviceContract.createMany({
+        data: dbData.services.map(service => ({
+          contractId: newContract.id,
+          serviceId: service.serviceId,
+          specificTerms: service.specificTerms || null
+        }))
+      });
+    }
 
     await db.activityLog.create({
       data: {
