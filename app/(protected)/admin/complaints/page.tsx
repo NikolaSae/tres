@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { CsvImport } from "@/components/complaints/CsvImport";
 import { exportComplaints } from "@/actions/complaints/export";
+import { ComplaintStatus } from "@prisma/client";
 
 export default function AdminComplaintsPage() {
   const searchParams = useSearchParams();
@@ -67,9 +68,9 @@ const { complaints, isLoading, error, mutate } = useComplaints({
   const handleExport = async () => {
   try {
     await exportComplaints({
-      format: "csv",  // ← dodaj ovo ako format nije opcion
+      format: "csv",  // ili "json" / "excel" ako imaš izbor
       statuses: status ? [status as ComplaintStatus] : undefined,
-      priority: priority ? parseInt(priority) : undefined,
+      priority: priority ? parseInt(priority, 10) : undefined,
       serviceId: service,
       providerId: provider,
       startDate: startDate ? new Date(startDate) : undefined,
