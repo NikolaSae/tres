@@ -1,17 +1,15 @@
-// app/(protected)/admin/aidash/actions/dashboard.tsx
+// app/(protected)/admin/aidash/actions/dashboard.ts
 
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import type { DashboardData, ChatMessage } from '@/lib/types/dashboard';
 
-// Server action za dashboard
 export async function getDashboardData(): Promise<DashboardData> {
   const session = await auth();
   if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role || '')) {
     throw new Error('Unauthorized');
   }
 
-  // System health
   const [totalUsers, activeUsers, totalContracts, activeContracts, pendingComplaints, humanitarians, toolLogs] =
     await Promise.all([
       db.user.count(),
@@ -57,7 +55,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     name: TOOL_DISPLAY_MAPPING[tool] || tool,
     actualName: tool,
     count: toolMap.get(tool) || 0,
-    lastUsed: toolLogs.find(l => l.action === `MCP_QUERY_${tool.toUpperCase()}`)?.createdAt || null
+    lastUsed: toolLogs.find(l => l.action === `MCP_QUERY_${tool.toUpperCase()}`)?.createdAt?.toISOString() || null
   }));
 
   return {
@@ -85,7 +83,6 @@ export async function getDashboardData(): Promise<DashboardData> {
   };
 }
 
-// Server action za chat
 export async function sendChatMessage(message: ChatMessage) {
   const session = await auth();
   if (!session?.user) throw new Error('Unauthorized');
