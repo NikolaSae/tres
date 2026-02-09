@@ -109,7 +109,7 @@ export async function updateContract(contractId: string, data: any) {
     };
 
     const updatedContract = await db.$transaction(async (tx) => {
-      const validateReference = async (id: string | null, model: string) => {
+      const validateReference = async (id: string | null | undefined, model: string) => {
         if (!id) return;
         const exists = await (tx as any)[model].findUnique({ where: { id } });
         if (!exists) throw new Error(`Invalid ${model} reference: ${id}`);
