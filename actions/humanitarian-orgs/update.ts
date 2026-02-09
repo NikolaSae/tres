@@ -1,4 +1,4 @@
-// Path: /actions/humanitarian-orgs/update.ts
+//actions/humanitarian-orgs/update.ts
 'use server';
 
 import { db } from '@/lib/db';
@@ -18,16 +18,7 @@ export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgF
         return { error: "Invalid fields!", details: validatedFields.error.format(), success: false };
     }
 
-    const {
-        name,
-        contactPerson,
-        email,
-        phone,
-        address,
-        website,
-        mission,
-        isActive,
-    } = validatedFields.data;
+    const validatedData = validatedFields.data;
 
     const session = await auth();
     const userId = session?.user?.id;
@@ -48,20 +39,23 @@ export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgF
 
          const orgWithSameName = await db.humanitarianOrg.findFirst({
               where: {
-                  name: name,
+                  name: validatedData.name,
                   id: { not: id },
               },
          });
          if (orgWithSameName) {
-              return { error: `Another organization with name "${name}" already exists.`, success: false };
+              return { error: `Another organization with name "${validatedData.name}" already exists.`, success: false };
          }
 
-          if (email && email !== existingOrganization.email) {
-              const orgWithSameEmail = await db.humanitarianOrg.findUnique({
-                 where: { email: email },
+          if (validatedData.email && validatedData.email !== existingOrganization.email) {
+              const orgWithSameEmail = await db.humanitarianOrg.findFirst({
+                 where: { 
+                   email: validatedData.email,
+                   id: { not: id }
+                 },
               });
               if (orgWithSameEmail) {
-                  return { error: `Another organization with email "${email}" already exists.`, success: false };
+                  return { error: `Another organization with email "${validatedData.email}" already exists.`, success: false };
               }
           }
 
@@ -69,19 +63,19 @@ export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgF
         const updatedOrganization = await db.humanitarianOrg.update({
             where: { id },
             data: {
-                name,
-                contactPerson,
-                email,
-                phone,
-                address,
-                website,
-                mission,
-                isActive,
-                pib: values.pib,
-                registrationNumber: values.registrationNumber,
-                bank: values.bank,
-                accountNumber: values.accountNumber,
-                shortNumber: values.shortNumber,
+                name: validatedData.name,
+                contactName: validatedData.contactPerson ?? null,
+                email: validatedData.email ?? null,
+                phone: validatedData.phone ?? null,
+                address: validatedData.address ?? null,
+                website: validatedData.website ?? null,
+                mission: validatedData.mission ?? null,
+                isActive: validatedData.isActive ?? true,
+                pib: validatedData.pib ?? null,
+                registrationNumber: validatedData.registrationNumber ?? null,
+                bank: validatedData.bank ?? null,
+                accountNumber: validatedData.accountNumber ?? null,
+                shortNumber: validatedData.shortNumber ?? null,
             },
         });
 
