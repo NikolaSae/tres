@@ -1,5 +1,6 @@
 // /lib/types/service-types.ts
 import { Service, ServiceType as PrismaServiceType, Provider } from '@prisma/client';
+export type { Service } from '@prisma/client';
 
 export const ServiceType = PrismaServiceType;
 
