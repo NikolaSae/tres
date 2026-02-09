@@ -4,8 +4,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { OperatorFormValues } from "@/lib/types/operator-types";
-import { operatorSchema } from "@/schemas/operator";
+import { operatorSchema, OperatorFormValues } from "@/schemas/operator"; // Import from schema, not from types
 import { revalidatePath } from "next/cache";
 
 export async function updateOperator(id: string, data: OperatorFormValues) {
