@@ -23,7 +23,7 @@ interface UseComplaintsResult {
   error: Error | null;
   totalCount: number;
   totalPages: number;
-  refresh: () => Promise<void>;
+  mutate: () => Promise<void>;
 }
 
 export function useComplaints(params: UseComplaintsParams = {}): UseComplaintsResult {

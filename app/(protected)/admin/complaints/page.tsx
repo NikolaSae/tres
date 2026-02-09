@@ -137,13 +137,10 @@ export default function AdminComplaintsPage() {
             Export
           </Button>
           
-          <Button
-            variant="secondary"
-            onClick={() => mutate()}
-          >
-            <RefreshCcw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <Button onClick={() => mutate()}>
+  <RefreshCcw className="h-4 w-4 mr-2" />
+  Refresh
+</Button>
           
           <Link href="/admin/complaints/statistics">
             <Button variant="default">
