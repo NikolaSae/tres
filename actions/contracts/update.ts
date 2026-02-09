@@ -172,8 +172,7 @@ export async function updateContract(contractId: string, data: any) {
     console.log('[UPDATE_CONTRACT] Contract updated successfully:', updatedContract.id);
 
     try {
-      await logActivity({
-        action: 'UPDATE',
+      await logActivity('UPDATE', {
         entityType: 'contract',
         entityId: updatedContract.id,
         details: `Updated contract: ${updatedContract.name}`,
