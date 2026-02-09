@@ -8,11 +8,7 @@ export async function getProductById(id: string) {
     const product = await db.product.findUnique({
       where: { id },
       include: {
-        service: {
-          include: {
-            provider: true,
-          },
-        },
+        service: true, // Just include service without nested provider
       },
     });
 
