@@ -1,13 +1,57 @@
 ///actions/reports/schedule-report.ts
-
 "use server";
 
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ReportFrequency } from "@prisma/client";
-import { getNextRunDate } from "@/lib/reports/scheduled-jobs";
 import { getCurrentUser } from "@/lib/auth";
-import { logActivity } from "@/actions/security/log-event";
+import { logActivity } from "@/lib/security/audit-logger";
+
+// Inline helper function to calculate next run date
+function getNextRunDate(frequency: ReportFrequency): Date {
+  const now = new Date();
+  const nextRun = new Date(now);
+
+  switch (frequency) {
+    case ReportFrequency.DAILY:
+      nextRun.setDate(nextRun.getDate() + 1);
+      nextRun.setHours(0, 0, 0, 0);
+      break;
+
+    case ReportFrequency.WEEKLY:
+      const daysUntilMonday = (8 - nextRun.getDay()) % 7 || 7;
+      nextRun.setDate(nextRun.getDate() + daysUntilMonday);
+      nextRun.setHours(0, 0, 0, 0);
+      break;
+
+    case ReportFrequency.MONTHLY:
+      nextRun.setMonth(nextRun.getMonth() + 1);
+      nextRun.setDate(1);
+      nextRun.setHours(0, 0, 0, 0);
+      break;
+
+    case ReportFrequency.QUARTERLY:
+      const currentMonth = nextRun.getMonth();
+      const nextQuarterMonth = Math.floor(currentMonth / 3) * 3 + 3;
+      nextRun.setMonth(nextQuarterMonth);
+      nextRun.setDate(1);
+      nextRun.setHours(0, 0, 0, 0);
+      break;
+
+    case ReportFrequency.YEARLY:
+      nextRun.setFullYear(nextRun.getFullYear() + 1);
+      nextRun.setMonth(0);
+      nextRun.setDate(1);
+      nextRun.setHours(0, 0, 0, 0);
+      break;
+
+    default:
+      nextRun.setDate(nextRun.getDate() + 1);
+      nextRun.setHours(0, 0, 0, 0);
+  }
+
+  return nextRun;
+}
 
 // Schema for validating report scheduling input
 const ScheduleReportSchema = z.object({
@@ -47,11 +91,11 @@ export async function scheduleReport(data: ScheduleReportInput) {
     });
     
     // Log the activity
-    await logActivity({
-      action: "SCHEDULE_REPORT",
+    await logActivity("SCHEDULE_REPORT", {
       entityType: "report",
       entityId: scheduledReport.id,
       details: `Scheduled ${validatedData.reportType} report: ${validatedData.name}`,
+      userId: user.id,
     });
     
     return { success: true, data: scheduledReport };
@@ -108,11 +152,11 @@ export async function updateScheduledReport(
     });
     
     // Log the activity
-    await logActivity({
-      action: "UPDATE_SCHEDULED_REPORT",
+    await logActivity("UPDATE_SCHEDULED_REPORT", {
       entityType: "report",
       entityId: updatedReport.id,
       details: `Updated scheduled report: ${validatedData.name}`,
+      userId: user.id,
     });
     
     return { success: true, data: updatedReport };
@@ -148,11 +192,11 @@ export async function deleteScheduledReport(id: string) {
     });
     
     // Log the activity
-    await logActivity({
-      action: "DELETE_SCHEDULED_REPORT",
+    await logActivity("DELETE_SCHEDULED_REPORT", {
       entityType: "report",
       entityId: id,
       details: `Deleted scheduled report: ${existingReport.name}`,
+      userId: user.id,
     });
     
     return { success: true };
