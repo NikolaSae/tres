@@ -46,9 +46,8 @@ export async function addContractService(input: AddContractServiceInput): Promis
              }
         });
 
-         const newSelectedService: SelectedService = {
+         const newSelectedService = {
              serviceId: createdLink.serviceId,
-             service: createdLink.service as any,
              specificTerms: createdLink.specificTerms ?? undefined,
          };
 
@@ -56,7 +55,7 @@ export async function addContractService(input: AddContractServiceInput): Promis
         revalidatePath(`/contracts/${input.contractId}`);
 
 
-        return { success: 'Service linked successfully.', newLink: newSelectedService };
+        return { success: 'Service linked successfully.', newLink: newSelectedService as SelectedService };
 
     } catch (error) {
         console.error("Error linking service to contract:", error);
