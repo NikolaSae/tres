@@ -133,7 +133,7 @@ export async function generateExcelReport({
           CreatedAt: item.createdAt.toLocaleDateString(),
           ResolvedAt: item.resolvedAt?.toLocaleDateString() || "N/A",
           ResolutionTime: item.resolvedAt ? 
-            Math.round((item.resolvedAt - item.createdAt) / (1000 * 60 * 60 * 24)) + " days" : 
+            Math.round((item.resolvedAt.getTime() - item.createdAt.getTime()) / (1000 * 60 * 60 * 24)) + " days" : 
             "N/A",
           FinancialImpact: item.financialImpact || 0,
         }));
@@ -199,7 +199,7 @@ export async function generateExcelReport({
             Services: servicesList,
             CreatedBy: item.createdBy.name || item.createdBy.email,
             CreatedAt: item.createdAt.toLocaleDateString(),
-            DaysUntilExpiration: Math.round((item.endDate - new Date()) / (1000 * 60 * 60 * 24)),
+            DaysUntilExpiration: Math.round((new Date(item.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
           };
         });
       },
