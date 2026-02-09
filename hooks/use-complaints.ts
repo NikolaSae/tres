@@ -6,6 +6,7 @@ import { Complaint, ComplaintWithRelations } from "@/lib/types/complaint-types";
 interface UseComplaintsParams {
   id?: string;
   status?: ComplaintStatus | string | null;
+  priority?: number | null;
   serviceId?: string | null;
   providerId?: string | null;
   productId?: string | null;

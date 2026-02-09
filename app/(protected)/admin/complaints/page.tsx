@@ -41,15 +41,18 @@ export default function AdminComplaintsPage() {
   const search = searchParams.get("search") || "";
 
   // Fetch data
+  const parsedPriority = priority ? parseInt(priority, 10) : undefined;
+  const priorityValue = !isNaN(parsedPriority) && parsedPriority !== null ? parsedPriority : undefined;
+
   const { complaints, isLoading, error, mutate } = useComplaints({
-    status,
-    priority: priority ? parseInt(priority) : undefined,
-    serviceId: service,
-    providerId: provider,
-    startDate: startDate ? new Date(startDate) : undefined,
-    endDate: endDate ? new Date(endDate) : undefined,
-    search
-  });
+  status,
+  priority: priorityValue,
+  serviceId: service,
+  providerId: provider,
+  startDate: startDate ? new Date(startDate) : undefined,
+  endDate: endDate ? new Date(endDate) : undefined,
+  search
+});
   
   const { categories: serviceCategories } = useServiceCategories();
 
