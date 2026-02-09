@@ -17,16 +17,7 @@ export const createHumanitarianOrg = async (values: HumanitarianOrgFormData) => 
         return { error: "Invalid fields!", details: validatedFields.error.format(), success: false };
     }
 
-    const {
-        name,
-        contactName,
-        email,
-        phone,
-        address,
-        website,
-        mission,
-        isActive,
-    } = validatedFields.data;
+    const validatedData = validatedFields.data;
 
     const session = await auth();
     if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
@@ -35,36 +26,36 @@ export const createHumanitarianOrg = async (values: HumanitarianOrgFormData) => 
 
     try {
         const existingOrgByName = await db.humanitarianOrg.findUnique({
-            where: { name: name },
+            where: { name: validatedData.name },
         });
         if (existingOrgByName) {
-            return { error: `Organization with name "${name}" already exists.`, success: false };
+            return { error: `Organization with name "${validatedData.name}" already exists.`, success: false };
         }
 
-        if (email) {
+        if (validatedData.email) {
             const existingOrgByEmail = await db.humanitarianOrg.findFirst({
-                where: { email: email },
+                where: { email: validatedData.email },
             });
             if (existingOrgByEmail) {
-                // handle duplicate email error
+                return { error: `Organization with email "${validatedData.email}" already exists.`, success: false };
             }
         }
 
         const newOrganization = await db.humanitarianOrg.create({
             data: {
-                name,
-                contactName,
-                email,
-                phone,
-                address,
-                website,
-                mission,
-                isActive,
-                pib: values.pib,
-                registrationNumber: values.registrationNumber,
-                bank: values.bank,
-                accountNumber: values.accountNumber,
-                shortNumber: values.shortNumber,
+                name: validatedData.name,
+                contactName: validatedData.contactPerson ?? null,
+                email: validatedData.email ?? null,
+                phone: validatedData.phone ?? null,
+                address: validatedData.address ?? null,
+                website: validatedData.website ?? null,
+                mission: validatedData.mission ?? null,
+                isActive: validatedData.isActive ?? true,
+                pib: validatedData.pib ?? null,
+                registrationNumber: validatedData.registrationNumber ?? null,
+                bank: validatedData.bank ?? null,
+                accountNumber: validatedData.accountNumber ?? null,
+                shortNumber: validatedData.shortNumber ?? null,
             },
         });
 
