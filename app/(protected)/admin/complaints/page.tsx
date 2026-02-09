@@ -65,29 +65,30 @@ const { complaints, isLoading, error, mutate } = useComplaints({
   };
 
   const handleExport = async () => {
-    try {
-      await exportComplaints({
-        status,
-        priority: priority ? parseInt(priority) : undefined,
-        serviceId: service,
-        providerId: provider,
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
-        search
-      });
-      
-      setNotification({
-        type: "success",
-        message: "Export started. The file will be available for download shortly."
-      });
-    } catch (err) {
-      console.error("Export error:", err);
-      setNotification({
-        type: "error",
-        message: "Failed to export complaints"
-      });
-    }
-  };
+  try {
+    await exportComplaints({
+      format: "csv",  // ← dodaj ovo ako format nije opcion
+      statuses: status ? [status as ComplaintStatus] : undefined,
+      priority: priority ? parseInt(priority) : undefined,
+      serviceId: service,
+      providerId: provider,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      search
+    });
+
+    setNotification({
+      type: "success",
+      message: "Export started. The file will be available for download shortly."
+    });
+  } catch (err) {
+    console.error("Export error:", err);
+    setNotification({
+      type: "error",
+      message: "Failed to export complaints"
+    });
+  }
+};
 
   const handleImportComplete = (success: boolean, message: string) => {
     setIsImportModalOpen(false);
