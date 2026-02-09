@@ -67,15 +67,20 @@ export async function createContract(data: ContractFormData) {
       };
     }
 
+    // Determine operatorId value based on revenue sharing status
+    const operatorIdValue = 
+      dbData.isRevenueSharing && 
+      dbData.operatorId && 
+      typeof dbData.operatorId === 'string' && 
+      dbData.operatorId.trim() !== ''
+        ? dbData.operatorId
+        : undefined;
+
     // Kreiranje ugovora – operatorId se dodaje SAMO ako je revenue sharing aktivan i operatorId je validan string
     const newContract = await db.contract.create({
       data: {
         ...dbData,
-        ...(dbData.isRevenueSharing && 
-            dbData.operatorId && 
-            typeof dbData.operatorId === 'string' && 
-            dbData.operatorId.trim() !== '' && 
-            { operatorId: dbData.operatorId }),
+        operatorId: operatorIdValue,
         services: {
           create: dbData.services?.map(service => ({
             serviceId: service.serviceId,
