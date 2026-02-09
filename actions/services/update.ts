@@ -1,19 +1,20 @@
-///actions/services/update.ts
-
+// actions/services/update.ts
 'use server'
+
 import { z } from 'zod';
 import { contractSchema } from '@/schemas/contract';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logActivity } from '@/lib/security/audit-logger';
+import { ContractStatus } from '@prisma/client';
+import { serviceSchema, ServiceFormData } from '@/schemas/service';
 
 export async function updateContract(id: string, formData: any) {
   console.log('[UPDATE_CONTRACT] Starting update for:', id);
   console.log('[UPDATE_CONTRACT] Data keys:', Object.keys(formData));
   
   try {
-    // Dobij session bez pozivanja headers direktno
     const session = await auth();
     
     if (!session?.user) {
@@ -46,6 +47,17 @@ export async function updateContract(id: string, formData: any) {
       return { success: false, error: 'Insufficient permissions' };
     }
 
+    // Pripremi status – konvertuj string u enum vrednost
+    let statusEnum: ContractStatus | undefined = undefined;
+    if (validatedData.status) {
+      const upperStatus = validatedData.status.toUpperCase().replace(/-/g, '_');
+      if (upperStatus in ContractStatus) {
+        statusEnum = ContractStatus[upperStatus as keyof typeof ContractStatus];
+      } else {
+        return { success: false, error: `Invalid status value: ${validatedData.status}` };
+      }
+    }
+
     // Ažuriraj ugovor
     const updatedContract = await db.contract.update({
       where: { id },
@@ -53,7 +65,7 @@ export async function updateContract(id: string, formData: any) {
         name: validatedData.name,
         contractNumber: validatedData.contractNumber,
         type: validatedData.type,
-        status: validatedData.status,
+        status: statusEnum,  // ← sada je tačna enum vrednost ili undefined
         startDate: validatedData.startDate,
         endDate: validatedData.endDate,
         revenuePercentage: validatedData.revenuePercentage,
@@ -69,8 +81,7 @@ export async function updateContract(id: string, formData: any) {
     });
 
     // Log aktivnost
-    await logActivity({
-      action: 'UPDATE',
+    await logActivity('UPDATE_CONTRACT', {
       entityType: 'contract',
       entityId: updatedContract.id,
       details: `Updated contract: ${updatedContract.name}`,
