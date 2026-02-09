@@ -10,8 +10,16 @@ const getLogEntriesSchema = z.object({
   entityType: z.nativeEnum(LogEntityType),
   entityId: z.string().optional().nullable(),
 
-  action: z.nativeEnum(LogActionType).optional().nullable().transform(e => e === 'ALL' ? undefined : e),
-  status: z.nativeEnum(LogStatus).optional().nullable().transform(e => e === 'ALL' ? undefined : e),
+  action: z.union([
+    z.nativeEnum(LogActionType),
+    z.literal('ALL')
+  ]).optional().nullable().transform(e => e === 'ALL' ? undefined : e),
+  
+  status: z.union([
+    z.nativeEnum(LogStatus),
+    z.literal('ALL')
+  ]).optional().nullable().transform(e => e === 'ALL' ? undefined : e),
+  
   subjectKeyword: z.string().optional().nullable().transform(e => e?.trim() === '' ? undefined : e),
   dateFrom: z.preprocess((arg) => { if (typeof arg == "string" || arg instanceof Date) return new Date(arg); }, z.date().optional().nullable()),
   dateTo: z.preprocess((arg) => { if (typeof arg == "string" || arg instanceof Date) return new Date(arg); }, z.date().optional().nullable()),
