@@ -3,7 +3,7 @@
 
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { logActivity } from "@/actions/security/log-event";
+import { logActivity } from "@/lib/security/audit-logger";
 
 /**
  * Fetches all scheduled reports
@@ -33,11 +33,11 @@ export async function getScheduledReports(filters?: { isActive?: boolean }) {
     });
 
     // Log the activity
-    await logActivity({
-      action: "VIEW_SCHEDULED_REPORTS",
+    await logActivity("VIEW_SCHEDULED_REPORTS", {
       entityType: "report",
-      entityId: null,
+      entityId: undefined,
       details: "Viewed scheduled reports list",
+      userId: user.id,
     });
 
     return scheduledReports;
@@ -69,11 +69,11 @@ export async function getScheduledReportById(id: string) {
     }
 
     // Log the activity
-    await logActivity({
-      action: "VIEW_SCHEDULED_REPORT",
+    await logActivity("VIEW_SCHEDULED_REPORT", {
       entityType: "report",
       entityId: id,
       details: `Viewed scheduled report: ${scheduledReport.name}`,
+      userId: user.id,
     });
 
     return { success: true, data: scheduledReport };
@@ -114,12 +114,15 @@ export async function toggleScheduledReportStatus(id: string) {
     });
 
     // Log the activity
-    await logActivity({
-      action: currentReport.isActive ? "DISABLE_SCHEDULED_REPORT" : "ENABLE_SCHEDULED_REPORT",
-      entityType: "report",
-      entityId: id,
-      details: `${currentReport.isActive ? "Disabled" : "Enabled"} scheduled report: ${currentReport.name}`,
-    });
+    await logActivity(
+      currentReport.isActive ? "DISABLE_SCHEDULED_REPORT" : "ENABLE_SCHEDULED_REPORT",
+      {
+        entityType: "report",
+        entityId: id,
+        details: `${currentReport.isActive ? "Disabled" : "Enabled"} scheduled report: ${currentReport.name}`,
+        userId: user.id,
+      }
+    );
 
     return { success: true, data: updatedReport };
   } catch (error) {

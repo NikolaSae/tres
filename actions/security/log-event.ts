@@ -1,4 +1,4 @@
-// Path: actions/security/log-event.ts (ili gde god se nalazi getActivityLogs)
+// Path: actions/security/log-event.ts
 
 "use server";
 
