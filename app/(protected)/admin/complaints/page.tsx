@@ -70,7 +70,6 @@ const { complaints, isLoading, error, mutate } = useComplaints({
     await exportComplaints({
       format: "csv",  // ili "json" / "excel" ako imaš izbor
       statuses: status ? [status as ComplaintStatus] : undefined,
-      priority: priority ? parseInt(priority, 10) : undefined,
       serviceId: service,
       providerId: provider,
       startDate: startDate ? new Date(startDate) : undefined,
