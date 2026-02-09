@@ -3,6 +3,7 @@
 
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { LogSeverity } from "@prisma/client";
 
 interface LogReportSendParams {
   serviceId: string;
@@ -35,27 +36,30 @@ export async function logReportSend({
         entityType: 'ParkingService',
         entityId: serviceId,
         action: success ? 'REPORT_SENT' : 'REPORT_SEND_FAILED',
-        description: success 
+        details: success 
           ? `Sent ${reportCount} report(s) for ${month}/${year} to ${recipients.join(', ')}`
           : `Failed to send reports for ${month}/${year}: ${errorMessage}`,
-        level: success ? 'INFO' : 'ERROR',
-        errorDetails: errorMessage,
+        severity: success ? LogSeverity.INFO : LogSeverity.ERROR,
         userId,
-        timestamp: new Date(),
       },
     });
 
-    // Update parking service with last send info (opciono)
+    // Update parking service with last send info (if these fields exist)
     if (success) {
-      await db.parkingService.update({
-        where: { id: serviceId },
-        data: {
-          lastReportSentAt: new Date(),
-          totalReportsSent: {
-            increment: reportCount,
+      try {
+        await db.parkingService.update({
+          where: { id: serviceId },
+          data: {
+            updatedAt: new Date(),
+            // Add these fields to your ParkingService model if needed:
+            // lastReportSentAt: new Date(),
+            // totalReportsSent: { increment: reportCount },
           },
-        },
-      });
+        });
+      } catch (updateError) {
+        console.warn("Could not update parking service:", updateError);
+        // Don't fail the whole operation if update fails
+      }
     }
 
     return { success: true };
