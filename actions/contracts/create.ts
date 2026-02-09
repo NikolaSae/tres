@@ -76,11 +76,14 @@ export async function createContract(data: ContractFormData) {
         ? dbData.operatorId
         : undefined;
 
+    // Remove operatorId from dbData to avoid type conflicts
+    const { operatorId: _, ...dbDataWithoutOperatorId } = dbData;
+
     // Kreiranje ugovora – operatorId se dodaje SAMO ako je revenue sharing aktivan i operatorId je validan string
     const newContract = await db.contract.create({
       data: {
-        ...dbData,
-        operatorId: operatorIdValue,
+        ...dbDataWithoutOperatorId,
+        ...(operatorIdValue && { operatorId: operatorIdValue }),
         services: {
           create: dbData.services?.map(service => ({
             serviceId: service.serviceId,
