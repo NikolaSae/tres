@@ -1,5 +1,5 @@
 // lib/auth.ts
-
+import { auth } from "@/auth";
 // Re-export auth so other files can use it directly
 export { auth } from "@/auth";
 

@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/db';
 import { HumanitarianOrgWithDetails, HumanitarianOrgFilterOptions } from '@/lib/types/humanitarian-org-types';
-import { auth } from '@/auth';
+import { auth } from '@/lib/auth';
 import { UserRole } from "@prisma/client";
 import { currentRole } from '@/lib/auth';
 
