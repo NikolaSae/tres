@@ -125,7 +125,20 @@ export async function updateService(id: string, values: ServiceFormData) {
 
     // Find existing service
     const existingService = await db.service.findUnique({
-      where: { id }
+      where: { id },
+      select: {
+    id: true,
+    name: true,
+    type: true,
+    description: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+    billingType: true,
+    createdById: true,          // ← DODATO OVO
+    // ako ti treba i createdBy objekat:
+    // createdBy: { select: { id: true, name: true } }
+  }
     });
 
     if (!existingService) {
