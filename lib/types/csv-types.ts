@@ -1,30 +1,26 @@
 // lib/types/csv-types.ts
 
-/**
- * Tip za jedan red iz CSV fajla za import servisa
- */
 export interface ServiceCsvRow {
   name: string;
-  type: string;
+  // ostala polja koja imaš u CSV-u, npr:
   description?: string;
-  isActive?: boolean | string; // može biti "true"/"false" iz CSV-a
-  // Dodaj ostala polja koja očekuješ u CSV-u
-  [key: string]: any; // fleksibilno za dodatna polja
+  type?: string;
+  // ...
 }
 
-/**
- * Rezultat importa CSV fajla – generički tip za različite entitete
- */
+export interface CsvRowValidationResult<T> {
+  rowIndex: number;
+  errors: string[];
+  originalRow: Record<string, any>;
+  isValid: boolean;           // ← DODATO OVO POLJE
+  data?: T;                   // opciono, ako želiš validirani objekat posle validacije
+}
+
 export interface CsvImportResult<T> {
   totalRows: number;
   validRows: T[];
-  invalidRows: Array<{
-    rowIndex: number;
-    errors: string[];
-    originalRow: Record<string, any>;
-  }>;
+  invalidRows: CsvRowValidationResult<T>[];
   importErrors: string[];
   error?: string | null;
-  createdCount?: number;
-  // Dodaj ako treba: updatedCount, skippedDuplicates itd.
+  createdCount?: number;      // opciono, ako koristiš createMany
 }
