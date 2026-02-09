@@ -38,7 +38,7 @@ export async function generateExcelReport({
   }
 
   // Check if the user has permission to generate reports
-  const hasPermission = await canGenerateReports(user.id);
+  const hasPermission = await canGenerateReports();
   if (!hasPermission) {
     throw new Error("You don't have permission to generate reports");
   }
