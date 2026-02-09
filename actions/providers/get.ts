@@ -1,7 +1,7 @@
 // actions/providers/get.ts
 'use server';
 
-import db from '@/lib/db';
+import { db } from '@/lib/db'; // Changed from default import to named import
 import { auth } from '@/auth';
 import { currentRole } from '@/lib/auth';
 import { UserRole } from '@prisma/client';
@@ -12,7 +12,7 @@ export async function getProviders(params: ProviderFilterOptions & {
   limit?: number;
 }) {
   try {
-  const session = await auth();
+    const session = await auth();
     if (!session?.user) {
       return {
         data: [],
@@ -34,6 +34,7 @@ export async function getProviders(params: ProviderFilterOptions & {
         error: "Forbidden: You don't have permission to access this resource"
       };
     }
+
     const { page = 1, limit = 10, ...filters } = params;
     
     // Build where clause
@@ -41,9 +42,9 @@ export async function getProviders(params: ProviderFilterOptions & {
       AND: [
         filters.search && {
           OR: [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { contactName: { contains: filters.search, mode: 'insensitive' } },
-            { email: { contains: filters.search, mode: 'insensitive' } }
+            { name: { contains: filters.search, mode: 'insensitive' as const } },
+            { contactName: { contains: filters.search, mode: 'insensitive' as const } },
+            { email: { contains: filters.search, mode: 'insensitive' as const } }
           ]
         },
         filters.isActive !== undefined && { isActive: filters.isActive },
