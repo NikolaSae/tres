@@ -32,19 +32,19 @@ export default function AdminComplaintsPage() {
   } | null>(null);
 
   // Extract filter parameters from URL
-  const status = searchParams.get("status") || "";
-  const priority = searchParams.get("priority") || "";
-  const service = searchParams.get("service") || "";
-  const provider = searchParams.get("provider") || "";
-  const startDate = searchParams.get("startDate") || "";
-  const endDate = searchParams.get("endDate") || "";
-  const search = searchParams.get("search") || "";
+const status = searchParams.get("status") || "";
+const priority = searchParams.get("priority") || "";
+const service = searchParams.get("service") || "";
+const provider = searchParams.get("provider") || "";
+const startDate = searchParams.get("startDate") || "";
+const endDate = searchParams.get("endDate") || "";
+const search = searchParams.get("search") || "";
 
-  // Fetch data
-  const parsedPriority = priority ? parseInt(priority, 10) : undefined;
-  const priorityValue = !isNaN(parsedPriority) && parsedPriority !== null ? parsedPriority : undefined;
+// Parse priority safely
+const priorityValue = priority && !isNaN(Number(priority)) ? Number(priority) : undefined;
 
-  const { complaints, isLoading, error, mutate } = useComplaints({
+// Fetch data
+const { complaints, isLoading, error, mutate } = useComplaints({
   status,
   priority: priorityValue,
   serviceId: service,
