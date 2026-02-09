@@ -61,8 +61,9 @@ export class HumanitarianUnifiedGenerator {
     // Kopiraj sheet sa svim formatiranjima
     const newSheet = workbook.addWorksheet(newSheetName);
     
-    // Sačuvaj merge info pre kopiranja
+    // Collect merged cell ranges from the previous sheet
     const mergedCells: string[] = [];
+    const processedMerges = new Set<string>();
     
     // Kopiraj strukturu i formatiranje
     prevSheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
@@ -76,11 +77,40 @@ export class HumanitarianUnifiedGenerator {
         newCell.value = cell.value;
         newCell.style = { ...cell.style };
         
-        // Sačuvaj merge info
+        // Track merged cells - only process master cells
         if (cell.isMerged && cell.master === cell) {
-          const master = prevSheet._merges[cell.address];
-          if (master) {
-            mergedCells.push(master);
+          const address = cell.address;
+          if (!processedMerges.has(address)) {
+            // Find the range by checking adjacent cells
+            const masterRow = cell.row;
+            const masterCol = cell.col;
+            let maxRow = masterRow;
+            let maxCol = masterCol;
+            
+            // Scan for merged range boundaries
+            for (let r = masterRow; r <= prevSheet.rowCount; r++) {
+              const testCell = prevSheet.getRow(r).getCell(masterCol);
+              if (testCell.isMerged && testCell.master === cell) {
+                maxRow = r;
+              } else {
+                break;
+              }
+            }
+            
+            for (let c = masterCol; c <= prevSheet.columnCount; c++) {
+              const testCell = prevSheet.getRow(masterRow).getCell(c);
+              if (testCell.isMerged && testCell.master === cell) {
+                maxCol = c;
+              } else {
+                break;
+              }
+            }
+            
+            if (maxRow !== masterRow || maxCol !== masterCol) {
+              const range = `${cell.address}:${prevSheet.getRow(maxRow).getCell(maxCol).address}`;
+              mergedCells.push(range);
+              processedMerges.add(address);
+            }
           }
         }
       });
