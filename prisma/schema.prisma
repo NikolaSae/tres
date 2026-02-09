@@ -98,6 +98,7 @@ model User {
   password                String?
   role                    UserRole               @default(USER)
   isActive                Boolean                @default(true)
+  isTwoFactorEnabled      Boolean                @default(false)
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   image                   String?
