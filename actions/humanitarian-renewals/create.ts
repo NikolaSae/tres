@@ -20,6 +20,15 @@ export async function createHumanitarianRenewal(values: any) {
 
     const { contractId, humanitarianOrgId, ...data } = validatedFields.data;
 
+    // Validate required fields
+    if (!contractId) {
+      return { error: "ID ugovora je obavezan" };
+    }
+
+    if (!humanitarianOrgId) {
+      return { error: "ID humanitarne organizacije je obavezan" };
+    }
+
     // Proveri da li ugovor postoji i pripada humanitarnoj organizaciji
     const contract = await db.contract.findFirst({
       where: {
@@ -55,11 +64,11 @@ export async function createHumanitarianRenewal(values: any) {
         proposedEndDate: new Date(data.proposedEndDate),
         proposedRevenue: data.proposedRevenue,
         subStatus: data.subStatus,
-        documentsReceived: data.documentsReceived,
-        legalApproved: data.legalApproved,
-        financialApproved: data.financialApproved,
-        signatureReceived: data.signatureReceived,
-        notes: data.notes,
+        documentsReceived: data.documentsReceived ?? false,
+        legalApproved: data.legalApproved ?? false,
+        financialApproved: data.financialApproved ?? false,
+        signatureReceived: data.signatureReceived ?? false,
+        notes: data.notes ?? null,
         createdById: session.user.id,
         lastModifiedById: session.user.id,
       },
@@ -88,6 +97,7 @@ export async function createHumanitarianRenewal(values: any) {
         entityId: renewal.id,
         details: `Kreirana obnova ugovora ${contract.contractNumber}`,
         userId: session.user.id,
+        severity: "INFO",
       }
     });
 
