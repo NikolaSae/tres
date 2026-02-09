@@ -98,13 +98,22 @@ export async function updateContract(contractId: string, data: any) {
 
     const { services: servicesData, ...restValidatedData } = sanitizedData;
 
-    const dbData = {
-      ...restValidatedData,
-      providerId: restValidatedData.type === ContractType.PROVIDER ? restValidatedData.providerId : null,
-      humanitarianOrgId: restValidatedData.type === ContractType.HUMANITARIAN ? restValidatedData.humanitarianOrgId : null,
-      parkingServiceId: restValidatedData.type === ContractType.PARKING ? restValidatedData.parkingServiceId : null,
-      operatorId: restValidatedData.isRevenueSharing ? restValidatedData.operatorId : null,
-      operatorRevenue: restValidatedData.isRevenueSharing ? restValidatedData.operatorRevenue : 0,
+    // Build update data explicitly with proper null handling
+    const dbData: any = {
+      name: restValidatedData.name,
+      contractNumber: restValidatedData.contractNumber,
+      type: restValidatedData.type,
+      status: restValidatedData.status,
+      startDate: restValidatedData.startDate,
+      endDate: restValidatedData.endDate,
+      revenuePercentage: restValidatedData.revenuePercentage,
+      description: restValidatedData.description ?? null,
+      providerId: restValidatedData.type === ContractType.PROVIDER ? (restValidatedData.providerId ?? null) : null,
+      humanitarianOrgId: restValidatedData.type === ContractType.HUMANITARIAN ? (restValidatedData.humanitarianOrgId ?? null) : null,
+      parkingServiceId: restValidatedData.type === ContractType.PARKING ? (restValidatedData.parkingServiceId ?? null) : null,
+      operatorId: restValidatedData.isRevenueSharing ? (restValidatedData.operatorId ?? null) : null,
+      operatorRevenue: restValidatedData.isRevenueSharing ? (restValidatedData.operatorRevenue ?? 0) : 0,
+      isRevenueSharing: restValidatedData.isRevenueSharing,
       updatedAt: new Date(),
     };
 
