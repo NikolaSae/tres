@@ -4,15 +4,24 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function updateProduct(id: string, data: any) {
+interface UpdateProductData {
+  name?: string;
+  code?: string;
+  description?: string | null;
+  isActive?: boolean;
+  serviceId?: string | null;
+}
+
+export async function updateProduct(id: string, data: UpdateProductData) {
   try {
     const product = await db.product.update({
       where: { id },
       data: {
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        // Add other fields as needed
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.code !== undefined && { code: data.code }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.serviceId !== undefined && { serviceId: data.serviceId }),
       },
     });
 
