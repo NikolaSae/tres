@@ -6,7 +6,7 @@ import { REPORTS_BASE_PATH } from '../constants';
 import { CounterData, GenerationType } from '../types';
 
 export class GlobalCounterManager {
-  private static readonly lockFiles = new Map<string, Promise<void>>();
+  private static readonly lockFiles = new Map<string, Promise<number | null>>();
   private static currentCounterPath: string | null = null;
 
   private static generateCounterFileName(): string {
