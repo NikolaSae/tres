@@ -8,7 +8,16 @@ interface LogOptions {
   entityId?: string;
   details?: string;
   severity?: LogSeverity;
-  userId?: string; // Added userId to options
+  userId?: string;
+}
+
+interface ActivityLogParams {
+  userId: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  details?: Record<string, any>;
+  severity?: LogSeverity;
 }
 
 export async function logActivity(
@@ -29,12 +38,32 @@ export async function logActivity(
   
   const { entityType, entityId, details, severity = LogSeverity.INFO } = options;
   
-  return db.activityLog.create({  // Changed prisma to db to match imports
+  return db.activityLog.create({
     data: {
       action,
       entityType,
       entityId,
       details,
+      severity,
+      userId,
+    }
+  });
+}
+
+export async function createActivityLog({
+  userId,
+  action,
+  resource,
+  resourceId,
+  details,
+  severity = LogSeverity.INFO,
+}: ActivityLogParams) {
+  return db.activityLog.create({
+    data: {
+      action,
+      entityType: resource,
+      entityId: resourceId,
+      details: details ? JSON.stringify(details) : undefined,
       severity,
       userId,
     }

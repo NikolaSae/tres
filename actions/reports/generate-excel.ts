@@ -1,11 +1,10 @@
-///actions/reports/generate-excel.ts
 "use server";
 
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 import { canGenerateReports } from "@/lib/security/permission-checker";
 import { revalidatePath } from "next/cache";
-import { generateExcelReport } from "@/lib/reports/excel-generator";
+import { generateExcelReport as createExcelFile } from "@/lib/reports/excel-generator";
 import { createActivityLog } from "@/lib/security/audit-logger";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
@@ -244,7 +243,7 @@ export async function generateExcelReport({
   const reportName = `${config.title.replace(/\s+/g, '_')}_${dateStr}.xlsx`;
   
   // Generate Excel file buffer
-  const excelBuffer = await generateExcelReport(filteredData, {
+  const excelBuffer = await createExcelFile(filteredData, {
     title: config.title,
     headers: effectiveColumns,
     filename: reportName,
