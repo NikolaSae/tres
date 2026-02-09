@@ -95,14 +95,15 @@ export async function getOrganizationsWithReportData(
       
       if (contract.startDate) {
         try {
-          let dateToConvert = contract.startDate;
+          const dateToConvert = contract.startDate;
           
           if (typeof dateToConvert === 'string') {
             parsedDate = new Date(dateToConvert);
           } else if (dateToConvert instanceof Date) {
             parsedDate = new Date(dateToConvert.getTime());
-          } else if (dateToConvert && typeof dateToConvert === 'object') {
-            parsedDate = new Date(dateToConvert.toString());
+          } else {
+            // Handle any other type by attempting to convert to string first
+            parsedDate = new Date(String(dateToConvert));
           }
           
           if (!parsedDate || isNaN(parsedDate.getTime())) {
