@@ -393,18 +393,13 @@ async function readXlsxDataFast(filePath: string): Promise<{ accountNumber: numb
     const ExcelJS = await import('exceljs');
     const workbook = new ExcelJS.Workbook();
     
-    // Read only the first worksheet for performance
-    const worksheetReader = workbook.xlsx.createInputStream();
-    const fileStream = await fs.open(filePath, 'r');
-    const stream = fileStream.createReadStream();
+    // Open file as stream for memory efficiency
+    const fileHandle = await fs.open(filePath, 'r');
+    const stream = fileHandle.createReadStream();
     
-    await new Promise((resolve, reject) => {
-      worksheetReader.read(stream)
-        .then(() => resolve(void 0))
-        .catch(reject);
-    });
-    
-    await fileStream.close();
+    // Read workbook from stream
+    await workbook.xlsx.read(stream);
+    await fileHandle.close();
     
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) return { accountNumber: null, totalSum: null };
