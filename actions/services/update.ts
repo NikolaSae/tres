@@ -65,7 +65,7 @@ export async function updateContract(id: string, formData: any) {
         name: validatedData.name,
         contractNumber: validatedData.contractNumber,
         type: validatedData.type,
-        status: statusEnum,  // ← sada je tačna enum vrednost ili undefined
+        status: statusEnum,
         startDate: validatedData.startDate,
         endDate: validatedData.endDate,
         revenuePercentage: validatedData.revenuePercentage,
@@ -80,11 +80,11 @@ export async function updateContract(id: string, formData: any) {
       }
     });
 
-    // Log aktivnost
+    // Log aktivnost – ispravno pozivanje sa 2 argumenta
     await logActivity('UPDATE_CONTRACT', {
       entityType: 'contract',
       entityId: updatedContract.id,
-      details: `Updated contract: ${updatedContract.name}`,
+      details: `Updated contract: ${updatedContract.name} (status: ${updatedContract.status})`,
       userId: session.user.id
     });
 
@@ -104,6 +104,7 @@ export async function updateContract(id: string, formData: any) {
     };
   }
 }
+
 export async function updateService(id: string, values: ServiceFormData) {
   try {
     const session = await auth();
@@ -143,12 +144,11 @@ export async function updateService(id: string, values: ServiceFormData) {
       }
     });
 
-    // Log activity
-    await logActivity({
-      action: 'UPDATE',
+    // Log activity – ispravno pozivanje sa 2 argumenta
+    await logActivity('UPDATE_SERVICE', {
       entityType: 'service',
       entityId: updatedService.id,
-      details: `Updated service: ${updatedService.name}`,
+      details: `Updated service: ${updatedService.name} (type: ${updatedService.type})`,
       userId: session.user.id
     });
 
@@ -165,6 +165,7 @@ export async function updateService(id: string, values: ServiceFormData) {
         details: error.errors.map(e => e.message) 
       };
     }
+    console.error('[UPDATE_SERVICE] Error:', error);
     return { error: 'Failed to update service' };
   }
 }
