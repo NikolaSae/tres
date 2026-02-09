@@ -2,10 +2,9 @@
 "use server";
 
 import * as z from "zod";
-import { AuthError } from "next-auth";
 
 import { db } from "@/lib/db";
-import { signIn } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { loginSchema } from "@/schemas/auth";
 import { getUserByEmail } from "@/data/user";
 import { getTwoFactorTokenByEmail } from "@/data/two-factor-token";
@@ -135,15 +134,17 @@ export const login = async (
   } catch (error) {
     console.error("❌ SignIn error:", error);
     
-    if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return { error: "Invalid credentials!" };
-        default:
-          return { error: "Something went wrong!" };
+    // NextAuth v5 throws regular errors, check the error message instead
+    if (error instanceof Error) {
+      // Check for specific error messages from NextAuth
+      if (error.message.includes("CredentialsSignin") || 
+          error.message.includes("Invalid credentials")) {
+        return { error: "Invalid credentials!" };
       }
     }
 
+    // If it's a redirect (NEXT_REDIRECT), re-throw it
+    // NextAuth uses redirects for successful authentication
     throw error;
   }
 };
@@ -163,9 +164,19 @@ export async function simpleLogin(email: string, password: string) {
     return { success: true };
   } catch (error) {
     console.error("Login error:", error);
+    
+    if (error instanceof Error && 
+        (error.message.includes("CredentialsSignin") || 
+         error.message.includes("Invalid credentials"))) {
+      return { 
+        success: false, 
+        error: "Invalid credentials" 
+      };
+    }
+    
     return { 
       success: false, 
-      error: error instanceof AuthError ? "Invalid credentials" : "Login failed" 
+      error: "Login failed" 
     };
   }
 }
