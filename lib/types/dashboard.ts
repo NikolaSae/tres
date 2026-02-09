@@ -1,5 +1,5 @@
 // lib/types/dashboard.ts
-import { UserRole } from '@prisma/client';
+import { UserRole, LogSeverity } from '@prisma/client';
 
 export interface McpStats {
   totalQueries: number;
@@ -48,7 +48,11 @@ export interface ToolsUsageResponse {
 
 export interface UserLog {
   id: string;
-  details: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  details: string | null;      // ← OVO JE KLJUČNO – dozvoljava null
+  severity: LogSeverity;
   createdAt: Date;
 }
 
