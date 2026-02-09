@@ -89,3 +89,40 @@ export async function sendChatMessage(message: ChatMessage) {
 
   return { role: 'assistant', content: `Eho: ${message.content}` };
 }
+
+// actions/dashboard.ts (dodaj na kraj fajla)
+
+export async function searchUserLogsByEmail(email: string) {
+  try {
+    const user = await db.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { id: true }
+    });
+
+    if (!user) {
+      return { logs: [], error: "Korisnik sa tim email-om ne postoji" };
+    }
+
+    const logs = await db.activityLog.findMany({
+      where: {
+        userId: user.id
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50, // ograniči na poslednjih 50 da ne preoptereti
+      select: {
+        id: true,
+        action: true,
+        details: true,
+        createdAt: true,
+        severity: true,
+        entityType: true,
+        entityId: true
+      }
+    });
+
+    return { logs, error: null };
+  } catch (error) {
+    console.error("Error searching user logs:", error);
+    return { logs: [], error: "Greška pri pretrazi logova" };
+  }
+}
