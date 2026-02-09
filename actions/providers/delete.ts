@@ -8,18 +8,29 @@ import { UserRole, LogSeverity } from "@prisma/client";
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { revalidatePath } from 'next/cache';
 
-
-export async function deleteProvider(id: string): Promise<{ success?: boolean; error?: string, message?: string }> {
+// Fixed return type to include details
+export async function deleteProvider(id: string): Promise<{ 
+  success: boolean; 
+  error?: string; 
+  message?: string;
+  details?: any;
+}> {
     const session = await auth();
     const userId = session?.user?.id;
 
     if (!userId) {
-         return { error: "Unauthorized", success: false };
+         return { 
+           success: false,
+           error: "Unauthorized" 
+         };
     }
 
     const role = await currentRole();
     if (role !== UserRole.ADMIN) {
-       return { error: "Forbidden", success: false };
+       return { 
+         success: false,
+         error: "Forbidden" 
+       };
     }
 
     try {
@@ -32,7 +43,11 @@ export async function deleteProvider(id: string): Promise<{ success?: boolean; e
         });
 
         if (!existingProvider) {
-            return { error: `Provider with ID ${id} not found.`, success: false, message: "Provider not found." };
+            return { 
+              success: false,
+              error: `Provider with ID ${id} not found.`, 
+              message: "Provider not found." 
+            };
         }
 
         await db.provider.delete({
@@ -46,36 +61,50 @@ export async function deleteProvider(id: string): Promise<{ success?: boolean; e
             entityId: existingProvider.id,
             details: `Provider deleted: ${existingProvider.name}`,
             userId: userId,
-            severity: "INFO",
+            severity: LogSeverity.INFO, // Use enum instead of string
           },
         });
 
         revalidatePath('/providers');
         revalidatePath(`/providers/${existingProvider.id}`);
 
-
-        return { success: true, message: "Provider deleted successfully!" };
+        return { 
+          success: true, 
+          message: "Provider deleted successfully!" 
+        };
 
     } catch (error) {
         console.error(`[PROVIDER_DELETE_ERROR] Error deleting provider with ID ${id}:`, error);
 
         if (error instanceof PrismaClientKnownRequestError) {
             if (error.code === 'P2025') {
-                return { error: `Provider with ID ${id} not found.`, success: false, message: "Provider not found." };
+                return { 
+                  success: false,
+                  error: `Provider with ID ${id} not found.`, 
+                  message: "Provider not found." 
+                };
             }
             if (error.code === 'P2003') {
-                return { error: `Cannot delete provider because it is associated with other records.`, success: false, message: "Provider is in use and cannot be deleted." };
+                return { 
+                  success: false,
+                  error: `Cannot delete provider because it is associated with other records.`, 
+                  message: "Provider is in use and cannot be deleted." 
+                };
             }
-             if (error.code && error.clientVersion) {
+            if (error.code && error.clientVersion) {
                 return {
+                    success: false,
                     error: "Database operation failed",
                     message: `Prisma error: ${error.code}`,
                     details: error.message,
-                    success: false
                 };
-           }
+            }
         }
 
-        return { error: "Failed to delete provider.", success: false, message: "An unexpected error occurred." };
+        return { 
+          success: false,
+          error: "Failed to delete provider.", 
+          message: "An unexpected error occurred." 
+        };
     }
 }
