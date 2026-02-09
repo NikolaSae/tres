@@ -1,14 +1,14 @@
 ///actions/reports/generate-excel.ts
-
-
 "use server";
 
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 import { canGenerateReports } from "@/lib/security/permission-checker";
 import { revalidatePath } from "next/cache";
-import { excelGenerator } from "@/lib/reports/excel-generator";
+import { generateExcelReport } from "@/lib/reports/excel-generator";
 import { createActivityLog } from "@/lib/security/audit-logger";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
 
 export type ReportParams = {
   reportType: string;
@@ -228,17 +228,65 @@ export async function generateExcelReport({
   // Determine which columns to include
   const effectiveColumns = columns.length > 0 ? columns : config.defaultColumns;
   
+  // Filter data to only include selected columns
+  const filteredData = formattedData.map((row: any) => {
+    const filtered: any = {};
+    effectiveColumns.forEach(col => {
+      if (row.hasOwnProperty(col)) {
+        filtered[col] = row[col];
+      }
+    });
+    return filtered;
+  });
+  
   // Generate report filename
   const dateStr = new Date().toISOString().split('T')[0];
-  const reportName = `${config.title}_${dateStr}.xlsx`;
+  const reportName = `${config.title.replace(/\s+/g, '_')}_${dateStr}.xlsx`;
   
-  // Generate Excel file
-  const fileUrl = await excelGenerator({
-    data: formattedData,
-    columns: effectiveColumns,
+  // Generate Excel file buffer
+  const excelBuffer = await generateExcelReport(filteredData, {
     title: config.title,
-    fileName: reportName,
+    headers: effectiveColumns,
+    filename: reportName,
   });
+  
+  // Save the file to the public/reports directory
+  const reportsDir = join(process.cwd(), 'public', 'reports');
+  
+  // Ensure the directory exists
+  await mkdir(reportsDir, { recursive: true });
+  
+  // Save the file
+  const filePath = join(reportsDir, reportName);
+  await writeFile(filePath, excelBuffer);
+  
+  // Create the public URL
+  const fileUrl = `/reports/${reportName}`;
   
   // Log the report generation
   await createActivityLog({
+    userId: user.id,
+    action: "GENERATE_REPORT",
+    resource: "REPORT",
+    resourceId: reportName,
+    details: {
+      reportType,
+      recordCount: formattedData.length,
+      dateRange: {
+        start: effectiveStartDate.toISOString(),
+        end: effectiveEndDate.toISOString(),
+      },
+      filters,
+    },
+  });
+  
+  // Revalidate the reports page
+  revalidatePath("/reports");
+  
+  return {
+    fileUrl,
+    reportName,
+    generatedAt: new Date(),
+    recordCount: formattedData.length,
+  };
+}
