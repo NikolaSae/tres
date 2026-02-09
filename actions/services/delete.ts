@@ -1,8 +1,7 @@
-///actions/services/delete.ts
-
+// actions/services/delete.ts
 'use server'
 
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logActivity } from '@/lib/security/audit-logger';
@@ -15,8 +14,8 @@ export async function deleteService(id: string) {
   }
   
   try {
-    // Find the service to get the type before deletion
-    const service = await prisma.service.findUnique({
+    // Pronađi servis pre brisanja (da dobijemo name i type)
+    const service = await db.service.findUnique({
       where: { id }
     });
     
@@ -24,21 +23,21 @@ export async function deleteService(id: string) {
       throw new Error("Service not found");
     }
     
-    // Delete the service
-    await prisma.service.delete({
+    // Obriši servis
+    await db.service.delete({
       where: { id }
     });
     
-    // Log activity
-    await logActivity({
-      action: 'DELETE',
+    // Loguj aktivnost – ispravno pozivanje sa 2 argumenta
+    await logActivity('DELETE_SERVICE', {
       entityType: 'service',
       entityId: id,
-      details: `Deleted service: ${service.name}`,
-      userId: session.user.id
+      details: `Deleted service: ${service.name} (type: ${service.type})`,
+      userId: session.user.id,
+      // severity: LogSeverity.INFO, // opciono, ako želiš eksplicitno
     });
     
-    // Revalidate cache
+    // Revalidate putanje
     revalidatePath('/services');
     revalidatePath(`/services/${service.type.toLowerCase()}`);
     
