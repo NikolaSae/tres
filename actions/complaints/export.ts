@@ -43,7 +43,7 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     };
   }
 
-  // Statuses (multiple)
+  // Statuses
   if (options.statuses && options.statuses.length > 0) {
     where.status = { in: options.statuses };
   }
@@ -53,7 +53,7 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     where.priority = options.priority;
   }
 
-  // Search (po title i description)
+  // Search (title i description)
   if (options.search) {
     where.OR = [
       { title: { contains: options.search, mode: 'insensitive' } },
@@ -61,18 +61,18 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     ];
   }
 
-  // Service, provider, product
+  // Veze sa entitetima
   if (options.serviceId) where.serviceId = options.serviceId;
   if (options.providerId) where.providerId = options.providerId;
   if (options.productId) where.productId = options.productId;
-
-  // Dodatno – ko je podneo / kome je dodeljeno
   if (options.submittedById) where.submittedById = options.submittedById;
   if (options.assignedAgentId) where.assignedAgentId = options.assignedAgentId;
-
-  // Humanitarna org / parking service
   if (options.humanitarianOrgId) where.humanitarianOrgId = options.humanitarianOrgId;
   if (options.parkingServiceId) where.parkingServiceId = options.parkingServiceId;
+
+  // Sortiranje
+  const orderBy = options.orderBy || 'createdAt';
+  const orderDirection = options.orderDirection || 'desc';
 
   // Fetch complaints with relations
   const complaints = await db.complaint.findMany({
@@ -83,8 +83,11 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
       provider: { select: { name: true } },
       submittedBy: { select: { name: true, email: true } },
       assignedAgent: { select: { name: true, email: true } },
+      humanitarianOrg: { select: { name: true } },
+      parkingService: { select: { name: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { [orderBy]: orderDirection },
+    take: options.limit || 1000, // max 1000 da ne preoptereti
   });
 
   // Transform data for export
@@ -104,8 +107,8 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     provider: complaint.provider?.name || "N/A",
     submittedBy: complaint.submittedBy?.name || complaint.submittedBy?.email || "Unknown",
     assignedTo: complaint.assignedAgent?.name || complaint.assignedAgent?.email || "Unassigned",
-    humanitarianOrgId: complaint.humanitarianOrgId || "N/A",
-    parkingServiceId: complaint.parkingServiceId || "N/A",
+    humanitarianOrg: complaint.humanitarianOrg?.name || "N/A",
+    parkingService: complaint.parkingService?.name || "N/A",
   }));
 
   // Format based on requested export type
@@ -115,7 +118,7 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     case "json":
       return JSON.stringify(exportData, null, 2);
     case "excel":
-      return JSON.stringify(exportData); // možeš kasnije dodati excel biblioteku
+      return JSON.stringify(exportData); // možeš dodati excel biblioteku kasnije
     default:
       throw new Error(`Unsupported export format: ${options.format}`);
   }

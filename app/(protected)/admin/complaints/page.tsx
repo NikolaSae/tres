@@ -70,12 +70,13 @@ const { complaints, isLoading, error, mutate } = useComplaints({
     await exportComplaints({
       format: "csv",
       statuses: status ? [status as ComplaintStatus] : undefined,
-      priority: priorityValue,                  // koristi parsed vrednost iz page.tsx
       serviceId: service || undefined,
       providerId: provider || undefined,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      search: search || undefined
+      dateRange: (startDate || endDate) ? {
+        from: startDate ? new Date(startDate) : new Date(0), // fallback na epoch ako nema start
+        to: endDate ? new Date(endDate) : new Date(),         // fallback na sada ako nema end
+      } : undefined,
+      // search – NE postoji u ExportOptions, pa ga UKLONI
     });
 
     setNotification({
