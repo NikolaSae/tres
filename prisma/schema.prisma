@@ -108,6 +108,7 @@ model User {
   twoFactorConfirmation   TwoFactorConfirmation?
 
   // Relations
+  servicesCreated         Service[]              @relation("ServiceCreator")
   createdContracts        Contract[]             @relation("ContractCreator")
   modifiedContracts       Contract[]             @relation("ContractModifier")
   uploadedAttachments     ContractAttachment[]
@@ -602,6 +603,8 @@ model Service {
   updatedAt     DateTime        @updatedAt
   billingType   BillingType?
   products      Product[]
+  createdById   String?
+  createdBy     User?           @relation("ServiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   // Relations
   contracts     ServiceContract[]
   vasServices   VasService[]
@@ -611,6 +614,7 @@ model Service {
   vasTransactions VasTransaction[]
   @@index([type])
   @@index([name])
+  @@index([createdById])
 }
 
 // VAS Service model
