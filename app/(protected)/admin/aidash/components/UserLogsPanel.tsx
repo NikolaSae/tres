@@ -21,6 +21,7 @@ export function UserLogsPanel() {
     
     setLoading(true);
     setError(null);
+    setLogs([]); // reset pre nove pretrage
     
     try {
       const result = await searchUserLogsByEmail(searchEmail);
@@ -29,10 +30,17 @@ export function UserLogsPanel() {
         setError(result.error);
         setLogs([]);
       } else {
-        setLogs(result.logs);
+        // Konvertuj details: string | null → string (da bi bio kompatibilan sa UserLog)
+        const safeLogs = (result.logs || []).map(log => ({
+          ...log,
+          details: log.details ?? 'Nema dodatnih detalja'  // null → fallback string
+        })) as UserLog[];
+
+        setLogs(safeLogs);
       }
     } catch (err) {
-      setError('Greška pri pretrazi');
+      console.error('Pretraga logova greška:', err);
+      setError('Greška pri pretrazi logova');
       setLogs([]);
     } finally {
       setLoading(false);
@@ -115,6 +123,11 @@ export function UserLogsPanel() {
                       {JSON.stringify(args, null, 2)}
                     </pre>
                   )}
+                  <div className="mt-2 text-xs text-gray-500">
+                    {log.details && log.details !== 'Nema dodatnih detalja' && (
+                      <p className="italic">{log.details}</p>
+                    )}
+                  </div>
                 </motion.div>
               );
             })

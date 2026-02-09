@@ -179,6 +179,6 @@ export function useComplaints(params: UseComplaintsParams = {}): UseComplaintsRe
     error,
     totalCount,
     totalPages,
-    refresh
+    mutate: refresh
   };
 }
