@@ -1,6 +1,6 @@
 // /actions/reports/humanitarian/index.ts
 import { promises as fs } from 'fs';
-import { PaymentType, TemplateType, ReportGenerationResult } from './types';
+import { PaymentType, TemplateType, ReportGenerationResult, UnifiedHumanitarianReport } from './types';
 import { GlobalCounterManager } from './core/counter-manager';
 import { getOrganizationsWithReportData } from './data/fetch-organizations';
 import { PrepaidReportGenerator } from './generators/prepaid-generator';
@@ -53,35 +53,38 @@ export async function generateAllHumanitarianReports(
       };
     }
 
-// ISPRAVNO SORTIRANJE PO shortNumber (ascending) – 100% radi
-organizations.sort((a, b) => {
-  const getNum = (short: string | null | undefined): number => {
-    if (!short) return Infinity;
-    const trimmed = short.trim();
-    if (!trimmed) return Infinity;
-    const num = parseInt(trimmed, 10);
-    return isNaN(num) ? Infinity : num;
-  };
+    // 🔹 ISPRAVNO SORTIRANJE PO shortNumber (ascending)
+    organizations.sort((a, b) => {
+      const getNum = (short: string | null | undefined): number => {
+        if (!short) return Infinity;
+        const trimmed = short.trim();
+        if (!trimmed) return Infinity;
+        const num = parseInt(trimmed, 10);
+        return isNaN(num) ? Infinity : num;
+      };
 
-  const numA = getNum(a.shortNumber);
-  const numB = getNum(b.shortNumber);
+      const numA = getNum(a.shortNumber);
+      const numB = getNum(b.shortNumber);
 
-  if (numA !== numB) {
-    return numA - numB; // manji shortNumber → ranije
-  }
+      if (numA !== numB) {
+        return numA - numB;
+      }
 
-  // Ako imaju isti broj ili oba nemaju → po imenu
-  return a.name.localeCompare(b.name);
-});
-console.log(`Obrada ${organizations.length} organizacija – redosled po shortNumber:`);
-organizations.forEach((org, i) => {
-  console.log(`${String(i + 1).padStart(2)}. ${String(org.shortNumber || 'NULL').padEnd(6)} → ${org.name}`);
-});
+      return a.name.localeCompare(b.name);
+    });
+
+    console.log(`Obrada ${organizations.length} organizacija – redosled po shortNumber:`);
+    organizations.forEach((org, i) => {
+      console.log(
+        `${String(i + 1).padStart(2)}. ${String(org.shortNumber || 'NULL').padEnd(6)} → ${org.name}`
+      );
+    });
 
     // 🔹 Izbor generatora
-    const generator = paymentType === 'prepaid' 
-      ? new PrepaidReportGenerator()
-      : new PostpaidReportGenerator();
+    const generator =
+      paymentType === 'prepaid'
+        ? new PrepaidReportGenerator()
+        : new PostpaidReportGenerator();
 
     for (const org of organizations) {
       try {
@@ -93,7 +96,9 @@ organizations.forEach((org, i) => {
         );
         generatedFiles.push(result);
       } catch (error) {
-        const errorMsg = `❌ Greška za ${org.name}: ${error instanceof Error ? error.message : 'Nepoznata greška'}`;
+        const errorMsg = `❌ Greška za ${org.name}: ${
+          error instanceof Error ? error.message : 'Nepoznata greška'
+        }`;
         errors.push(errorMsg);
         generatedFiles.push({
           organizationName: org.name,
@@ -104,15 +109,20 @@ organizations.forEach((org, i) => {
       }
     }
 
-    // 🔹 Pokretanje Unified generatora samo ako ima bar jedan uspešan izveštaj
-    let unifiedReport = null;
+    // 🔹 Unified humanitarian generator
+    let unifiedReport: UnifiedHumanitarianReport | undefined;
+
     try {
-      console.log("📦 Generating unified humanitarian Excel report...");
+      console.log('📦 Generating unified humanitarian Excel report...');
       unifiedReport = await HumanitarianUnifiedGenerator.generate(month, year);
       console.log(`✅ Unified humanitarian report done: ${unifiedReport.path}`);
     } catch (error) {
       console.error('❌ Unified generator failed:', error);
-      errors.push(error instanceof Error ? error.message : 'Nepoznata greška u unified generatoru');
+      errors.push(
+        error instanceof Error
+          ? error.message
+          : 'Nepoznata greška u unified generatoru'
+      );
     }
 
     const successCount = generatedFiles.filter(f => f.status === 'success').length;
@@ -124,7 +134,9 @@ organizations.forEach((org, i) => {
       message:
         successCount === organizations.length
           ? `✅ Uspešno generisano ${successCount} kompletnih ${paymentType} izveštaja + unified report`
-          : `⚠️ Uspešno generisano ${successCount} od ${organizations.length} ${paymentType} izveštaja (unified report: ${unifiedReport ? 'urađen' : 'nije urađen'})`,
+          : `⚠️ Uspešno generisano ${successCount} od ${organizations.length} ${paymentType} izveštaja (unified report: ${
+              unifiedReport ? 'urađen' : 'nije urađen'
+            })`,
       processed: successCount,
       errors: errors.length > 0 ? errors : undefined,
       generatedFiles,
@@ -133,6 +145,7 @@ organizations.forEach((org, i) => {
   } catch (error) {
     GlobalCounterManager.finishGeneration();
     console.error('❌ Error in generateAllHumanitarianReports:', error);
+
     return {
       success: false,
       message: `Greška pri generisanju kompletnih ${paymentType} izveštaja`,
