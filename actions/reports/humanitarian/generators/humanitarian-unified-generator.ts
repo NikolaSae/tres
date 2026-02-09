@@ -82,8 +82,8 @@ export class HumanitarianUnifiedGenerator {
           const address = cell.address;
           if (!processedMerges.has(address)) {
             // Find the range by checking adjacent cells
-            const masterRow = cell.row;
-            const masterCol = cell.col;
+            const masterRow = Number(cell.row);
+            const masterCol = Number(cell.col);
             let maxRow = masterRow;
             let maxCol = masterCol;
             
