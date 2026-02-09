@@ -139,7 +139,7 @@ export async function importVasServiceData(csvContent: string): Promise<VasImpor
         if (isNaN(nenaplacenIznos)) rowErrors.push(`Invalid number format for 'Nenaplacen_iznos': "${row['Nenaplacen_iznos']}"`);
 
         const nenaplacenKorigovanIznos = parseFloat(row['Nenaplacen_korigovan_iznos']?.trim()?.replace(',', '.') || '0');
-        if (isNaN(nenaplacenKorigovanIznos)) rowErrors.push(`Invalid number format for 'Nenaplacen_korigovan_iznos': "${row['Nenaplacen_korigovan_iznosa']}"`);
+        if (isNaN(nenaplacenKorigovanIznos)) rowErrors.push(`Invalid number format for 'Nenaplacen_korigovan_iznos': "${row['Nenaplacen_korigovan_iznos']}"`);
 
         const storniranIznos = parseFloat(row['Storniran_iznos_u_tekucem_mesecu_iz_perioda_pracenja']?.trim()?.replace(',', '.') || '0');
         if (isNaN(storniranIznos)) rowErrors.push(`Invalid number format for 'Storniran_iznos_u_tekucem_mesecu_iz_perioda_pracenja': "${row['Storniran_iznos_u_tekucem_mesecu_iz_perioda_pracenja']}"`);
