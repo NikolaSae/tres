@@ -58,7 +58,7 @@ export async function updateContract(id: string, formData: any) {
       }
     }
 
-    // Ažuriraj ugovor
+    // Ažuriraj ugovor – koristi nested write za services relaciju
     const updatedContract = await db.contract.update({
       where: { id },
       data: {
@@ -76,7 +76,15 @@ export async function updateContract(id: string, formData: any) {
         operatorId: validatedData.operatorId,
         isRevenueSharing: validatedData.isRevenueSharing,
         operatorRevenue: validatedData.operatorRevenue,
-        services: validatedData.services
+        
+        // Ispravljeno: nested write za services (delete old, create new)
+        services: validatedData.services ? {
+          deleteMany: {},  // obriši sve stare veze
+          create: validatedData.services.map(s => ({
+            serviceId: s.serviceId,
+            specificTerms: s.specificTerms || null
+          }))
+        } : undefined,
       }
     });
 
