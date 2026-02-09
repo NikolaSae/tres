@@ -68,13 +68,14 @@ const { complaints, isLoading, error, mutate } = useComplaints({
   const handleExport = async () => {
   try {
     await exportComplaints({
-      format: "csv",  // ili "json" / "excel" ako imaš izbor
+      format: "csv",
       statuses: status ? [status as ComplaintStatus] : undefined,
-      serviceId: service,
-      providerId: provider,
+      priority: priorityValue,                  // koristi parsed vrednost iz page.tsx
+      serviceId: service || undefined,
+      providerId: provider || undefined,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      search
+      search: search || undefined
     });
 
     setNotification({

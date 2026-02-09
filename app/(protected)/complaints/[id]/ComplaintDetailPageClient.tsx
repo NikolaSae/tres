@@ -55,7 +55,7 @@ export default function ComplaintDetailPageClient({
     // This hook might need modification to accept initialData and handle refreshing
     // For now, we'll keep the existing hook call, assuming 'refresh' works correctly.
     // A more advanced pattern would be to use initialData and mutate cache.
-    const { complaint, isLoading, error, refresh } = useComplaints({ id: id as string }, initialComplaint);
+    const { complaint, isLoading, error, mutate } = useComplaints({ id: id as string }, initialComplaint);
 
 
     // Get current user session and status

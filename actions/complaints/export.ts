@@ -15,9 +15,15 @@ export type ExportOptions = {
     to: Date;
   };
   statuses?: ComplaintStatus[];
+  priority?: number;              // 1-5
+  search?: string;                // pretraga po title/description
   serviceId?: string;
   providerId?: string;
   productId?: string;
+  submittedById?: string;         // ko je podneo žalbu
+  assignedAgentId?: string;       // kome je dodeljena
+  humanitarianOrgId?: string;     // ako je povezano sa humanitarnom org.
+  parkingServiceId?: string;      // ako je povezano sa parking servisom
 };
 
 export async function exportComplaints(options: ExportOptions): Promise<string> {
@@ -28,68 +34,57 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
 
   // Build filter criteria
   const where: any = {};
-  
+
+  // Date range
   if (options.dateRange) {
     where.createdAt = {
       gte: options.dateRange.from,
       lte: options.dateRange.to,
     };
   }
-  
+
+  // Statuses (multiple)
   if (options.statuses && options.statuses.length > 0) {
-    where.status = {
-      in: options.statuses,
-    };
+    where.status = { in: options.statuses };
   }
-  
-  if (options.serviceId) {
-    where.serviceId = options.serviceId;
+
+  // Priority
+  if (options.priority !== undefined) {
+    where.priority = options.priority;
   }
-  
-  if (options.providerId) {
-    where.providerId = options.providerId;
+
+  // Search (po title i description)
+  if (options.search) {
+    where.OR = [
+      { title: { contains: options.search, mode: 'insensitive' } },
+      { description: { contains: options.search, mode: 'insensitive' } },
+    ];
   }
-  
-  if (options.productId) {
-    where.productId = options.productId;
-  }
+
+  // Service, provider, product
+  if (options.serviceId) where.serviceId = options.serviceId;
+  if (options.providerId) where.providerId = options.providerId;
+  if (options.productId) where.productId = options.productId;
+
+  // Dodatno – ko je podneo / kome je dodeljeno
+  if (options.submittedById) where.submittedById = options.submittedById;
+  if (options.assignedAgentId) where.assignedAgentId = options.assignedAgentId;
+
+  // Humanitarna org / parking service
+  if (options.humanitarianOrgId) where.humanitarianOrgId = options.humanitarianOrgId;
+  if (options.parkingServiceId) where.parkingServiceId = options.parkingServiceId;
 
   // Fetch complaints with relations
   const complaints = await db.complaint.findMany({
     where,
     include: {
-      service: {
-        select: {
-          name: true,
-        },
-      },
-      product: {
-        select: {
-          name: true,
-          code: true,
-        },
-      },
-      provider: {
-        select: {
-          name: true,
-        },
-      },
-      submittedBy: {
-        select: {
-          name: true,
-          email: true,
-        },
-      },
-      assignedAgent: {
-        select: {
-          name: true,
-          email: true,
-        },
-      },
+      service: { select: { name: true } },
+      product: { select: { name: true, code: true } },
+      provider: { select: { name: true } },
+      submittedBy: { select: { name: true, email: true } },
+      assignedAgent: { select: { name: true, email: true } },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
 
   // Transform data for export
@@ -99,6 +94,7 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     description: complaint.description,
     status: complaint.status,
     priority: complaint.priority,
+    financialImpact: complaint.financialImpact || 0,
     createdAt: formatDate(complaint.createdAt),
     updatedAt: formatDate(complaint.updatedAt),
     resolvedAt: complaint.resolvedAt ? formatDate(complaint.resolvedAt) : null,
@@ -108,7 +104,8 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     provider: complaint.provider?.name || "N/A",
     submittedBy: complaint.submittedBy?.name || complaint.submittedBy?.email || "Unknown",
     assignedTo: complaint.assignedAgent?.name || complaint.assignedAgent?.email || "Unassigned",
-    financialImpact: complaint.financialImpact || 0,
+    humanitarianOrgId: complaint.humanitarianOrgId || "N/A",
+    parkingServiceId: complaint.parkingServiceId || "N/A",
   }));
 
   // Format based on requested export type
@@ -118,8 +115,7 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
     case "json":
       return JSON.stringify(exportData, null, 2);
     case "excel":
-      // For Excel, we return a JSON format that can be processed by the excel-generator utility
-      return JSON.stringify(exportData);
+      return JSON.stringify(exportData); // možeš kasnije dodati excel biblioteku
     default:
       throw new Error(`Unsupported export format: ${options.format}`);
   }
