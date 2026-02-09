@@ -1,10 +1,10 @@
 // actions/providers/get.ts
 'use server';
 
-import { db } from '@/lib/db'; // Changed from default import to named import
+import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { currentRole } from '@/lib/auth';
-import { UserRole } from '@prisma/client';
+import { UserRole, Prisma } from '@prisma/client';
 import { ProviderWithCounts, ProviderFilterOptions } from '@/lib/types/provider-types';
 
 export async function getProviders(params: ProviderFilterOptions & {
@@ -37,24 +37,37 @@ export async function getProviders(params: ProviderFilterOptions & {
 
     const { page = 1, limit = 10, ...filters } = params;
     
-    // Build where clause
-    const where = {
-      AND: [
-        filters.search && {
-          OR: [
-            { name: { contains: filters.search, mode: 'insensitive' as const } },
-            { contactName: { contains: filters.search, mode: 'insensitive' as const } },
-            { email: { contains: filters.search, mode: 'insensitive' as const } }
-          ]
-        },
-        filters.isActive !== undefined && { isActive: filters.isActive },
-        filters.hasContracts && { contracts: { some: {} } },
-        filters.hasComplaints && { complaints: { some: {} } }
-      ].filter(Boolean)
-    };
+    // Build where clause with proper typing
+    const whereConditions: Prisma.ProviderWhereInput[] = [];
+
+    if (filters.search) {
+      whereConditions.push({
+        OR: [
+          { name: { contains: filters.search, mode: 'insensitive' } },
+          { contactName: { contains: filters.search, mode: 'insensitive' } },
+          { email: { contains: filters.search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    if (filters.isActive !== undefined) {
+      whereConditions.push({ isActive: filters.isActive });
+    }
+
+    if (filters.hasContracts) {
+      whereConditions.push({ contracts: { some: {} } });
+    }
+
+    if (filters.hasComplaints) {
+      whereConditions.push({ complaints: { some: {} } });
+    }
+
+    const where: Prisma.ProviderWhereInput = whereConditions.length > 0 
+      ? { AND: whereConditions }
+      : {};
 
     // Handle sorting
-    const orderBy = filters.sortBy ? {
+    const orderBy: Prisma.ProviderOrderByWithRelationInput | undefined = filters.sortBy ? {
       [filters.sortBy]: filters.sortDirection || 'asc'
     } : undefined;
 
