@@ -3,7 +3,23 @@ import { db } from "@/lib/db";
 
 export const getUserByEmail = async (email: string) => {
   try {
-    const user = await db.user.findUnique({ where: { email } });
+    const user = await db.user.findUnique({ 
+      where: { email },
+      // Explicitly select fields to ensure TypeScript knows about them
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        emailVerified: true,
+        password: true,
+        role: true,
+        isActive: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        isTwoFactorEnabled: true,
+      }
+    });
     return user;
   } catch {
     return null;
@@ -12,7 +28,23 @@ export const getUserByEmail = async (email: string) => {
 
 export const getUserById = async (id: string) => {
   try {
-    const user = await db.user.findUnique({ where: { id } });
+    const user = await db.user.findUnique({ 
+      where: { id },
+      // Explicitly select fields to ensure TypeScript knows about them
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        emailVerified: true,
+        password: true,
+        role: true,
+        isActive: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        isTwoFactorEnabled: true,
+      }
+    });
     return user;
   } catch {
     return null;
@@ -38,6 +70,7 @@ export const getAllUsers = async () => {
     return [];
   }
 };
+
 // Function to fetch a user by assignedToId
 export const getUserByAssignedToId = async (assignedToId: string) => {
   try {
