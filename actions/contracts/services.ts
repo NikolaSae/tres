@@ -47,7 +47,6 @@ export async function addContractService(input: AddContractServiceInput): Promis
         });
 
          const newSelectedService: SelectedService = {
-             id: createdLink.id,
              serviceId: createdLink.serviceId,
              service: createdLink.service as any,
              specificTerms: createdLink.specificTerms ?? undefined,
