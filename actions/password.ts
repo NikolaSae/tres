@@ -1,22 +1,23 @@
+///actions/password.ts
 "use server";
 
 import * as z from "zod";
 import bcrypt from "bcryptjs";
 
-import { NewPasswordSchema } from "@/schemas";
+import { newPasswordSchema } from "@/schemas"; // Changed to lowercase
 import { getPasswordResetTokenByToken } from "@/data/password-reset-token";
 import { getUserByEmail } from "@/data/user";
 import { db } from "@/lib/db";
 
 export const newPassword = async (
-  values: z.infer<typeof NewPasswordSchema>,
+  values: z.infer<typeof newPasswordSchema>, // Changed to lowercase
   token?: string | null
 ) => {
   if (!token) {
     return { error: "Missing token!" };
   }
 
-  const validatedFields = NewPasswordSchema.safeParse(values);
+  const validatedFields = newPasswordSchema.safeParse(values); // Changed to lowercase
 
   if (!validatedFields.success) {
     return {
@@ -42,9 +43,9 @@ export const newPassword = async (
     };
   }
 
-  const exitingUser = await getUserByEmail(existingToken.email);
+  const existingUser = await getUserByEmail(existingToken.email); // Fixed typo: exitingUser -> existingUser
 
-  if (!exitingUser) {
+  if (!existingUser) { // Fixed typo: exitingUser -> existingUser
     return {
       error: "User not found!",
     };
@@ -53,7 +54,7 @@ export const newPassword = async (
   const hashedPassword = await bcrypt.hash(password, 10);
 
   await db.user.update({
-    where: { id: exitingUser.id },
+    where: { id: existingUser.id }, // Fixed typo: exitingUser -> existingUser
     data: {
       password: hashedPassword,
     },
