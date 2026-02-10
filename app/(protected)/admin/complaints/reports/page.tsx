@@ -38,8 +38,10 @@ export default function ComplaintsReportsPage() {
     endDate: new Date()
   });
   const [reportType, setReportType] = useState("all");
+  // ISPRAVKA: Dodaj title u notification state
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "info";
+    title: string;
     message: string;
   } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -57,13 +59,17 @@ export default function ComplaintsReportsPage() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
+      // ISPRAVKA: Dodaj title
       setNotification({
         type: "success",
+        title: "Report Generated",
         message: "Report generated successfully. It will appear in the list when ready."
       });
     } catch (error) {
+      // ISPRAVKA: Dodaj title
       setNotification({
         type: "error",
+        title: "Generation Failed",
         message: "Failed to generate report. Please try again."
       });
     } finally {
@@ -97,9 +103,11 @@ export default function ComplaintsReportsPage() {
         </div>
       </div>
       
+      {/* ISPRAVKA: Dodaj title prop */}
       {notification && (
         <NotificationBanner
           type={notification.type}
+          title={notification.title}
           message={notification.message}
           onClose={() => setNotification(null)}
         />
