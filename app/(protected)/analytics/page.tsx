@@ -30,10 +30,15 @@ interface AnalyticsDashboardProps {
 
 // Async komponente za svaki widget - omogućava paralelno učitavanje
 async function KpiDashboardWrapper({ filters }: { filters: any }) {
+  // Calculate date range for last 3 months
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - 3);
+
   const [financialData, salesData, complaintData] = await Promise.all([
-    getFinancialData({ period: "monthly", months: 3 }),
-    getSalesMetrics({ period: "monthly", months: 3 }),
-    getComplaintStats({ period: "monthly", months: 3 })
+    getFinancialData({ startDate, endDate }),
+    getSalesMetrics({ startDate, endDate }),
+    getComplaintStats({ startDate, endDate })
   ]);
 
   return (
@@ -46,12 +51,22 @@ async function KpiDashboardWrapper({ filters }: { filters: any }) {
 }
 
 async function FinancialOverviewWrapper() {
-  const data = await getFinancialData({ period: "monthly", months: 3 });
+  // Calculate date range for last 3 months
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - 3);
+  
+  const data = await getFinancialData({ startDate, endDate });
   return <FinancialOverview data={data} />;
 }
 
 async function ComplaintAnalyticsWrapper() {
-  const data = await getComplaintStats({ period: "monthly", months: 3 });
+  // Calculate date range for last 3 months
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - 3);
+  
+  const data = await getComplaintStats({ startDate, endDate });
   return <ComplaintAnalytics data={data} />;
 }
 
