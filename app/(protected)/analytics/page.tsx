@@ -56,8 +56,13 @@ async function FinancialOverviewWrapper() {
   const startDate = new Date();
   startDate.setMonth(startDate.getMonth() - 3);
   
-  const data = await getFinancialData({ startDate, endDate });
-  return <FinancialOverview data={data} />;
+  try {
+    const data = await getFinancialData({ startDate, endDate });
+    return <FinancialOverview data={data} />;
+  } catch (error) {
+    // If FinancialOverview expects error prop, pass it here
+    return <FinancialOverview data={null} />;
+  }
 }
 
 async function ComplaintAnalyticsWrapper() {
@@ -66,8 +71,12 @@ async function ComplaintAnalyticsWrapper() {
   const startDate = new Date();
   startDate.setMonth(startDate.getMonth() - 3);
   
-  const data = await getComplaintStats({ startDate, endDate });
-  return <ComplaintAnalytics data={data} />;
+  try {
+    const data = await getComplaintStats({ startDate, endDate });
+    return <ComplaintAnalytics data={data} isLoading={false} error={null} />;
+  } catch (error) {
+    return <ComplaintAnalytics data={null} isLoading={false} error={error instanceof Error ? error.message : 'Failed to load complaint data'} />;
+  }
 }
 
 export default async function AnalyticsDashboard({ searchParams }: AnalyticsDashboardProps) {
