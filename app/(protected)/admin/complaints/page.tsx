@@ -22,7 +22,7 @@ import {
 import Link from "next/link";
 import { CsvImport } from "@/components/complaints/CsvImport";
 import { exportComplaints } from "@/actions/complaints/export";
-import { ComplaintStatus } from "@prisma/client";
+import { ComplaintStatus, UserRole } from "@prisma/client";
 import type { ComplaintWithRelations } from "@/lib/types/complaint-types";
 import { useSession } from "next-auth/react";
 
@@ -150,6 +150,12 @@ export default function AdminComplaintsPage() {
     return "USER";
   };
 
+  // Check user permissions
+  const userRole = getUserRole();
+  const isAdmin = userRole === UserRole.ADMIN;
+  const isSupportAgent = userRole === UserRole.SUPPORT_AGENT;
+  const canViewPage = isAdmin || isSupportAgent;
+
   if (error) {
     return (
       <div className="container mx-auto p-6">
@@ -163,38 +169,60 @@ export default function AdminComplaintsPage() {
     );
   }
 
+  // Check access
+  if (!canViewPage) {
+    return (
+      <div className="container mx-auto p-6">
+        <NotificationBanner
+          type="error"
+          title="Access Denied"
+          message="You don't have permission to access this page."
+          onClose={() => {}}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 top-0">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Complaint Management</h1>
         
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsImportModalOpen(true)}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={handleExport}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          {/* Only ADMIN can import/export */}
+          {isAdmin && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setIsImportModalOpen(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={handleExport}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </>
+          )}
           
           <Button onClick={() => mutate()}>
             <RefreshCcw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
           
-          <Link href="/admin/complaints/statistics">
-            <Button variant="default">
-              View Statistics
-            </Button>
-          </Link>
+          {/* Only ADMIN can view statistics */}
+          {isAdmin && (
+            <Link href="/admin/complaints/statistics">
+              <Button variant="default">
+                View Statistics
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
       
@@ -254,12 +282,13 @@ export default function AdminComplaintsPage() {
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}
-            userRole={getUserRole()}
+            userRole={userRole}
           />
         )}
       </div>
       
-      {isImportModalOpen && (
+      {/* Only ADMIN can import */}
+      {isAdmin && isImportModalOpen && (
         <CsvImport
           onClose={() => setIsImportModalOpen(false)}
           onComplete={handleImportComplete}
