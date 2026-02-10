@@ -18,7 +18,6 @@ import { toast } from "sonner"; // Assuming you use sonner for toasts
 import { ComplaintStatus, UserRole, Complaint } from "@prisma/client"; // Import enums and Complaint type from Prisma client
 import { formatDate } from "@/lib/utils"; // Utility function for date formatting
 import { formatCurrency } from "@/lib/formatters"; // Function for currency formatting
-import { useComplaints } from "@/hooks/use-complaints"; // Custom hook for fetching complaints (will use initial data now)
 import { changeComplaintStatus } from "@/actions/complaints/change-status"; // Server action to change status
 import { addComment } from "@/actions/complaints/comment"; // Server action to add comment
 import { deleteComplaint } from "@/actions/complaints/delete"; // Server action to delete complaint
@@ -51,18 +50,25 @@ export default function ComplaintDetailPageClient({
     const router = useRouter();
     const { id } = useParams<{ id: string }>();
 
-    // Use the initialComplaint from props directly instead of fetching again
-    // If you need real-time updates, you can use useComplaints hook without initial data
-    // For now, we'll use the server-fetched data directly
+    // Use initialComplaint directly - no need to fetch again on mount since we have server data
     const [complaint, setComplaint] = useState(initialComplaint);
+    const [isRefetching, setIsRefetching] = useState(false);
 
-    // Optionally use the hook for refreshing data
-    const { mutate } = useComplaints({ id: id as string });
-
-    // Helper function to refresh complaint data
+    // Helper function to refresh complaint data when needed
     const refresh = async () => {
-        // Trigger a re-fetch using the mutate function from the hook
-        await mutate();
+        setIsRefetching(true);
+        try {
+            const response = await fetch(`/api/complaints/${id}`);
+            if (response.ok) {
+                const data = await response.json();
+                setComplaint(data);
+            }
+        } catch (error) {
+            console.error("Error refreshing complaint:", error);
+            toast.error("Failed to refresh complaint data");
+        } finally {
+            setIsRefetching(false);
+        }
     };
 
     // Get current user session and status
