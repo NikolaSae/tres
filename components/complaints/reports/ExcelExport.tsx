@@ -1,6 +1,5 @@
 // /components/complaints/reports/ExcelExport.tsx
 
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +10,16 @@ import { FileDown, Loader2 } from 'lucide-react';
 import { exportComplaints } from '@/actions/complaints/export';
 
 interface ExcelExportProps {
+  startDate?: Date;
+  endDate?: Date;
   onExportStart?: () => void;
   onExportComplete?: (url: string) => void;
   onExportError?: (error: string) => void;
 }
 
 export function ExcelExport({ 
+  startDate,
+  endDate,
   onExportStart, 
   onExportComplete,
   onExportError 
@@ -28,7 +31,9 @@ export function ExcelExport({
     statusHistory: true,
     attachments: true
   });
-  const [dateRange, setDateRange] = useState<'all' | '30' | '90' | '180' | '365'>('30');
+  const [dateRange, setDateRange] = useState<'all' | '30' | '90' | '180' | '365'>(
+    startDate && endDate ? 'all' : '30'
+  );
 
   const handleExport = async () => {
     try {

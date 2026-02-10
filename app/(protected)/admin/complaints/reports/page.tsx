@@ -39,7 +39,7 @@ export default function ComplaintsReportsPage() {
   });
   const [reportType, setReportType] = useState("all");
   
-  // AŽURIRANO: Koristi UINotificationState
+  // Uses UINotificationState
   const [notification, setNotification] = useState<UINotificationState | null>(null);
   
   const [isExporting, setIsExporting] = useState(false);
@@ -57,7 +57,6 @@ export default function ComplaintsReportsPage() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // AŽURIRANO: Koristi UI notification helper
       setNotification(
         UINotifications.success(
           "Report Generated",
@@ -65,7 +64,6 @@ export default function ComplaintsReportsPage() {
         )
       );
     } catch (error) {
-      // AŽURIRANO: Koristi UI notification helper
       setNotification(
         UINotifications.error(
           "Generation Failed",
@@ -103,7 +101,6 @@ export default function ComplaintsReportsPage() {
         </div>
       </div>
       
-      {/* AŽURIRANO: Koristi notification state sa title */}
       {notification && (
         <NotificationBanner
           type={notification.type}
