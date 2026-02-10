@@ -23,6 +23,7 @@ import Link from "next/link";
 import { CsvImport } from "@/components/complaints/CsvImport";
 import { exportComplaints } from "@/actions/complaints/export";
 import { ComplaintStatus } from "@prisma/client";
+import type { ComplaintWithRelations } from "@/lib/types/complaint-types";
 
 export default function AdminComplaintsPage() {
   const searchParams = useSearchParams();
@@ -213,7 +214,15 @@ export default function AdminComplaintsPage() {
       
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <ComplaintList
-          complaints={complaints || []}
+          complaints={(complaints || []).map(c => ({
+            ...c,
+            providerId: c.providerId ?? null,
+            humanitarianOrgId: c.humanitarianOrgId ?? null,
+            parkingServiceId: c.parkingServiceId ?? null,
+            serviceId: c.serviceId ?? null,
+            productId: c.productId ?? null,
+            assignedAgentId: c.assignedAgentId ?? null,
+          }))}
           isLoading={isLoading}
           isAdminView={true}
         />
