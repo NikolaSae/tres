@@ -41,8 +41,8 @@ export default function AdminComplaintsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Get user role
-  const userRole = session?.user?.role as UserRole || UserRole.USER;
+  // Get user role - safe handling
+  const userRole = (session?.user as any)?.role || "USER";
 
   // Helper function to normalize complaint data (convert undefined to null)
   const normalizeComplaint = (complaint: any) => ({
@@ -160,7 +160,7 @@ export default function AdminComplaintsPage() {
   }
 
   // Check if user has permission to view this page
-  const canViewPage = userRole === UserRole.ADMIN || userRole === UserRole.SUPPORT_AGENT;
+  const canViewPage = userRole === "ADMIN" || userRole === "SUPPORT_AGENT";
   
   if (!canViewPage) {
     return (
@@ -176,7 +176,7 @@ export default function AdminComplaintsPage() {
   }
 
   // Check if user can import/export
-  const canImportExport = userRole === UserRole.ADMIN;
+  const canImportExport = userRole === "ADMIN";
 
   return (
     <div className="container mx-auto p-6 top-0">

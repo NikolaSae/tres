@@ -12,6 +12,13 @@ declare module "next-auth" {
   interface Session {
     user: ExtendedUser;
   }
+
+  // Add this interface to extend User type
+  interface User {
+    role: UserRole;
+    isTwoFactorEnabled: boolean;
+    isOAuth: boolean;
+  }
 }
 
 declare module "next-auth/jwt" {
