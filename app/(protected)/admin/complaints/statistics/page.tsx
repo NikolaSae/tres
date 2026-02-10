@@ -1,9 +1,8 @@
 // app/(protected)/admin/complaints/statistics/page.tsx
 
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DateRangeFilter } from "@/components/complaints/DateRangeFilter";
 import { TrendChart } from "@/components/complaints/charts/TrendChart";
 import { StatusChart } from "@/components/complaints/charts/StatusChart";
@@ -16,6 +15,26 @@ import { Loader2, Download, Filter } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Complaint, Provider } from "@prisma/client";
+import { ComplaintStatus } from "@/lib/types/enums";
+
+// Types for chart data
+interface TrendDataPoint {
+  date: string;
+  new: number;
+  resolved: number;
+  closed: number;
+  total: number;
+}
+
+interface StatusData {
+  status: ComplaintStatus;
+  count: number;
+}
+
+type ComplaintWithProvider = Complaint & {
+  provider?: Provider | null;
+};
 
 export default function ComplaintsStatisticsPage() {
   const router = useRouter();
@@ -28,17 +47,70 @@ export default function ComplaintsStatisticsPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  
+  // State for chart data
+  const [complaints, setComplaints] = useState<ComplaintWithProvider[]>([]);
+  const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
+  const [statusData, setStatusData] = useState<StatusData[]>([]);
+
+  // Fetch data on mount and when date range changes
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsDataLoading(true);
+      try {
+        // In a real implementation, fetch data from API
+        // const response = await fetch(`/api/complaints/statistics?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+        // const data = await response.json();
+        
+        // For now, using mock data
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Mock complaints data
+        const mockComplaints: ComplaintWithProvider[] = [];
+        
+        // Mock trend data
+        const mockTrendData: TrendDataPoint[] = Array.from({ length: 30 }, (_, i) => ({
+          date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          new: Math.floor(Math.random() * 20) + 5,
+          resolved: Math.floor(Math.random() * 15) + 3,
+          closed: Math.floor(Math.random() * 10) + 2,
+          total: Math.floor(Math.random() * 50) + 20,
+        }));
+        
+        // Mock status data
+        const mockStatusData: StatusData[] = [
+          { status: ComplaintStatus.NEW, count: 45 },
+          { status: ComplaintStatus.ASSIGNED, count: 32 },
+          { status: ComplaintStatus.IN_PROGRESS, count: 78 },
+          { status: ComplaintStatus.PENDING, count: 23 },
+          { status: ComplaintStatus.RESOLVED, count: 145 },
+          { status: ComplaintStatus.CLOSED, count: 98 },
+          { status: ComplaintStatus.REJECTED, count: 12 },
+        ];
+        
+        setComplaints(mockComplaints);
+        setTrendData(mockTrendData);
+        setStatusData(mockStatusData);
+      } catch (error) {
+        console.error("Failed to fetch statistics:", error);
+      } finally {
+        setIsDataLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [dateRange.startDate, dateRange.endDate]);
 
   const handleDateRangeChange = (startDate: Date | undefined, endDate: Date | undefined) => {
     setDateRange({ startDate, endDate });
-    // This would trigger data fetching in a real implementation
   };
 
   const handleExportData = async () => {
     try {
       setIsLoading(true);
       // In a real implementation, this would call an export API
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Success notification or download trigger would happen here
     } catch (error) {
@@ -101,60 +173,33 @@ export default function ComplaintsStatisticsPage() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Complaint Trends</CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            <TrendChart 
-              startDate={dateRange.startDate} 
-              endDate={dateRange.endDate} 
-            />
-          </CardContent>
-        </Card>
+        <TrendChart 
+          data={trendData}
+          isLoading={isDataLoading}
+          period="month"
+        />
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Status Distribution</CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            <StatusChart />
-          </CardContent>
-        </Card>
+        <StatusChart 
+          data={statusData}
+          isLoading={isDataLoading}
+        />
       </div>
       
       <div className="grid grid-cols-1 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Comparison</CardTitle>
-          </CardHeader>
-          <CardContent className="h-96">
-            <MonthlyComparisonChart 
-              startDate={dateRange.startDate} 
-              endDate={dateRange.endDate}
-            />
-          </CardContent>
-        </Card>
+        <MonthlyComparisonChart 
+          complaints={complaints}
+          monthsToShow={6}
+          height={350}
+        />
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Service Category Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            <ServiceCategoryBreakdown />
-          </CardContent>
-        </Card>
+        <ServiceCategoryBreakdown />
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Provider Performance</CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            <ProviderPerformance />
-          </CardContent>
-        </Card>
+        <ProviderPerformance 
+          complaints={complaints}
+          maxProviders={10}
+        />
       </div>
     </div>
   );
