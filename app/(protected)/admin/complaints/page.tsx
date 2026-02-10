@@ -8,7 +8,6 @@ import { ComplaintList } from "@/components/complaints/ComplaintList";
 import { ComplaintFilters } from "@/components/complaints/ComplaintFilters";
 import { StatisticsCard } from "@/components/complaints/StatisticsCard";
 import { NotificationBanner } from "@/components/complaints/NotificationBanner";
-import { RoleGate } from "@/components/auth/role-gate";
 import { useComplaints } from "@/hooks/use-complaints";
 import { useServiceCategories } from "@/hooks/use-service-categories";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ import {
 import Link from "next/link";
 import { CsvImport } from "@/components/complaints/CsvImport";
 import { exportComplaints } from "@/actions/complaints/export";
-import { ComplaintStatus, UserRole } from "@prisma/client";
+import { ComplaintStatus } from "@prisma/client";
 import type { ComplaintWithRelations } from "@/lib/types/complaint-types";
 import { useSession } from "next-auth/react";
 
@@ -40,9 +39,6 @@ export default function AdminComplaintsPage() {
   // Pagination state
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  // Get user role - safe handling
-  const userRole = (session?.user as any)?.role || "USER";
 
   // Helper function to normalize complaint data (convert undefined to null)
   const normalizeComplaint = (complaint: any) => ({
@@ -146,6 +142,14 @@ export default function AdminComplaintsPage() {
     mutate(); // Optionally refresh data when filters change
   };
 
+  // Safe function to get user role
+  const getUserRole = () => {
+    if (session?.user && 'role' in session.user) {
+      return (session.user as any).role;
+    }
+    return "USER";
+  };
+
   if (error) {
     return (
       <div className="container mx-auto p-6">
@@ -159,63 +163,38 @@ export default function AdminComplaintsPage() {
     );
   }
 
-  // Check if user has permission to view this page
-  const canViewPage = userRole === "ADMIN" || userRole === "SUPPORT_AGENT";
-  
-  if (!canViewPage) {
-    return (
-      <div className="container mx-auto p-6">
-        <NotificationBanner
-          type="error"
-          title="Access Denied"
-          message="You don't have permission to access this page."
-          onClose={() => {}}
-        />
-      </div>
-    );
-  }
-
-  // Check if user can import/export
-  const canImportExport = userRole === "ADMIN";
-
   return (
     <div className="container mx-auto p-6 top-0">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Complaint Management</h1>
         
         <div className="flex gap-2">
-          {/* Only ADMIN can import/export */}
-          <RoleGate allowedRole={UserRole.ADMIN}>
-            <Button
-              variant="outline"
-              onClick={() => setIsImportModalOpen(true)}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={handleExport}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </RoleGate>
+          <Button
+            variant="outline"
+            onClick={() => setIsImportModalOpen(true)}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleExport}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
           
           <Button onClick={() => mutate()}>
             <RefreshCcw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
           
-          {/* Only ADMIN can view statistics */}
-          <RoleGate allowedRole={UserRole.ADMIN}>
-            <Link href="/admin/complaints/statistics">
-              <Button variant="default">
-                View Statistics
-              </Button>
-            </Link>
-          </RoleGate>
+          <Link href="/admin/complaints/statistics">
+            <Button variant="default">
+              View Statistics
+            </Button>
+          </Link>
         </div>
       </div>
       
@@ -275,13 +254,12 @@ export default function AdminComplaintsPage() {
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}
-            userRole={userRole}
+            userRole={getUserRole()}
           />
         )}
       </div>
       
-      {/* Only ADMIN can import */}
-      {canImportExport && isImportModalOpen && (
+      {isImportModalOpen && (
         <CsvImport
           onClose={() => setIsImportModalOpen(false)}
           onComplete={handleImportComplete}
