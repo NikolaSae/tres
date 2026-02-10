@@ -95,10 +95,10 @@ export default async function ProviderAnalyticsPage({ searchParams }: ProviderAn
         <TabsContent value="anomalies" className="space-y-4">
           <Card className="p-4">
             <h2 className="text-xl font-semibold mb-4">Provider Performance Anomalies</h2>
-            <AnomalyDetection 
-              dataType="providers"
-              description="Unusual patterns in provider performance or revenue generation"
-            />
+            <p className="text-sm text-muted-foreground mb-4">
+              Unusual patterns in provider performance or revenue generation
+            </p>
+            <AnomalyDetection />
           </Card>
         </TabsContent>
       </Tabs>
