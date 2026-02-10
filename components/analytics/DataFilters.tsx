@@ -23,7 +23,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-function safeArray(arr) {
+function safeArray(arr: any): string[] {
     return Array.isArray(arr) ? arr : [];
 }
 
@@ -41,6 +41,11 @@ export interface DataFilterOptions {
     sortOrder?: 'asc' | 'desc';
 }
 
+interface FilterData {
+    id: string;
+    name: string;
+}
+
 interface DataFiltersProps {
     initialFilters?: DataFilterOptions;
     onFilterChange?: (filters: DataFilterOptions) => void;
@@ -52,10 +57,10 @@ interface DataFiltersProps {
     showSearch?: boolean;
     showSort?: boolean;
     className?: string;
-    providersData?: { id: string; name: string }[];
+    providersData?: FilterData[];
     parkingServicesData?: FilterData[];
-    serviceTypesData?: { id: string; name: string }[];
-    productsData?: { id: string; name: string }[];
+    serviceTypesData?: FilterData[];
+    productsData?: FilterData[];
 }
 
 const SORT_OPTIONS = [
