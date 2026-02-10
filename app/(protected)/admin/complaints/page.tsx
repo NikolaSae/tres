@@ -30,30 +30,31 @@ export default function AdminComplaintsPage() {
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "info";
     message: string;
+    title?: string;
   } | null>(null);
 
   // Extract filter parameters from URL
-const status = searchParams.get("status") || "";
-const priority = searchParams.get("priority") || "";
-const service = searchParams.get("service") || "";
-const provider = searchParams.get("provider") || "";
-const startDate = searchParams.get("startDate") || "";
-const endDate = searchParams.get("endDate") || "";
-const search = searchParams.get("search") || "";
+  const status = searchParams.get("status") || "";
+  const priority = searchParams.get("priority") || "";
+  const service = searchParams.get("service") || "";
+  const provider = searchParams.get("provider") || "";
+  const startDate = searchParams.get("startDate") || "";
+  const endDate = searchParams.get("endDate") || "";
+  const search = searchParams.get("search") || "";
 
-// Parse priority safely
-const priorityValue = priority && !isNaN(Number(priority)) ? Number(priority) : undefined;
+  // Parse priority safely
+  const priorityValue = priority && !isNaN(Number(priority)) ? Number(priority) : undefined;
 
-// Fetch data
-const { complaints, isLoading, error, mutate } = useComplaints({
-  status,
-  priority: priorityValue,
-  serviceId: service,
-  providerId: provider,
-  startDate: startDate ? new Date(startDate) : undefined,
-  endDate: endDate ? new Date(endDate) : undefined,
-  search
-});
+  // Fetch data
+  const { complaints, isLoading, error, mutate } = useComplaints({
+    status,
+    priority: priorityValue,
+    serviceId: service,
+    providerId: provider,
+    startDate: startDate ? new Date(startDate) : undefined,
+    endDate: endDate ? new Date(endDate) : undefined,
+    search
+  });
   
   const { categories: serviceCategories } = useServiceCategories();
 
@@ -66,31 +67,32 @@ const { complaints, isLoading, error, mutate } = useComplaints({
   };
 
   const handleExport = async () => {
-  try {
-    await exportComplaints({
-      format: "csv",
-      statuses: status ? [status as ComplaintStatus] : undefined,
-      serviceId: service || undefined,
-      providerId: provider || undefined,
-      dateRange: (startDate || endDate) ? {
-        from: startDate ? new Date(startDate) : new Date(0), // fallback na epoch ako nema start
-        to: endDate ? new Date(endDate) : new Date(),         // fallback na sada ako nema end
-      } : undefined,
-      // search – NE postoji u ExportOptions, pa ga UKLONI
-    });
+    try {
+      await exportComplaints({
+        format: "csv",
+        statuses: status ? [status as ComplaintStatus] : undefined,
+        serviceId: service || undefined,
+        providerId: provider || undefined,
+        dateRange: (startDate || endDate) ? {
+          from: startDate ? new Date(startDate) : new Date(0),
+          to: endDate ? new Date(endDate) : new Date(),
+        } : undefined,
+      });
 
-    setNotification({
-      type: "success",
-      message: "Export started. The file will be available for download shortly."
-    });
-  } catch (err) {
-    console.error("Export error:", err);
-    setNotification({
-      type: "error",
-      message: "Failed to export complaints"
-    });
-  }
-};
+      setNotification({
+        type: "success",
+        title: "Export Successful",
+        message: "Export started. The file will be available for download shortly."
+      });
+    } catch (err) {
+      console.error("Export error:", err);
+      setNotification({
+        type: "error",
+        title: "Export Failed",
+        message: "Failed to export complaints"
+      });
+    }
+  };
 
   const handleImportComplete = (success: boolean, message: string) => {
     setIsImportModalOpen(false);
@@ -98,12 +100,14 @@ const { complaints, isLoading, error, mutate } = useComplaints({
     if (success) {
       setNotification({
         type: "success",
+        title: "Import Successful",
         message
       });
       mutate(); // Refresh the data
     } else {
       setNotification({
         type: "error",
+        title: "Import Failed",
         message
       });
     }
@@ -114,6 +118,7 @@ const { complaints, isLoading, error, mutate } = useComplaints({
       <div className="container mx-auto p-6">
         <NotificationBanner
           type="error"
+          title="Error"
           message="Failed to load complaints"
           onClose={() => {}}
         />
@@ -144,9 +149,9 @@ const { complaints, isLoading, error, mutate } = useComplaints({
           </Button>
           
           <Button onClick={() => mutate()}>
-  <RefreshCcw className="h-4 w-4 mr-2" />
-  Refresh
-</Button>
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           
           <Link href="/admin/complaints/statistics">
             <Button variant="default">
@@ -159,6 +164,7 @@ const { complaints, isLoading, error, mutate } = useComplaints({
       {notification && (
         <NotificationBanner
           type={notification.type}
+          title={notification.title || "Notification"}
           message={notification.message}
           onClose={() => setNotification(null)}
         />
