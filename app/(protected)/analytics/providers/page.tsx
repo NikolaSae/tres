@@ -13,7 +13,46 @@ export const metadata: Metadata = {
   description: "Analysis and performance metrics for service providers",
 };
 
-export default async function ProviderAnalyticsPage() {
+interface ProviderAnalyticsPageProps {
+  searchParams: Promise<{
+    [key: string]: string | string[] | undefined;
+  }>;
+}
+
+export default async function ProviderAnalyticsPage({ searchParams }: ProviderAnalyticsPageProps) {
+  const resolvedSearchParams = await searchParams;
+
+  function getFirstValue(value: string | string[] | undefined): string | undefined {
+    return Array.isArray(value) ? value[0] : value;
+  }
+
+  // Set default to last 90 days
+  const defaultEndDate = new Date();
+  const defaultStartDate = new Date();
+  defaultStartDate.setDate(defaultStartDate.getDate() - 90);
+
+  const filters = {
+    period: getFirstValue(resolvedSearchParams?.period) || 'custom',
+    dateRange: {
+      from: getFirstValue(resolvedSearchParams?.dateFrom) 
+        ? new Date(getFirstValue(resolvedSearchParams?.dateFrom)!) 
+        : defaultStartDate,
+      to: getFirstValue(resolvedSearchParams?.dateTo) 
+        ? new Date(getFirstValue(resolvedSearchParams?.dateTo)!) 
+        : defaultEndDate,
+    },
+    providerIds: getFirstValue(resolvedSearchParams?.providers) 
+      ? getFirstValue(resolvedSearchParams?.providers)!.split(',') 
+      : [],
+    serviceTypes: getFirstValue(resolvedSearchParams?.serviceTypes) 
+      ? getFirstValue(resolvedSearchParams?.serviceTypes)!.split(',') 
+      : [],
+    productIds: getFirstValue(resolvedSearchParams?.products) 
+      ? getFirstValue(resolvedSearchParams?.products)!.split(',') 
+      : [],
+    searchQuery: getFirstValue(resolvedSearchParams?.q) || '',
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex justify-between items-center">
@@ -25,21 +64,7 @@ export default async function ProviderAnalyticsPage() {
         </div>
       </div>
 
-      <DataFilters 
-        defaultDateRange="last90days"
-        filterOptions={[
-          {
-            id: "serviceType",
-            name: "Service Type",
-            options: ["All", "VAS", "BULK"],
-          },
-          {
-            id: "status",
-            name: "Contract Status",
-            options: ["All", "Active", "Expired", "Pending"],
-          },
-        ]}
-      />
+      <DataFilters initialFilters={filters} />
 
       <Tabs defaultValue="performance" className="w-full">
         <TabsList>
