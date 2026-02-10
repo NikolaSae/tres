@@ -219,11 +219,7 @@ return (
         </Suspense>
         <Card className="p-4">
           <h2 className="text-xl font-semibold mb-4">Complaint Anomalies</h2>
-          <AnomalyDetection
-            dataType="complaints"
-            description="Unusual patterns in complaint submissions or resolution times"
-            filters={filters}
-          />
+          <AnomalyDetection />
         </Card>
       </div>
     </div>
