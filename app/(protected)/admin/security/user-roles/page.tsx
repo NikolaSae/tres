@@ -1,13 +1,12 @@
-////app/(protected)/admin/security/user-roles/page.tsx
-
+// app/(protected)/admin/security/user-roles/page.tsx
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import  UserRoleManagement  from "@/components/security/UserRoleManagement";
-import  RolePermissions  from "@/components/security/RolePermissions";
+import UserRoleManagement from "@/components/security/UserRoleManagement";
+import RolePermissions from "@/components/security/RolePermissions";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import  ActivityLog  from "@/components/security/ActivityLog";
+import ActivityLog from "@/components/security/ActivityLog";
 
 export default async function UserRolesPage() {
   const session = await auth();
@@ -67,11 +66,11 @@ export default async function UserRolesPage() {
             <CardHeader>
               <CardTitle>Role Change Activity</CardTitle>
               <CardDescription>
-                Audit log of all role and permission changes
+                Audit log of all role and permission changes. Use the Entity Type filter to view specific activity.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ActivityLog entityType="userRole" />
+              <ActivityLog showFilters={true} initialLimit={20} />
             </CardContent>
           </Card>
         </TabsContent>
