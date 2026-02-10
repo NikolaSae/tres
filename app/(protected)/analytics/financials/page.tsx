@@ -120,8 +120,8 @@ export default async function FinancialAnalyticsPage({
   if (typeof dateFrom === 'string') {
     try {
       filters.dateRange = {
-        ...filters.dateRange,
-        from: new Date(dateFrom)
+        from: new Date(dateFrom),
+        to: filters.dateRange?.to ?? null
       };
     } catch (e) {
       console.error("Invalid dateFrom parameter:", e);
@@ -131,7 +131,7 @@ export default async function FinancialAnalyticsPage({
   if (typeof dateTo === 'string') {
     try {
       filters.dateRange = {
-        ...filters.dateRange,
+        from: filters.dateRange?.from ?? null,
         to: new Date(dateTo)
       };
     } catch (e) {
