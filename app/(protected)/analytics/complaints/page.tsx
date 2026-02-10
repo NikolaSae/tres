@@ -16,89 +16,89 @@ export const dynamic = 'force-dynamic';
 
 // Update types to reflect that searchParams and params are Promises
 interface ComplaintAnalyticsPageProps {
-    params: Promise<{ [key: string]: string | string[] | undefined }>; // Assuming params is also a Promise based on docs
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+    params: Promise<{ [key: string]: string | string[] | undefined }>; // Assuming params is also a Promise based on docs
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export const metadata: Metadata = {
-  title: "Complaint Analytics",
-  description: "Analysis and trends of complaint data",
+  title: "Complaint Analytics",
+  description: "Analysis and trends of complaint data",
 };
 
 async function fetchProvidersForFilters() {
-     try {
-         const providers = await db.provider.findMany({
-              select: { id: true, name: true },
-              orderBy: { name: 'asc' },
-         });
-         console.log("Successfully fetched providers for Complaints filters:", providers.length, "items");
-         return providers;
-    } catch (error) {
-        console.error("Error fetching providers for Complaints filters:", error);
-        return [];
-    }
+     try {
+         const providers = await db.provider.findMany({
+              select: { id: true, name: true },
+              orderBy: { name: 'asc' },
+         });
+         console.log("Successfully fetched providers for Complaints filters:", providers.length, "items");
+         return providers;
+    } catch (error) {
+        console.error("Error fetching providers for Complaints filters:", error);
+        return [];
+    }
 }
 
 async function fetchServiceTypesForFilters() {
-     try {
-         console.log("Attempting to fetch services with provider links for Complaints filter...");
-         const services = await db.service.findMany({
-            select: {
-                id: true,
-                name: true,
-                type: true,
-                vasServices: { select: { provajderId: true } },
-                bulkServices: { select: { providerId: true } },
-            },
-            orderBy: { name: 'asc' },
-         });
-         console.log("Successfully fetched services with provider links for Complaints filter:", services.length, "items");
-         const servicesWithProviderLinks = services.map(service => {
-             const associatedProviderIds = new Set<string>();
-             service.vasServices?.forEach(vs => associatedProviderIds.add(vs.provajderId));
-             service.bulkServices?.forEach(bs => associatedProviderIds.add(bs.providerId));
-             return {
-                 id: service.id,
-                 name: `${service.name} (${service.type})`,
-                 type: service.type,
-                 providerIds: Array.from(associatedProviderIds),
-             };
-         });
-         return servicesWithProviderLinks;
-     } catch (error) {
-        console.error("Error fetching services with provider links for Complaints filter:", error);
-        return [];
-     }
+     try {
+         console.log("Attempting to fetch services with provider links for Complaints filter...");
+         const services = await db.service.findMany({
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                vasServices: { select: { provajderId: true } },
+                bulkServices: { select: { providerId: true } },
+            },
+            orderBy: { name: 'asc' },
+         });
+         console.log("Successfully fetched services with provider links for Complaints filter:", services.length, "items");
+         const servicesWithProviderLinks = services.map(service => {
+             const associatedProviderIds = new Set<string>();
+             service.vasServices?.forEach(vs => associatedProviderIds.add(vs.provajderId));
+             service.bulkServices?.forEach(bs => associatedProviderIds.add(bs.providerId));
+             return {
+                 id: service.id,
+                 name: `${service.name} (${service.type})`,
+                 type: service.type,
+                 providerIds: Array.from(associatedProviderIds),
+             };
+         });
+         return servicesWithProviderLinks;
+     } catch (error) {
+        console.error("Error fetching services with provider links for Complaints filter:", error);
+        return [];
+     }
 }
 
 async function fetchProductsForFilters() {
-     try {
-         const products = await db.product.findMany({
-              select: { id: true, name: true },
-              orderBy: { name: 'asc' },
-         });
-         console.log("Successfully fetched products for Complaints filters:", products.length, "items");
-         return products;
-    } catch (error) {
-        console.error("Error fetching products for Complaints filters:", error);
-        return [];
-    }
+     try {
+         const products = await db.product.findMany({
+              select: { id: true, name: true },
+              orderBy: { name: 'asc' },
+         });
+         console.log("Successfully fetched products for Complaints filters:", products.length, "items");
+         return products;
+    } catch (error) {
+        console.error("Error fetching products for Complaints filters:", error);
+        return [];
+    }
 }
 
 async function fetchComplaintStatusesForFilters() {
-    const statuses = ["NEW", "ASSIGNED", "IN_PROGRESS", "PENDING", "RESOLVED", "CLOSED", "REJECTED"];
-    return statuses.map(status => ({
-        id: status,
-        name: status.replace(/_/g, ' '),
-    }));
+    const statuses = ["NEW", "ASSIGNED", "IN_PROGRESS", "PENDING", "RESOLVED", "CLOSED", "REJECTED"];
+    return statuses.map(status => ({
+        id: status,
+        name: status.replace(/_/g, ' '),
+    }));
 }
 
 async function fetchComplaintPrioritiesForFilters() {
-     const priorities = [1, 2, 3, 4, 5];
-     return priorities.map(priority => ({
-        id: priority.toString(),
-        name: `Priority ${priority}`,
-    }));
+     const priorities = [1, 2, 3, 4, 5];
+     return priorities.map(priority => ({
+        id: priority.toString(),
+        name: `Priority ${priority}`,
+    }));
 }
 
 
@@ -109,60 +109,62 @@ export default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPa
   // const params = await props.params;
 
 
-  const session = await auth();
+  const session = await auth();
 
-  if (!session || !session.user) {
-    return <div>Access denied. Please log in to view complaint analytics.</div>;
-  }
+  if (!session || !session.user) {
+    return <div>Access denied. Please log in to view complaint analytics.</div>;
+  }
+
+    // Parse statuses and priorities separately since they're not in DataFilterOptions
+    const statuses = typeof searchParams.statuses === 'string' ? searchParams.statuses.split(',') : [];
+    const priorities = typeof searchParams.priorities === 'string' ? searchParams.priorities.split(',') : [];
 
     // Now searchParams is the resolved object, access properties directly
-    const filters: DataFilterOptions = {
-       dateRange: {
-           from: typeof searchParams.dateFrom === 'string' ? new Date(searchParams.dateFrom) : null,
-           to: typeof searchParams.dateTo === 'string' ? new Date(searchParams.dateTo) : null,
-       },
-       providerIds: typeof searchParams.providers === 'string' ? searchParams.providers.split(',') : [],
-       serviceTypes: typeof searchParams.serviceTypes === 'string' ? searchParams.serviceTypes.split(',') : [],
-       productIds: typeof searchParams.products === 'string' ? searchParams.products.split(',') : [],
-       searchQuery: typeof searchParams.q === 'string' ? searchParams.q : '',
-       sortBy: typeof searchParams.sort === 'string' ? searchParams.sort : 'date',
-       sortOrder: typeof searchParams.order === 'string' ? (searchParams.order as 'asc' | 'desc') : 'desc',
-       statuses: typeof searchParams.statuses === 'string' ? searchParams.statuses.split(',') : [],
-       priorities: typeof searchParams.priorities === 'string' ? searchParams.priorities.split(',') : [],
-     };
+    const filters: DataFilterOptions = {
+       dateRange: {
+           from: typeof searchParams.dateFrom === 'string' ? new Date(searchParams.dateFrom) : null,
+           to: typeof searchParams.dateTo === 'string' ? new Date(searchParams.dateTo) : null,
+       },
+       providerIds: typeof searchParams.providers === 'string' ? searchParams.providers.split(',') : [],
+       serviceTypes: typeof searchParams.serviceTypes === 'string' ? searchParams.serviceTypes.split(',') : [],
+       productIds: typeof searchParams.products === 'string' ? searchParams.products.split(',') : [],
+       searchQuery: typeof searchParams.q === 'string' ? searchParams.q : '',
+       sortBy: typeof searchParams.sort === 'string' ? searchParams.sort : 'date',
+       sortOrder: typeof searchParams.order === 'string' ? (searchParams.order as 'asc' | 'desc') : 'desc',
+     };
 
     // Map filters object to ComplaintStatsParams format
-    const complaintStatsParams: ComplaintStatsParams = {
-         startDate: filters.dateRange?.from || undefined,
-         endDate: filters.dateRange?.to || undefined,
-         providerIds: filters.providerIds.length > 0 ? filters.providerIds : undefined,
-         serviceIds: filters.serviceTypes.length > 0 ? filters.serviceTypes : undefined,
-         productIds: filters.productIds.length > 0 ? filters.productIds : undefined,
-         statuses: filters.statuses.length > 0 ? (filters.statuses as any) : undefined,
-         priorities: filters.priorities.length > 0 ? filters.priorities.map(p => parseInt(p, 10)) : undefined,
-         searchQuery: filters.searchQuery || undefined,
-         sortBy: filters.sortBy || undefined,
-         sortOrder: filters.sortOrder || undefined,
-    };
+    const complaintStatsParams: ComplaintStatsParams = {
+         startDate: filters.dateRange?.from || undefined,
+         endDate: filters.dateRange?.to || undefined,
+         providerIds: filters.providerIds && filters.providerIds.length > 0 ? filters.providerIds : undefined,
+         serviceIds: filters.serviceTypes && filters.serviceTypes.length > 0 ? filters.serviceTypes : undefined,
+         productIds: filters.productIds && filters.productIds.length > 0 ? filters.productIds : undefined,
+         statuses: statuses.length > 0 ? (statuses as any) : undefined,
+         priorities: priorities.length > 0 ? priorities.map(p => parseInt(p, 10)) : undefined,
+         searchQuery: filters.searchQuery || undefined,
+         sortBy: filters.sortBy || undefined,
+         sortOrder: filters.sortOrder || undefined,
+    };
 
 
-   // Dohvatanje podataka za filtere (oni se ne menjaju na osnovu searchParams)
-   const providersData = await fetchProvidersForFilters();
-   const serviceTypesData = await fetchServiceTypesForFilters();
-   const productsData = await fetchProductsForFilters();
-   const statusesData = await fetchComplaintStatusesForFilters();
-   const prioritiesData = await fetchComplaintPrioritiesForFilters();
+   // Dohvatanje podataka za filtere (oni se ne menjaju na osnovu searchParams)
+   const providersData = await fetchProvidersForFilters();
+   const serviceTypesData = await fetchServiceTypesForFilters();
+   const productsData = await fetchProductsForFilters();
+   const statusesData = await fetchComplaintStatusesForFilters();
+   const prioritiesData = await fetchComplaintPrioritiesForFilters();
 
-   // Dohvatanje podataka za analitiku na osnovu primenjenih filtera
-   let complaintStats: ComplaintStats | null = null;
-   let fetchError: any = null;
-   try {
+   // Dohvatanje podataka za analitiku na osnovu primenjenih filtera
+   let complaintStats: ComplaintStats | null = null;
+   let fetchError: any = null;
+   try {
         console.log("Parameters passed to getComplaintStats:", complaintStatsParams);
-        complaintStats = await getComplaintStats(complaintStatsParams);
-   } catch (error: any) {
-        console.error("Error fetching complaint stats:", error);
-        fetchError = error;
-   }
+        complaintStats = await getComplaintStats(complaintStatsParams);
+   } catch (error: any) {
+        console.error("Error fetching complaint stats:", error);
+        fetchError = error;
+   }
 
 
 return (
