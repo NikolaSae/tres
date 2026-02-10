@@ -24,15 +24,21 @@ import { CsvImport } from "@/components/complaints/CsvImport";
 import { exportComplaints } from "@/actions/complaints/export";
 import { ComplaintStatus } from "@prisma/client";
 import type { ComplaintWithRelations } from "@/lib/types/complaint-types";
+import { useSession } from "next-auth/react";
 
 export default function AdminComplaintsPage() {
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "info";
     message: string;
     title?: string;
   } | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Helper function to normalize complaint data (convert undefined to null)
   const normalizeComplaint = (complaint: any) => ({
@@ -236,6 +242,11 @@ export default function AdminComplaintsPage() {
         ) : (
           <ComplaintList
             complaints={(complaints || []).map(normalizeComplaint)}
+            totalComplaints={complaints?.length || 0}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            userRole={session?.user?.role || "USER"}
           />
         )}
       </div>
