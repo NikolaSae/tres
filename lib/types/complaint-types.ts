@@ -2,7 +2,7 @@
 
 import { ComplaintStatus, ServiceType } from "@prisma/client";
 import { ComplaintPriority, ServiceCategoryType } from "./enums";
-import { Complaint, User, Service, Product, Provider } from "./interfaces";
+import { Complaint, User, Service, Product, Provider, HumanitarianOrg, ParkingService } from "./interfaces";
 
 export type ComplaintWithRelations = Complaint & {
   submittedBy: User;
@@ -10,6 +10,8 @@ export type ComplaintWithRelations = Complaint & {
   service?: Service;
   product?: Product;
   provider?: Provider;
+  humanitarianOrg?: HumanitarianOrg;
+  parkingService?: ParkingService;
 };
 
 export type ComplaintSummary = {
@@ -24,6 +26,8 @@ export type ComplaintSummary = {
   serviceName?: string;
   productName?: string;
   providerName?: string;
+  humanitarianOrgName?: string;
+  parkingServiceName?: string;
 };
 
 export type ComplaintStatusUpdate = {
@@ -59,6 +63,8 @@ export type ComplaintExportOptions = {
     priority?: ComplaintPriority[];
     serviceId?: string[];
     providerId?: string[];
+    humanitarianOrgId?: string[];
+    parkingServiceId?: string[];
   };
   includeComments: boolean;
   includeAttachments: boolean;
@@ -74,6 +80,8 @@ export type ComplaintImportData = {
   providerName?: string;
   submittedByEmail: string;
   assignedAgentEmail?: string;
+  humanitarianOrgName?: string;
+  parkingServiceName?: string;
 };
 
 export type ComplaintsByService = {

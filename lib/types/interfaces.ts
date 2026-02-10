@@ -11,6 +11,8 @@ export interface ComplaintBase {
   serviceId?: string;
   productId?: string;
   providerId?: string;
+  humanitarianOrgId?: string;
+  parkingServiceId?: string;
 }
 
 export interface Complaint extends ComplaintBase {
@@ -27,6 +29,8 @@ export interface Complaint extends ComplaintBase {
   service?: Service;
   product?: Product;
   provider?: Provider;
+  humanitarianOrg?: HumanitarianOrg;
+  parkingService?: ParkingService;
   comments: Comment[];
   attachments: Attachment[];
   statusHistory: ComplaintStatusHistory[];
@@ -104,6 +108,33 @@ export interface Provider {
   updatedAt: Date;
 }
 
+export interface HumanitarianOrg {
+  id: string;
+  name: string;
+  description?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  website?: string;
+  address?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ParkingService {
+  id: string;
+  name: string;
+  location?: string;
+  address?: string;
+  capacity?: number;
+  availableSpots?: number;
+  pricePerHour?: number;
+  description?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ComplaintFilterOptions {
   status?: ComplaintStatus;
   priority?: number;
@@ -112,6 +143,8 @@ export interface ComplaintFilterOptions {
   providerId?: string;
   assignedAgentId?: string;
   submittedById?: string;
+  humanitarianOrgId?: string;
+  parkingServiceId?: string;
   dateFrom?: Date;
   dateTo?: Date;
 }
@@ -125,5 +158,7 @@ export interface ComplaintStatistics {
   byService: Array<{ serviceId: string, serviceName: string, count: number }>;
   byProvider: Array<{ providerId: string, providerName: string, count: number }>;
   byPriority: Record<number, number>;
+  byHumanitarianOrg?: Array<{ orgId: string, orgName: string, count: number }>;
+  byParkingService?: Array<{ serviceId: string, serviceName: string, count: number }>;
   timelineData: Array<{ date: string, count: number }>;
 }
