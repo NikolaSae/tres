@@ -139,7 +139,6 @@ export default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPa
          endDate: filters.dateRange?.to || undefined,
          providerIds: filters.providerIds && filters.providerIds.length > 0 ? filters.providerIds : undefined,
          serviceIds: filters.serviceTypes && filters.serviceTypes.length > 0 ? filters.serviceTypes : undefined,
-         productIds: filters.productIds && filters.productIds.length > 0 ? filters.productIds : undefined,
          statuses: statuses.length > 0 ? (statuses as any) : undefined,
          priorities: priorities.length > 0 ? priorities.map(p => parseInt(p, 10)) : undefined,
          searchQuery: filters.searchQuery || undefined,
