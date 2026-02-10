@@ -76,8 +76,9 @@ export default function ComplaintDetailPageClient({
     const { data: session, status } = useSession();
 
     // Extract current user ID and role from the session
+    // Note: Using type assertion because TypeScript may not recognize extended session types during build
     const currentUserId = session?.user?.id;
-    const userRole = (session?.user?.role ?? null) as UserRole | null;
+    const userRole = ((session?.user as any)?.role ?? null) as UserRole | null;
 
     // State for new comment input
     const [newComment, setNewComment] = useState("");
