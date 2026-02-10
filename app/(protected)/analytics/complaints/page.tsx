@@ -102,7 +102,7 @@ async function fetchComplaintPrioritiesForFilters() {
 }
 
 
-eexport default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPageProps) {
+export default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPageProps) {
   const searchParams = await props.searchParams;
   const session = await auth();
 
