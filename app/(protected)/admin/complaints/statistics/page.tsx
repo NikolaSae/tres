@@ -194,7 +194,9 @@ export default function ComplaintsStatisticsPage() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ServiceCategoryBreakdown />
+        <ServiceCategoryBreakdown 
+          complaints={complaints}
+        />
         
         <ProviderPerformance 
           complaints={complaints}
