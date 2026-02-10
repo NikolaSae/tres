@@ -36,6 +36,8 @@ export interface DataFilterOptions {
     serviceTypes?: string[];
     productIds?: string[];
     parkingServiceIds?: string[];
+    statuses?: string[];
+    priorities?: string[];
     searchQuery?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
@@ -54,6 +56,8 @@ interface DataFiltersProps {
     showParkingServices?: boolean;
     showServiceTypes?: boolean;
     showProducts?: boolean;
+    showStatuses?: boolean;
+    showPriorities?: boolean;
     showSearch?: boolean;
     showSort?: boolean;
     className?: string;
@@ -61,6 +65,8 @@ interface DataFiltersProps {
     parkingServicesData?: FilterData[];
     serviceTypesData?: FilterData[];
     productsData?: FilterData[];
+    statusesData?: FilterData[];
+    prioritiesData?: FilterData[];
 }
 
 const SORT_OPTIONS = [
@@ -77,12 +83,16 @@ export function DataFilters({
     showProviders = true,
     showServiceTypes = true,
     showProducts = false,
+    showStatuses = false,
+    showPriorities = false,
     showSearch = true,
     showSort = true,
     className = '',
     providersData = [],
     serviceTypesData = [],
     productsData = [],
+    statusesData = [],
+    prioritiesData = [],
 }: DataFiltersProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -94,6 +104,8 @@ export function DataFilters({
     const [providerOpen, setProviderOpen] = useState(false);
     const [serviceTypeOpen, setServiceTypeOpen] = useState(false);
     const [productOpen, setProductOpen] = useState(false);
+    const [statusOpen, setStatusOpen] = useState(false);
+    const [priorityOpen, setPriorityOpen] = useState(false);
 
     useEffect(() => {
         const params = searchParams;
@@ -106,6 +118,8 @@ export function DataFilters({
             providerIds: safeArray(params.get('providers')?.split(',')),
             serviceTypes: safeArray(params.get('serviceTypes')?.split(',')),
             productIds: safeArray(params.get('products')?.split(',')),
+            statuses: safeArray(params.get('statuses')?.split(',')),
+            priorities: safeArray(params.get('priorities')?.split(',')),
             searchQuery: params.get('q') || '',
             sortBy: params.get('sort') || 'date',
             sortOrder: (params.get('order') as 'asc' | 'desc') || 'desc',
@@ -156,6 +170,22 @@ export function DataFilters({
         updateFilters({ productIds: newProducts });
     };
 
+    const handleStatusToggle = (statusId: string) => {
+        const currentStatuses = safeArray(filters.statuses);
+        const newStatuses = currentStatuses.includes(statusId)
+            ? currentStatuses.filter(id => id !== statusId)
+            : [...currentStatuses, statusId];
+        updateFilters({ statuses: newStatuses });
+    };
+
+    const handlePriorityToggle = (priorityId: string) => {
+        const currentPriorities = safeArray(filters.priorities);
+        const newPriorities = currentPriorities.includes(priorityId)
+            ? currentPriorities.filter(id => id !== priorityId)
+            : [...currentPriorities, priorityId];
+        updateFilters({ priorities: newPriorities });
+    };
+
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const query = e.target.value;
         updateFilters({ searchQuery: query });
@@ -181,6 +211,8 @@ export function DataFilters({
              providerIds: safeArray(newFilters.providerIds !== undefined ? newFilters.providerIds : filters.providerIds),
              serviceTypes: safeArray(newFilters.serviceTypes !== undefined ? newFilters.serviceTypes : filters.serviceTypes),
              productIds: safeArray(newFilters.productIds !== undefined ? newFilters.productIds : filters.productIds),
+             statuses: safeArray(newFilters.statuses !== undefined ? newFilters.statuses : filters.statuses),
+             priorities: safeArray(newFilters.priorities !== undefined ? newFilters.priorities : filters.priorities),
         };
 
         const params = new URLSearchParams();
@@ -191,6 +223,8 @@ export function DataFilters({
         if (hypotheticalFilters.providerIds && hypotheticalFilters.providerIds.length > 0) params.set('providers', hypotheticalFilters.providerIds.join(','));
         if (hypotheticalFilters.serviceTypes && hypotheticalFilters.serviceTypes.length > 0) params.set('serviceTypes', hypotheticalFilters.serviceTypes.join(','));
         if (hypotheticalFilters.productIds && hypotheticalFilters.productIds.length > 0) params.set('products', hypotheticalFilters.productIds.join(','));
+        if (hypotheticalFilters.statuses && hypotheticalFilters.statuses.length > 0) params.set('statuses', hypotheticalFilters.statuses.join(','));
+        if (hypotheticalFilters.priorities && hypotheticalFilters.priorities.length > 0) params.set('priorities', hypotheticalFilters.priorities.join(','));
         if (hypotheticalFilters.searchQuery) params.set('q', hypotheticalFilters.searchQuery);
 
         params.set('sort', hypotheticalFilters.sortBy || 'date');
@@ -231,11 +265,15 @@ export function DataFilters({
     const selectedProviderCount = safeArray(filters.providerIds).length;
     const selectedServiceCount = safeArray(filters.serviceTypes).length;
     const selectedProductCount = safeArray(filters.productIds).length;
+    const selectedStatusCount = safeArray(filters.statuses).length;
+    const selectedPriorityCount = safeArray(filters.priorities).length;
     const hasActiveFilters =
          (filters.dateRange?.from || filters.dateRange?.to) ||
          selectedProviderCount > 0 ||
          selectedServiceCount > 0 ||
          selectedProductCount > 0 ||
+         selectedStatusCount > 0 ||
+         selectedPriorityCount > 0 ||
          (filters.searchQuery && filters.searchQuery.length > 0);
 
     return (
@@ -383,6 +421,74 @@ export function DataFilters({
                                             </div>
                                          ))}
                                           {productsData.length === 0 && <p className="text-sm text-muted-foreground">No products available.</p>}
+                                    </div>
+                                </CardContent>
+                            </PopoverContent>
+                       </Popover>
+                    )}
+
+                    {showStatuses && (
+                       <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
+                                    <FilterIcon className="mr-2 h-4 w-4" />
+                                    {selectedStatusCount > 0 ? `${selectedStatusCount} Statuses` : 'All Statuses'}
+                                    <ChevronDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[200px] p-0" align="start">
+                                <CardContent className="p-4 max-h-[300px] overflow-y-auto">
+                                    <div className="grid gap-2">
+                                         {statusesData.map(status => (
+                                            <div key={status.id} className="flex items-center space-x-2">
+                                               <Checkbox
+                                                  id={`status-${status.id}`}
+                                                  checked={safeArray(filters.statuses).includes(status.id)}
+                                                  onCheckedChange={() => handleStatusToggle(status.id)}
+                                               />
+                                               <Label
+                                                  htmlFor={`status-${status.id}`}
+                                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                               >
+                                                  {status.name}
+                                               </Label>
+                                            </div>
+                                         ))}
+                                         {statusesData.length === 0 && <p className="text-sm text-muted-foreground">No statuses available.</p>}
+                                    </div>
+                                </CardContent>
+                            </PopoverContent>
+                       </Popover>
+                    )}
+
+                    {showPriorities && (
+                       <Popover open={priorityOpen} onOpenChange={setPriorityOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
+                                    <FilterIcon className="mr-2 h-4 w-4" />
+                                    {selectedPriorityCount > 0 ? `${selectedPriorityCount} Priorities` : 'All Priorities'}
+                                    <ChevronDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[200px] p-0" align="start">
+                                <CardContent className="p-4 max-h-[300px] overflow-y-auto">
+                                    <div className="grid gap-2">
+                                         {prioritiesData.map(priority => (
+                                            <div key={priority.id} className="flex items-center space-x-2">
+                                               <Checkbox
+                                                  id={`priority-${priority.id}`}
+                                                  checked={safeArray(filters.priorities).includes(priority.id)}
+                                                  onCheckedChange={() => handlePriorityToggle(priority.id)}
+                                               />
+                                               <Label
+                                                  htmlFor={`priority-${priority.id}`}
+                                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                               >
+                                                  {priority.name}
+                                               </Label>
+                                            </div>
+                                         ))}
+                                         {prioritiesData.length === 0 && <p className="text-sm text-muted-foreground">No priorities available.</p>}
                                     </div>
                                 </CardContent>
                             </PopoverContent>
