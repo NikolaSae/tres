@@ -113,6 +113,13 @@ export default function AdminComplaintsPage() {
     }
   };
 
+  const handleFiltersChange = (filters: any) => {
+    // Filters are already managed by URL params via ComplaintFilters component
+    // This handler is just to satisfy the prop requirement
+    // The component internally uses useRouter to update URL params
+    mutate(); // Optionally refresh data when filters change
+  };
+
   if (error) {
     return (
       <div className="container mx-auto p-6">
@@ -201,7 +208,7 @@ export default function AdminComplaintsPage() {
       </div>
       
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <ComplaintFilters />
+        <ComplaintFilters onFiltersChange={handleFiltersChange} />
       </div>
       
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
