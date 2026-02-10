@@ -103,62 +103,72 @@ async function fetchComplaintPrioritiesForFilters() {
 
 
 export default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPageProps) {
+  // Await searchParams prop as per Next.js 15.3+ documentation
   const searchParams = await props.searchParams;
+  // Also await params if your page component uses dynamic route parameters, although this page doesn't seem to use them
+  // const params = await props.params;
+
+
   const session = await auth();
 
   if (!session || !session.user) {
     return <div>Access denied. Please log in to view complaint analytics.</div>;
   }
 
-  // Parse statuses and priorities separately
-  const statuses = typeof searchParams.statuses === 'string' ? searchParams.statuses.split(',') : [];
-  const priorities = typeof searchParams.priorities === 'string' ? searchParams.priorities.split(',') : [];
+    // Parse statuses and priorities separately since they're not in DataFilterOptions
+    const statuses = typeof searchParams.statuses === 'string' ? searchParams.statuses.split(',') : [];
+    const priorities = typeof searchParams.priorities === 'string' ? searchParams.priorities.split(',') : [];
 
-  const filters: DataFilterOptions = {
-    dateRange: {
-      from: typeof searchParams.dateFrom === 'string' ? new Date(searchParams.dateFrom) : null,
-      to: typeof searchParams.dateTo === 'string' ? new Date(searchParams.dateTo) : null,
-    },
-    providerIds: typeof searchParams.providers === 'string' ? searchParams.providers.split(',') : [],
-    serviceTypes: typeof searchParams.serviceTypes === 'string' ? searchParams.serviceTypes.split(',') : [],
-    productIds: typeof searchParams.products === 'string' ? searchParams.products.split(',') : [],
-    searchQuery: typeof searchParams.q === 'string' ? searchParams.q : '',
-    sortBy: typeof searchParams.sort === 'string' ? searchParams.sort : 'date',
-    sortOrder: typeof searchParams.order === 'string' ? (searchParams.order as 'asc' | 'desc') : 'desc',
-    // Add these to the filters object
-    statuses: statuses,
-    priorities: priorities,
-  };
+    // Now searchParams is the resolved object, access properties directly
+    const filters: DataFilterOptions = {
+       dateRange: {
+           from: typeof searchParams.dateFrom === 'string' ? new Date(searchParams.dateFrom) : null,
+           to: typeof searchParams.dateTo === 'string' ? new Date(searchParams.dateTo) : null,
+       },
+       providerIds: typeof searchParams.providers === 'string' ? searchParams.providers.split(',') : [],
+       serviceTypes: typeof searchParams.serviceTypes === 'string' ? searchParams.serviceTypes.split(',') : [],
+       productIds: typeof searchParams.products === 'string' ? searchParams.products.split(',') : [],
+       statuses: statuses,
+       priorities: priorities,
+       searchQuery: typeof searchParams.q === 'string' ? searchParams.q : '',
+       sortBy: typeof searchParams.sort === 'string' ? searchParams.sort : 'date',
+       sortOrder: typeof searchParams.order === 'string' ? (searchParams.order as 'asc' | 'desc') : 'desc',
+     };
 
-  const complaintStatsParams: ComplaintStatsParams = {
-    startDate: filters.dateRange?.from || undefined,
-    endDate: filters.dateRange?.to || undefined,
-    providerIds: filters.providerIds && filters.providerIds.length > 0 ? filters.providerIds : undefined,
-    serviceIds: filters.serviceTypes && filters.serviceTypes.length > 0 ? filters.serviceTypes : undefined,
-    statuses: statuses.length > 0 ? (statuses as any) : undefined,
-    priorities: priorities.length > 0 ? priorities.map(p => parseInt(p, 10)) : undefined,
-    searchQuery: filters.searchQuery || undefined,
-    sortBy: filters.sortBy || undefined,
-    sortOrder: filters.sortOrder || undefined,
-  };
+    // Map filters object to ComplaintStatsParams format
+    const complaintStatsParams: ComplaintStatsParams = {
+         startDate: filters.dateRange?.from || undefined,
+         endDate: filters.dateRange?.to || undefined,
+         providerIds: filters.providerIds && filters.providerIds.length > 0 ? filters.providerIds : undefined,
+         serviceIds: filters.serviceTypes && filters.serviceTypes.length > 0 ? filters.serviceTypes : undefined,
+         statuses: statuses.length > 0 ? (statuses as any) : undefined,
+         priorities: priorities.length > 0 ? priorities.map(p => parseInt(p, 10)) : undefined,
+         searchQuery: filters.searchQuery || undefined,
+         sortBy: filters.sortBy || undefined,
+         sortOrder: filters.sortOrder || undefined,
+    };
 
-  const providersData = await fetchProvidersForFilters();
-  const serviceTypesData = await fetchServiceTypesForFilters();
-  const productsData = await fetchProductsForFilters();
-  const statusesData = await fetchComplaintStatusesForFilters();
-  const prioritiesData = await fetchComplaintPrioritiesForFilters();
 
-  let complaintStats: ComplaintStats | null = null;
-  let fetchError: any = null;
-  try {
-    console.log("Parameters passed to getComplaintStats:", complaintStatsParams);
-    complaintStats = await getComplaintStats(complaintStatsParams);
-  } catch (error: any) {
-    console.error("Error fetching complaint stats:", error);
-    fetchError = error;
-  }
+   // Dohvatanje podataka za filtere (oni se ne menjaju na osnovu searchParams)
+   const providersData = await fetchProvidersForFilters();
+   const serviceTypesData = await fetchServiceTypesForFilters();
+   const productsData = await fetchProductsForFilters();
+   const statusesData = await fetchComplaintStatusesForFilters();
+   const prioritiesData = await fetchComplaintPrioritiesForFilters();
 
-  return (
+   // Dohvatanje podataka za analitiku na osnovu primenjenih filtera
+   let complaintStats: ComplaintStats | null = null;
+   let fetchError: any = null;
+   try {
+        console.log("Parameters passed to getComplaintStats:", complaintStatsParams);
+        complaintStats = await getComplaintStats(complaintStatsParams);
+   } catch (error: any) {
+        console.error("Error fetching complaint stats:", error);
+        fetchError = error;
+   }
+
+
+return (
     <div className="container mx-auto py-8 space-y-8 top-0">
       <div>
         <h1 className="text-3xl font-bold">Complaint Analytics</h1>
@@ -189,11 +199,23 @@ export default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPa
 
       <div className="grid gap-6">
         <Suspense fallback={<div>Loading Complaint Analytics...</div>}>
-          <ComplaintAnalytics
-            data={complaintStats}
-            isLoading={false}
-            error={fetchError}
-          />
+          {complaintStats && (
+            <ComplaintAnalytics
+              data={complaintStats}
+              isLoading={false}
+              error={fetchError}
+            />
+          )}
+          {!complaintStats && !fetchError && (
+            <div className="text-center p-8 text-muted-foreground">
+              No complaint data available
+            </div>
+          )}
+          {fetchError && (
+            <div className="text-center p-8 text-destructive">
+              Error loading complaint data: {fetchError.message || 'Unknown error'}
+            </div>
+          )}
         </Suspense>
         <Card className="p-4">
           <h2 className="text-xl font-semibold mb-4">Complaint Anomalies</h2>
