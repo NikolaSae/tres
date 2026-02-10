@@ -1,9 +1,8 @@
 // app/(protected)/admin/complaints/page.tsx
-// Sa UI notification types
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ComplaintList } from "@/components/complaints/ComplaintList";
 import { ComplaintFilters } from "@/components/complaints/ComplaintFilters";
@@ -24,20 +23,24 @@ import Link from "next/link";
 import { CsvImport } from "@/components/complaints/CsvImport";
 import { exportComplaints } from "@/actions/complaints/export";
 import { ComplaintStatus, UserRole } from "@prisma/client";
+import type { ComplaintWithRelations } from "@/lib/types/complaint-types";
 import { useSession } from "next-auth/react";
-import { UINotificationState, UINotifications, CommonUINotifications } from "@/lib/types/ui-notification-types";
 
 export default function AdminComplaintsPage() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  
-  // Koristi UINotificationState
-  const [notification, setNotification] = useState<UINotificationState | null>(null);
+  const [notification, setNotification] = useState<{
+    type: "success" | "error" | "info";
+    title: string;
+    message: string;
+  } | null>(null);
 
+  // Pagination state
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Helper function to normalize complaint data (convert undefined to null)
   const normalizeComplaint = (complaint: any) => ({
     ...complaint,
     providerId: complaint.providerId ?? null,
@@ -52,6 +55,7 @@ export default function AdminComplaintsPage() {
     closedAt: complaint.closedAt ?? null,
   });
 
+  // Extract filter parameters from URL
   const status = searchParams.get("status") || "";
   const priority = searchParams.get("priority") || "";
   const service = searchParams.get("service") || "";
@@ -60,8 +64,10 @@ export default function AdminComplaintsPage() {
   const endDate = searchParams.get("endDate") || "";
   const search = searchParams.get("search") || "";
 
+  // Parse priority safely
   const priorityValue = priority && !isNaN(Number(priority)) ? Number(priority) : undefined;
 
+  // Fetch data
   const { complaints, isLoading, error, mutate } = useComplaints({
     status,
     priority: priorityValue,
@@ -74,11 +80,12 @@ export default function AdminComplaintsPage() {
   
   const { categories: serviceCategories } = useServiceCategories();
 
+  // Calculate statistics
   const stats = {
     total: complaints?.length || 0,
     unresolved: complaints?.filter(c => c.status !== "RESOLVED" && c.status !== "CLOSED").length || 0,
     urgent: complaints?.filter(c => c.priority === 1 || c.priority === 2).length || 0,
-    avgResponseTime: "24h"
+    avgResponseTime: "24h" // This would ideally be calculated from actual data
   };
 
   const handleExport = async () => {
@@ -94,12 +101,18 @@ export default function AdminComplaintsPage() {
         } : undefined,
       });
 
-      // Koristi predefinisanu success poruku
-      setNotification(CommonUINotifications.exportSuccess());
+      setNotification({
+        type: "success",
+        title: "Export Successful",
+        message: "Export started. The file will be available for download shortly."
+      });
     } catch (err) {
       console.error("Export error:", err);
-      // Koristi predefinisanu error poruku
-      setNotification(CommonUINotifications.exportError());
+      setNotification({
+        type: "error",
+        title: "Export Failed",
+        message: "Failed to export complaints"
+      });
     }
   };
 
@@ -107,23 +120,29 @@ export default function AdminComplaintsPage() {
     setIsImportModalOpen(false);
     
     if (success) {
-      // Custom success sa message parametrom
-      setNotification(
-        UINotifications.success("Import Successful", message)
-      );
-      mutate();
+      setNotification({
+        type: "success",
+        title: "Import Successful",
+        message
+      });
+      mutate(); // Refresh the data
     } else {
-      // Custom error sa message parametrom
-      setNotification(
-        UINotifications.error("Import Failed", message)
-      );
+      setNotification({
+        type: "error",
+        title: "Import Failed",
+        message
+      });
     }
   };
 
   const handleFiltersChange = (filters: any) => {
-    mutate();
+    // Filters are already managed by URL params via ComplaintFilters component
+    // This handler is just to satisfy the prop requirement
+    // The component internally uses useRouter to update URL params
+    mutate(); // Optionally refresh data when filters change
   };
 
+  // Safe function to get user role
   const getUserRole = () => {
     if (session?.user && 'role' in session.user) {
       return (session.user as any).role;
@@ -131,10 +150,12 @@ export default function AdminComplaintsPage() {
     return "USER";
   };
 
+  // ISPRAVKA: Koristi postojeće role iz UserRole enum
   const userRole = getUserRole();
   const isAdmin = userRole === UserRole.ADMIN;
-  const isSupportAgent = userRole === UserRole.SUPPORT_AGENT;
-  const canViewPage = isAdmin || isSupportAgent;
+  const isAgent = userRole === UserRole.AGENT;
+  const isManager = userRole === UserRole.MANAGER;
+  const canViewPage = isAdmin || isAgent || isManager;
 
   if (error) {
     return (
@@ -149,6 +170,7 @@ export default function AdminComplaintsPage() {
     );
   }
 
+  // Check access
   if (!canViewPage) {
     return (
       <div className="container mx-auto p-6">
@@ -168,6 +190,7 @@ export default function AdminComplaintsPage() {
         <h1 className="text-2xl font-bold">Complaint Management</h1>
         
         <div className="flex gap-2">
+          {/* Only ADMIN can import/export */}
           {isAdmin && (
             <>
               <Button
@@ -193,6 +216,7 @@ export default function AdminComplaintsPage() {
             Refresh
           </Button>
           
+          {/* Only ADMIN can view statistics */}
           {isAdmin && (
             <Link href="/admin/complaints/statistics">
               <Button variant="default">
@@ -264,6 +288,7 @@ export default function AdminComplaintsPage() {
         )}
       </div>
       
+      {/* Only ADMIN can import */}
       {isAdmin && isImportModalOpen && (
         <CsvImport
           onClose={() => setIsImportModalOpen(false)}

@@ -1,5 +1,4 @@
 // app/(protected)/admin/complaints/reports/page.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -12,6 +11,7 @@ import { Calendar, Download, FileText, RefreshCcw, Filter, List } from "lucide-r
 import { DateRangeFilter } from "@/components/complaints/DateRangeFilter";
 import { NotificationBanner } from "@/components/complaints/NotificationBanner";
 import Link from "next/link";
+import { UINotificationState, UINotifications, CommonUINotifications } from "@/lib/types/ui-notification-types";
 
 // Mock data for reports - in a real implementation these would come from an API
 const REPORTS = [
@@ -38,12 +38,10 @@ export default function ComplaintsReportsPage() {
     endDate: new Date()
   });
   const [reportType, setReportType] = useState("all");
-  // ISPRAVKA: Dodaj title u notification state
-  const [notification, setNotification] = useState<{
-    type: "success" | "error" | "info";
-    title: string;
-    message: string;
-  } | null>(null);
+  
+  // AŽURIRANO: Koristi UINotificationState
+  const [notification, setNotification] = useState<UINotificationState | null>(null);
+  
   const [isExporting, setIsExporting] = useState(false);
 
   const handleDateRangeChange = (startDate: Date | undefined, endDate: Date | undefined) => {
@@ -59,19 +57,21 @@ export default function ComplaintsReportsPage() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // ISPRAVKA: Dodaj title
-      setNotification({
-        type: "success",
-        title: "Report Generated",
-        message: "Report generated successfully. It will appear in the list when ready."
-      });
+      // AŽURIRANO: Koristi UI notification helper
+      setNotification(
+        UINotifications.success(
+          "Report Generated",
+          "Report generated successfully. It will appear in the list when ready."
+        )
+      );
     } catch (error) {
-      // ISPRAVKA: Dodaj title
-      setNotification({
-        type: "error",
-        title: "Generation Failed",
-        message: "Failed to generate report. Please try again."
-      });
+      // AŽURIRANO: Koristi UI notification helper
+      setNotification(
+        UINotifications.error(
+          "Generation Failed",
+          "Failed to generate report. Please try again."
+        )
+      );
     } finally {
       setIsExporting(false);
     }
@@ -103,7 +103,7 @@ export default function ComplaintsReportsPage() {
         </div>
       </div>
       
-      {/* ISPRAVKA: Dodaj title prop */}
+      {/* AŽURIRANO: Koristi notification state sa title */}
       {notification && (
         <NotificationBanner
           type={notification.type}
