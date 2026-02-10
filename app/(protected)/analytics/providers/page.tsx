@@ -75,7 +75,7 @@ export default async function ProviderAnalyticsPage({ searchParams }: ProviderAn
         </TabsList>
         
         <TabsContent value="performance" className="space-y-4">
-          <ServicePerformance providerView={true} />
+          <ServicePerformance />
         </TabsContent>
         
         <TabsContent value="revenue" className="space-y-4">
