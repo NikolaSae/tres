@@ -222,6 +222,7 @@ export default function AdminComplaintsPage() {
             serviceId: c.serviceId ?? null,
             productId: c.productId ?? null,
             assignedAgentId: c.assignedAgentId ?? null,
+            financialImpact: c.financialImpact ?? null,
           }))}
           isLoading={isLoading}
           isAdminView={true}
