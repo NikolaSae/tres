@@ -55,7 +55,7 @@ export default async function BulkServiceDetailsPage({
       <Separator />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <BulkServiceDetails bulkService={bulkService} />
-        <BulkServiceStats bulkService={bulkService} />
+        <BulkServiceStats bulkServices={[bulkService]} />
       </div>
     </div>
   );
