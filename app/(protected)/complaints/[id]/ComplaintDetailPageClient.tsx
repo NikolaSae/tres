@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams, notFound } from "next/navigation";
-import { useSession } from "next-auth/react"; // Assuming you use next-auth for session management
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Edit, Trash2, Send } from "lucide-react";
 import StatusBadge from "@/components/complaints/StatusBadge"; // Custom component for status badge
@@ -18,6 +18,7 @@ import { toast } from "sonner"; // Assuming you use sonner for toasts
 import { ComplaintStatus, UserRole, Complaint } from "@prisma/client"; // Import enums and Complaint type from Prisma client
 import { formatDate } from "@/lib/utils"; // Utility function for date formatting
 import { formatCurrency } from "@/lib/formatters"; // Function for currency formatting
+import { useComplaints } from "@/hooks/use-complaints"; // Custom hook for fetching complaints (will use initial data now)
 import { changeComplaintStatus } from "@/actions/complaints/change-status"; // Server action to change status
 import { addComment } from "@/actions/complaints/comment"; // Server action to add comment
 import { deleteComplaint } from "@/actions/complaints/delete"; // Server action to delete complaint
@@ -76,7 +77,7 @@ export default function ComplaintDetailPageClient({
 
     // Extract current user ID and role from the session
     const currentUserId = session?.user?.id;
-    const userRole = session?.user?.role as UserRole | undefined | null; // Cast role to UserRole enum type
+    const userRole = (session?.user?.role ?? null) as UserRole | null;
 
     // State for new comment input
     const [newComment, setNewComment] = useState("");
