@@ -34,6 +34,21 @@ export default function AdminComplaintsPage() {
     title?: string;
   } | null>(null);
 
+  // Helper function to normalize complaint data (convert undefined to null)
+  const normalizeComplaint = (complaint: any) => ({
+    ...complaint,
+    providerId: complaint.providerId ?? null,
+    humanitarianOrgId: complaint.humanitarianOrgId ?? null,
+    parkingServiceId: complaint.parkingServiceId ?? null,
+    serviceId: complaint.serviceId ?? null,
+    productId: complaint.productId ?? null,
+    assignedAgentId: complaint.assignedAgentId ?? null,
+    financialImpact: complaint.financialImpact ?? null,
+    assignedAt: complaint.assignedAt ?? null,
+    resolvedAt: complaint.resolvedAt ?? null,
+    closedAt: complaint.closedAt ?? null,
+  });
+
   // Extract filter parameters from URL
   const status = searchParams.get("status") || "";
   const priority = searchParams.get("priority") || "";
@@ -214,16 +229,7 @@ export default function AdminComplaintsPage() {
       
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <ComplaintList
-          complaints={(complaints || []).map(c => ({
-            ...c,
-            providerId: c.providerId ?? null,
-            humanitarianOrgId: c.humanitarianOrgId ?? null,
-            parkingServiceId: c.parkingServiceId ?? null,
-            serviceId: c.serviceId ?? null,
-            productId: c.productId ?? null,
-            assignedAgentId: c.assignedAgentId ?? null,
-            financialImpact: c.financialImpact ?? null,
-          }))}
+          complaints={(complaints || []).map(normalizeComplaint)}
           isLoading={isLoading}
           isAdminView={true}
         />
