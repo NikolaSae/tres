@@ -146,11 +146,11 @@ export default function ComplaintDetailPageClient({
           // You might add a comment field here if your changeStatus action supports it
         });
 
-        if (result?.success) {
+        if (result?.error) {
+          toast.error(result.error || "Failed to update status");
+        } else {
           toast.success("Status updated successfully");
           refresh(); // Re-fetch complaint data to update UI
-        } else {
-          toast.error(result?.error || "Failed to update status");
         }
       } catch (error) {
         toast.error("An unexpected error occurred");
@@ -178,12 +178,12 @@ export default function ComplaintDetailPageClient({
           isInternal: false // Assuming comments from this form are public
         });
 
-        if (result?.success) {
+        if (result?.error) {
+          toast.error(result.error || "Failed to add comment");
+        } else {
           toast.success("Comment added successfully");
           setNewComment(""); // Clear comment input
           refresh(); // Re-fetch complaint data to update UI with new comment
-        } else {
-          toast.error(result?.error || "Failed to add comment");
         }
       } catch (error) {
         toast.error("An unexpected error occurred");
@@ -212,11 +212,11 @@ export default function ComplaintDetailPageClient({
         // Call the server action to delete the complaint
         const result = await deleteComplaint(complaint.id);
 
-        if (result?.success) {
+        if (result?.error) {
+          toast.error(result.error || "Failed to delete complaint");
+        } else {
           toast.success("Complaint deleted successfully");
           router.push("/complaints"); // Redirect to complaints list after deletion
-        } else {
-          toast.error(result?.error || "Failed to delete complaint");
         }
       } catch (error) {
         toast.error("An unexpected error occurred");
