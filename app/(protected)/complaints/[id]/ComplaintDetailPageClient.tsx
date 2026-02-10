@@ -51,12 +51,19 @@ export default function ComplaintDetailPageClient({
     const router = useRouter();
     const { id } = useParams<{ id: string }>();
 
-    // Use the useComplaints hook, but potentially initialize it with server data
-    // This hook might need modification to accept initialData and handle refreshing
-    // For now, we'll keep the existing hook call, assuming 'refresh' works correctly.
-    // A more advanced pattern would be to use initialData and mutate cache.
-    const { complaint, isLoading, error, mutate } = useComplaints({ id: id as string }, initialComplaint);
+    // Use the initialComplaint from props directly instead of fetching again
+    // If you need real-time updates, you can use useComplaints hook without initial data
+    // For now, we'll use the server-fetched data directly
+    const [complaint, setComplaint] = useState(initialComplaint);
 
+    // Optionally use the hook for refreshing data
+    const { mutate } = useComplaints({ id: id as string });
+
+    // Helper function to refresh complaint data
+    const refresh = async () => {
+        // Trigger a re-fetch using the mutate function from the hook
+        await mutate();
+    };
 
     // Get current user session and status
     const { data: session, status } = useSession();
@@ -75,15 +82,6 @@ export default function ComplaintDetailPageClient({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
 
-    // Effect to show a toast notification if there's an error loading complaint data
-    // This effect might be less critical if initial data is always provided on server
-    useEffect(() => {
-      if (error) {
-        toast.error("Error loading complaint details");
-      }
-    }, [error]);
-
-
     // Display loading state while fetching user session
     if (status === 'loading') {
       return (
@@ -94,22 +92,8 @@ export default function ComplaintDetailPageClient({
       );
     }
 
-    // Display loading state while fetching complaint data (after session is loaded)
-    // This might still be needed if the useComplaints hook fetches data client-side initially
-    if (isLoading) {
-      return (
-        <div className="container mx-auto py-8 flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          Loading complaint...
-        </div>
-      );
-    }
-
     // If complaint is not found (should be handled by Server Component's notFound),
-    // or if initial data wasn't provided and hook failed
-    if (!complaint && !isLoading && status !== 'loading') {
-      // This case should ideally not be reached if the Server Component uses notFound
-      // but as a fallback, we can still show 404 or null. notFound() is preferred.
+    if (!complaint) {
        notFound();
     }
 
@@ -235,12 +219,6 @@ export default function ComplaintDetailPageClient({
       }
     };
 
-    // Render null if complaint data is not yet available (should be handled by Server Component)
-    // This is a fallback, ideally the Server Component ensures complaint is valid or calls notFound
-    if (!complaint) {
-         return null;
-     }
-
 
     // Main render function once data is loaded
     return (
@@ -267,7 +245,6 @@ export default function ComplaintDetailPageClient({
               <Button
                 variant="outline"
                 onClick={() => router.push(`/complaints/${complaint.id}/edit`)}
-                disabled={isLoading} // Disable while initial data is loading
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
@@ -278,7 +255,7 @@ export default function ComplaintDetailPageClient({
               <Button
                 variant="destructive"
                 onClick={() => setIsDeleteDialogOpen(true)} // Open delete confirmation dialog
-                disabled={isDeleting || isLoading} // Disable while deleting or initial data loading
+                disabled={isDeleting} // Disable while deleting
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
