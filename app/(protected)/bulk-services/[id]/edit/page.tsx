@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import BulkServiceForm from "@/components/bulk-services/BulkServiceForm";
+import { BulkServiceForm } from "@/components/bulk-services/BulkServiceForm";
 import { getBulkServiceById } from "@/actions/bulk-services/getBulkServiceById";
 import { getAllServices } from "@/actions/services/getAllServices";
 import { getAllProviders } from "@/actions/providers/getAllProviders";
