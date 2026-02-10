@@ -174,8 +174,8 @@ export default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPa
             showProviders={true}
             showServiceTypes={true}
             showProducts={true}
-            showStatuses={true}  {/* Add this */}
-            showPriorities={true}  {/* Add this */}
+            showStatuses={true}
+            showPriorities={true}
             showSearch={true}
             showSort={true}
             providersData={providersData}
