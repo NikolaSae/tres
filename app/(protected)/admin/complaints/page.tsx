@@ -236,7 +236,6 @@ export default function AdminComplaintsPage() {
         ) : (
           <ComplaintList
             complaints={(complaints || []).map(normalizeComplaint)}
-            isAdminView={true}
           />
         )}
       </div>
