@@ -26,6 +26,7 @@ export type ExportOptions = {
   parkingServiceId?: string;      // ako je povezano sa parking servisom
   orderBy?: 'createdAt' | 'updatedAt' | 'priority' | 'status' | 'title';  // dodaj polja po potrebi
   orderDirection?: 'asc' | 'desc';
+  limit?: number;                 // max broj rezultata (default 1000)
 };
 
 export async function exportComplaints(options: ExportOptions): Promise<string> {
@@ -78,19 +79,19 @@ export async function exportComplaints(options: ExportOptions): Promise<string> 
 
   // Fetch complaints with relations
   const complaints = await db.complaint.findMany({
-  where,
-  include: {
-    service: { select: { name: true } },
-    product: { select: { name: true, code: true } },
-    provider: { select: { name: true } },
-    submittedBy: { select: { name: true, email: true } },
-    assignedAgent: { select: { name: true, email: true } },
-    humanitarianOrg: { select: { name: true } },
-    parkingService: { select: { name: true } },
-  },
-  orderBy: { [orderBy]: orderDirection },
-  take: options.limit || 1000,  // max 1000 da ne preoptereti
-});
+    where,
+    include: {
+      service: { select: { name: true } },
+      product: { select: { name: true, code: true } },
+      provider: { select: { name: true } },
+      submittedBy: { select: { name: true, email: true } },
+      assignedAgent: { select: { name: true, email: true } },
+      humanitarianOrg: { select: { name: true } },
+      parkingService: { select: { name: true } },
+    },
+    orderBy: { [orderBy]: orderDirection },
+    take: options.limit || 1000,  // max 1000 da ne preoptereti
+  });
 
   // Transform data for export
   const exportData = complaints.map((complaint) => ({
