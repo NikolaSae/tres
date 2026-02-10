@@ -228,11 +228,17 @@ export default function AdminComplaintsPage() {
       </div>
       
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <ComplaintList
-          complaints={(complaints || []).map(normalizeComplaint)}
-          isLoading={isLoading}
-          isAdminView={true}
-        />
+        {isLoading ? (
+          <div className="flex items-center justify-center p-12">
+            <RefreshCcw className="h-8 w-8 animate-spin text-gray-400" />
+            <span className="ml-3 text-gray-600">Loading complaints...</span>
+          </div>
+        ) : (
+          <ComplaintList
+            complaints={(complaints || []).map(normalizeComplaint)}
+            isAdminView={true}
+          />
+        )}
       </div>
       
       {isImportModalOpen && (
