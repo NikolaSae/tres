@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { formatDistanceToNow } from "date-fns";
-import { User } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,7 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { addComment } from "@/actions/complaints/comment";
 import { useToast } from "@/components/toast/toast-context";
 
-type CommentWithUser = {
+// Export the type so it can be imported in other components
+export type CommentWithUser = {
   id: string;
   text: string;
   createdAt: Date;
@@ -36,14 +36,18 @@ type CommentWithUser = {
   userId: string;
   updatedAt?: Date;
   complaintId?: string;
-  user: Pick<User, "id" | "name" | "email">;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  };
 };
 
 interface CommentSectionProps {
   complaintId: string;
   comments: Array<CommentWithUser | null>;
-  currentUserId: string;
-  userRole: string;
+  currentUserId?: string;
+  userRole?: string | null;
 }
 
 const commentSchema = z.object({
@@ -60,7 +64,8 @@ export default function CommentSection({
   userRole
 }: CommentSectionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const canAddInternalComments = ["ADMIN", "MANAGER", "AGENT"].includes(userRole);
+  const { toast } = useToast();
+  const canAddInternalComments = userRole ? ["ADMIN", "MANAGER", "AGENT"].includes(userRole) : false;
   
   const form = useForm<CommentFormValues>({
     resolver: zodResolver(commentSchema),
@@ -82,7 +87,7 @@ export default function CommentSection({
     } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to add comment",
+        description: error instanceof Error ? error.message : "Failed to add comment",
         variant: "destructive",
       });
     } finally {
@@ -90,9 +95,10 @@ export default function CommentSection({
     }
   };
   
-  // Filter comments based on user role
-  const filteredComments = comments.filter(comment => 
-    !comment.isInternal || ["ADMIN", "MANAGER", "AGENT"].includes(userRole)
+  // Filter out null comments and filter based on user role
+  const validComments = comments.filter((comment): comment is CommentWithUser => comment !== null);
+  const filteredComments = validComments.filter(comment => 
+    !comment.isInternal || (userRole && ["ADMIN", "MANAGER", "AGENT"].includes(userRole))
   );
 
   return (
@@ -103,31 +109,37 @@ export default function CommentSection({
         <p className="text-muted-foreground italic">No comments yet</p>
       ) : (
         <div className="space-y-4">
-          {filteredComments.map((comment) => (
-            <Card key={comment.id}>
-              <CardHeader className="py-3 flex flex-row items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
-                    {comment.user.name?.charAt(0) || comment.user.email.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">
-                    {comment.user.name || comment.user.email}
-                    {comment.isInternal && (
-                      <Badge variant="outline" className="ml-2 bg-amber-100">Internal</Badge>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent className="py-2">
-                <p className="text-sm whitespace-pre-wrap">{comment.text}</p>
-              </CardContent>
-            </Card>
-          ))}
+          {filteredComments.map((comment) => {
+            // Get first character for avatar - handle null cases
+            const avatarInitial = comment.user.name?.charAt(0) || comment.user.email?.charAt(0) || '?';
+            const displayName = comment.user.name || comment.user.email || 'Unknown User';
+            
+            return (
+              <Card key={comment.id}>
+                <CardHeader className="py-3 flex flex-row items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>
+                      {avatarInitial}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {displayName}
+                      {comment.isInternal && (
+                        <Badge variant="outline" className="ml-2 bg-amber-100">Internal</Badge>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent className="py-2">
+                  <p className="text-sm whitespace-pre-wrap">{comment.text}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
       
