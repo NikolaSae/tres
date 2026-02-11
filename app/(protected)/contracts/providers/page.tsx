@@ -2,7 +2,7 @@
 
 
 import { Suspense } from "react";
-import { ContractList } from "@/components/contracts/ContractList";
+import { ContractsList } from "@/components/contracts/ContractList";
 import { ContractTypeDistribution } from "@/components/contracts/charts/ContractTypeDistribution";
 import { Metadata } from "next";
 
@@ -28,7 +28,7 @@ export default function ProviderContractsPage() {
       </div>
       
       <Suspense fallback={<div>Loading provider contracts...</div>}>
-        <ContractList filter="provider" />
+        <ContractsList contracts={[]} serverTime={new Date().toISOString()} />
       </Suspense>
     </div>
   );

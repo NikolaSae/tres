@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft, Calendar, Clock, AlertCircle, CheckCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getScheduledReports } from "@/actions/reports/get-scheduled-reports";
-import ScheduleForm from "@/components/reports/ScheduleForm";
+import { ScheduleForm } from "@/components/reports/ScheduleForm";
 
 export const metadata: Metadata = {
   title: "Scheduled Reports | Dashboard",

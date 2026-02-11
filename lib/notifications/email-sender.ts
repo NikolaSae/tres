@@ -191,3 +191,4 @@ export async function sendBulkEmails({
   
   return results;
 }
+export const sendEmail = sendEmailNotification;

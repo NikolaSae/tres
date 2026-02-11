@@ -2,24 +2,27 @@
 
 "use server";
 
-import { createBulkService as create } from './create';
-import { updateBulkService as update } from './update';
+import { createBulkService } from './create';
+import { updateBulkService } from './update';
 import { getBulkServiceById } from './getBulkServiceById';
 import { getBulkServices } from './getBulkServices';
 import { getBulkServicesByProviderId } from './getBulkServicesByProviderId';
 import { deleteBulkService } from './delete';
-import { importBulkServicesFromCsv as importBulkServices } from './import';  // ← OVDE je ispravka!
+import { importBulkServicesFromCsv } from './import';
 import { exportBulkServices } from './export';
 import { getAllBulkServices } from './getAllBulkServices';
 
 export {
-  create,
-  update,
+  createBulkService,
+  updateBulkService,
+  createBulkService as create,
+  updateBulkService as update,
   getBulkServiceById,
   getBulkServices,
   getBulkServicesByProviderId,
   deleteBulkService,
-  importBulkServices,          // ← sada koristi alias
+  importBulkServicesFromCsv,
+  importBulkServicesFromCsv as importBulkServices,
   exportBulkServices,
   getAllBulkServices,
 };

@@ -71,3 +71,4 @@ export const addAttachment = async (formData: FormData) => {
     return { error: "Failed to add attachment." };
   }
 };
+export const addContractAttachment = addAttachment;

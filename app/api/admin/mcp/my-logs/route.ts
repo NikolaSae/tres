@@ -1,6 +1,6 @@
-// app/api/mcp/my-logs/route.ts
+// app/api/admin/mcp/my-logs/route.ts
 import { auth } from '@/auth';
-import { queryLogger } from '@/lib/mcp/query-logger';
+import { getRecentQueries } from '@/lib/mcp/query-logger';
 import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {

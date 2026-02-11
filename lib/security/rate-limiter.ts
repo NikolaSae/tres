@@ -45,3 +45,5 @@ export async function rateLimit(
     reset: windowExpiry,
   };
 }
+
+export const rateLimiter = { check: rateLimit, rateLimit };

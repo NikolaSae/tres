@@ -101,3 +101,31 @@ export async function cleanOldQueryLogs(daysToKeep: number = 90): Promise<number
     return 0;
   }
 }
+
+export async function getQueryHistory(
+  userId?: string,
+  options: { limit?: number; toolName?: string; fromDate?: Date; toDate?: Date } = {}
+) {
+  const where: any = {};
+  if (userId) where.userId = userId;
+  if (options.toolName) where.toolName = options.toolName;
+  if (options.fromDate || options.toDate) {
+    where.createdAt = {};
+    if (options.fromDate) where.createdAt.gte = options.fromDate;
+    if (options.toDate) where.createdAt.lte = options.toDate;
+  }
+
+  return db.queryLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: options.limit ?? 50,
+  });
+}
+
+export const queryLogger = {
+  logQuery,
+  getRecentQueries,
+  getToolUsageStats,
+  cleanOldQueryLogs,
+  getQueryHistory,
+};

@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { formatDistanceToNow } from "date-fns";
-import { Comment, User } from "@prisma/client";
+import { User } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,11 +28,20 @@ import { Badge } from "@/components/ui/badge";
 import { addComment } from "@/actions/complaints/comment";
 import { useToast } from "@/components/toast/toast-context";
 
-type CommentWithUser = Comment & { user: Pick<User, "id" | "name" | "email"> };
+type CommentWithUser = {
+  id: string;
+  text: string;
+  createdAt: Date;
+  isInternal: boolean;
+  userId: string;
+  updatedAt?: Date;
+  complaintId?: string;
+  user: Pick<User, "id" | "name" | "email">;
+};
 
 interface CommentSectionProps {
   complaintId: string;
-  comments: CommentWithUser[];
+  comments: Array<CommentWithUser | null>;
   currentUserId: string;
   userRole: string;
 }

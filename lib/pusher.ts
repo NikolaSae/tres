@@ -48,3 +48,5 @@ export function initializePusher(config?: {
   console.log("Pusher initialization (mock):", config);
   return pusherClient;
 }
+
+export const pusherServer = getPusherClient();

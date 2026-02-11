@@ -1,4 +1,3 @@
-
 //schemas/index.ts
 
 
@@ -61,6 +60,12 @@ export {
   type TwoFactorSetupFormData,
   type TwoFactorVerificationFormData,
 } from './auth';
+
+// Legacy PascalCase aliases
+export const NewPasswordSchema = newPasswordSchema;
+export const LoginSchemaLegacy = loginSchema;
+export const RegisterSchemaLegacy = registerSchema;
+export const ResetSchemaLegacy = resetPasswordSchema;
 
 
 // Operator schemas
@@ -244,4 +249,3 @@ export type ServiceFilterData = z.infer<typeof serviceFilterSchema>;
 
 // Complaint schemas (when you create them)  
 // export { complaintSchema, ... } from './complaint';
-
