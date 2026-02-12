@@ -34,7 +34,7 @@ export default function NewHumanitarianOrgPage() {
         </div>
       </div>
 
-      <Card className>
+      <Card>
         <CardHeader>
           <CardTitle>Organization Details</CardTitle>
         </CardHeader>

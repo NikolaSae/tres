@@ -22,7 +22,7 @@ interface HumanitarianOrgFormProps {
   organization?: {
     id: string;
     name: string;
-    contactPerson: string | null;
+    contactName: string | null;
     email: string | null;
     phone: string | null;
     address: string | null;
@@ -49,7 +49,7 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
     defaultValues: isEditing && organization
       ? {
           name: organization.name,
-          contactPerson: organization.contactPerson ?? '',
+          contactName: organization.contactName ?? '',
           email: organization.email ?? '',
           phone: organization.phone ?? '',
           address: organization.address ?? '',
@@ -65,7 +65,7 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
       : {
           isActive: true,
           name: '',
-          contactPerson: '',
+          contactName: '',
           email: '',
           phone: '',
           address: '',
@@ -133,7 +133,7 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
 
               <FormField
                 control={form.control}
-                name="contactPerson"
+                name="contactName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Contact Person</FormLabel>
@@ -246,7 +246,7 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                     <FormLabel>PIB</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Enter PIB"
+                        placeholder="Enter PIB (8-9 digits)"
                         {...field}
                         value={field.value ?? ''}
                       />

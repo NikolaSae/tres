@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const humanitarianOrgSchema = z.object({
   id: z.string().cuid("Invalid organization ID format").optional(),
   name: z.string().min(1, { message: "Organization name is required" }),
-  contactPerson: z.string().nullable().optional(),
+  contactName: z.string().nullable().optional(),
   email: z.string().email("Invalid email format").or(z.literal('')).nullable().optional().transform(e => e === "" ? null : e),
   phone: z.string().nullable().optional(),
   address: z.string().nullable().optional(),

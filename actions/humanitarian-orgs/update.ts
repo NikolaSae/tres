@@ -1,14 +1,11 @@
-//actions/humanitarian-orgs/update.ts
+// Path: /actions/humanitarian-orgs/update.ts
 'use server';
 
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
-import { LogSeverity } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { humanitarianOrgSchema, HumanitarianOrgFormData } from '@/schemas/humanitarian-org';
 import { z } from 'zod';
-
 
 export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgFormData) => {
     const validatedFields = humanitarianOrgSchema.safeParse(values);
@@ -21,50 +18,50 @@ export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgF
     const validatedData = validatedFields.data;
 
     const session = await auth();
-    const userId = session?.user?.id;
-
-     if (!userId) {
-       return { error: "Unauthorized", success: false };
-     }
-
+    if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
+        return { error: "Unauthorized", success: false };
+    }
 
     try {
-         const existingOrganization = await db.humanitarianOrg.findUnique({
-             where: { id },
-         });
+        const existingOrganization = await db.humanitarianOrg.findUnique({
+            where: { id },
+        });
 
-         if (!existingOrganization) {
-             return { error: "Humanitarian organization not found.", success: false };
-         }
+        if (!existingOrganization) {
+            return { error: "Humanitarian organization not found.", success: false };
+        }
 
-         const orgWithSameName = await db.humanitarianOrg.findFirst({
-              where: {
-                  name: validatedData.name,
-                  id: { not: id },
-              },
-         });
-         if (orgWithSameName) {
-              return { error: `Another organization with name "${validatedData.name}" already exists.`, success: false };
-         }
+        // Check if name is being changed and if it conflicts with another org
+        if (validatedData.name !== existingOrganization.name) {
+            const existingOrgByName = await db.humanitarianOrg.findFirst({
+                where: { 
+                    name: validatedData.name,
+                    NOT: { id }
+                },
+            });
+            if (existingOrgByName) {
+                return { error: `Organization with name "${validatedData.name}" already exists.`, success: false };
+            }
+        }
 
-          if (validatedData.email && validatedData.email !== existingOrganization.email) {
-              const orgWithSameEmail = await db.humanitarianOrg.findFirst({
-                 where: { 
-                   email: validatedData.email,
-                   id: { not: id }
-                 },
-              });
-              if (orgWithSameEmail) {
-                  return { error: `Another organization with email "${validatedData.email}" already exists.`, success: false };
-              }
-          }
-
+        // Check if email is being changed and if it conflicts with another org
+        if (validatedData.email && validatedData.email !== existingOrganization.email) {
+            const existingOrgByEmail = await db.humanitarianOrg.findFirst({
+                where: { 
+                    email: validatedData.email,
+                    NOT: { id }
+                },
+            });
+            if (existingOrgByEmail) {
+                return { error: `Organization with email "${validatedData.email}" already exists.`, success: false };
+            }
+        }
 
         const updatedOrganization = await db.humanitarianOrg.update({
             where: { id },
             data: {
                 name: validatedData.name,
-                contactName: validatedData.contactPerson ?? null,
+                contactName: validatedData.contactName ?? null,
                 email: validatedData.email ?? null,
                 phone: validatedData.phone ?? null,
                 address: validatedData.address ?? null,
@@ -80,40 +77,60 @@ export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgF
         });
 
         await db.activityLog.create({
-          data: {
-            action: "HUMANITARIAN_ORG_UPDATED",
-            entityType: "humanitarian_org",
-            entityId: updatedOrganization.id,
-            details: `Humanitarian Organization updated: ${updatedOrganization.name}`,
-            userId: userId,
-            severity: "INFO",
-          },
+            data: {
+                action: "HUMANITARIAN_ORG_UPDATED",
+                entityType: "humanitarian_org",
+                entityId: updatedOrganization.id,
+                details: `Humanitarian Organization updated: ${updatedOrganization.name}`,
+                userId: session.user.id,
+                severity: "INFO",
+            },
         });
 
         revalidatePath('/humanitarian-orgs');
         revalidatePath(`/humanitarian-orgs/${id}`);
-        revalidatePath(`/humanitarian-orgs/${id}/edit`);
-
 
         return { success: true, message: "Humanitarian organization updated successfully!", id: updatedOrganization.id };
 
     } catch (error) {
-        console.error(`[HUMANITARIAN_ORG_UPDATE_ERROR] Error updating humanitarian organization ${id}:`, error);
+        console.error("[HUMANITARIAN_ORG_UPDATE_ERROR]", error);
 
-         if (error instanceof PrismaClientKnownRequestError) {
-              if (error.code === 'P2002') {
-                  return { error: "An organization with similar details already exists.", success: false };
-              }
-              if (error.code && error.clientVersion) {
+        if (error instanceof z.ZodError) {
+            const formattedErrors = error.format();
+            return {
+                error: "Invalid input data",
+                formErrors: formattedErrors,
+                success: false
+            };
+        }
+
+        if (error instanceof Error) {
+            const prismaError = error as any;
+
+            if (prismaError.code === 'P2002') {
                 return {
-                    error: "Database operation failed",
-                    message: `Prisma error: ${error.code}`,
-                    details: error.message,
+                    error: "Data conflict",
+                    message: "An organization with similar details already exists.",
+                    details: prismaError.meta?.target,
                     success: false
                 };
-           }
-         }
+            }
 
-        return { error: "Failed to update humanitarian organization.", success: false };
+            if (prismaError.code && prismaError.clientVersion) {
+                return {
+                    error: "Database operation failed",
+                    message: `Prisma error: ${prismaError.code}`,
+                    details: prismaError.message,
+                    success: false
+                };
+            }
+        }
+
+        return { 
+            error: "An unexpected error occurred", 
+            message: "Failed to update humanitarian organization.", 
+            details: error instanceof Error ? error.message : "Unknown error", 
+            success: false 
+        };
     }
 };

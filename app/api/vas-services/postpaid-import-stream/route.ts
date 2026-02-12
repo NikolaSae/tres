@@ -97,21 +97,34 @@ export async function GET(request: Request) {
       // Process the file
       const result = await processor.processVasServiceFiles(filePath);
       
-      if (!result || result.length === 0 || !result[0].success) {
+      // Check if result exists and has data
+      if (!result || result.length === 0) {
         sendMessage({
           type: 'error',
           error: 'VAS processing failed',
-          details: result?.[0]?.error || 'Unknown error'
+          details: 'No results returned'
         });
       } else {
-        const firstResult = result[0];
-        sendMessage({
-          type: 'complete',
-          recordsProcessed: firstResult.processedRecords,
-          errors: firstResult.errors,
-          duplicates: firstResult.duplicates,
-          message: `Processed ${firstResult.processedRecords} VAS records successfully!`
-        });
+        const firstResult = result[0] as any; // Use 'any' to access properties dynamically
+        
+        // Check for success/error in the actual result structure
+        const isSuccess = firstResult.success !== false && !firstResult.error;
+        
+        if (!isSuccess) {
+          sendMessage({
+            type: 'error',
+            error: 'VAS processing failed',
+            details: firstResult.error || firstResult.message || 'Unknown error'
+          });
+        } else {
+          sendMessage({
+            type: 'complete',
+            recordsProcessed: firstResult.processedRecords || firstResult.processed || 0,
+            errors: firstResult.errors || firstResult.errorCount || 0,
+            duplicates: firstResult.duplicates || firstResult.duplicateCount || 0,
+            message: `Processed ${firstResult.processedRecords || firstResult.processed || 0} VAS records successfully!`
+          });
+        }
       }
 
     } catch (error: any) {

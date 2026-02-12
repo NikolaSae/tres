@@ -1,5 +1,4 @@
 // components/blacklist/CreateBlacklistEntryDialog.tsx
-// components/blacklist/CreateBlacklistEntryDialog.tsx
 "use client";
 
 import { useState } from "react";
@@ -31,7 +30,7 @@ export default function CreateBlacklistEntryDialog({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [formData, setFormData] = useState({
     senderName: "",
-    effectiveDate: new Date(), // Changed from dateApplied to effectiveDate
+    effectiveDate: new Date(),
     description: "",
     isActive: true,
   });
@@ -61,7 +60,8 @@ export default function CreateBlacklistEntryDialog({
       });
 
       if (result.success) {
-        toast.success(`Blacklist entry created for ${result.data?.length || 0} bulk providers`);
+        // result.data is a single object, not an array
+        toast.success(`Blacklist entry created successfully`);
         // Reset form
         setFormData({
           senderName: "",
@@ -90,7 +90,7 @@ export default function CreateBlacklistEntryDialog({
       description: "",
       isActive: true,
     });
-    setCalendarOpen(false); // Close calendar if open
+    setCalendarOpen(false);
     onOpenChange(false);
   };
 
@@ -150,7 +150,6 @@ export default function CreateBlacklistEntryDialog({
                   side="bottom"
                   sideOffset={4}
                   onInteractOutside={(e) => {
-                    // Prevent closing when clicking inside the calendar
                     e.preventDefault();
                   }}
                 >

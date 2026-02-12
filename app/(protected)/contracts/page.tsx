@@ -48,14 +48,18 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     ];
   }
 
-  const [contracts, totalCount] = await Promise.all([
+  const [rawContracts, totalCount] = await Promise.all([
     db.contract.findMany({
       where,
       include: {
         provider: { select: { id: true, name: true } },
         humanitarianOrg: { select: { id: true, name: true } },
         parkingService: { select: { id: true, name: true } },
-        services: true,
+        services: {
+          include: {
+            service: true,
+          },
+        },
         _count: { select: { services: true, attachments: true, reminders: true } },
       },
       skip: (pageNumber - 1) * limitNumber,
@@ -64,6 +68,15 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     }),
     db.contract.count({ where }),
   ]);
+
+  // Transform the data to match the expected Contract type
+  const contracts = rawContracts.map(contract => ({
+    ...contract,
+    services: contract.services.map(cs => cs.service),
+    provider: contract.provider ? { name: contract.provider.name } : undefined,
+    humanitarianOrg: contract.humanitarianOrg ? { name: contract.humanitarianOrg.name } : undefined,
+    parkingService: contract.parkingService ? { name: contract.parkingService.name } : undefined,
+  }));
 
   return (
     <ContractsSection

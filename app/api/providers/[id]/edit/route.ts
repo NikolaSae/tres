@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -26,7 +26,8 @@ export async function PUT(
       );
     }
 
-    const providerId = params.id;
+    // Await params
+    const { id: providerId } = await params;
     const body = await request.json();
 
     // Verify provider exists

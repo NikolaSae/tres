@@ -1,9 +1,21 @@
 // /app/api/services/categories/route.ts
-// /app/api/services/categories/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { ServiceType } from "@prisma/client";
+
+// Define the type for service categories with optional complaint count
+type ServiceCategoryWithSamples = {
+  type: ServiceType;
+  count: number;
+  samples: {
+    id: string;
+    name: string;
+    type: ServiceType;
+    description: string | null;
+  }[];
+  complaintCount?: number;
+};
 
 export async function GET() {
   try {
@@ -45,7 +57,7 @@ export async function GET() {
     );
     
     // Get sample services for each category
-    const servicesWithSamples = await Promise.all(
+    const servicesWithSamples: ServiceCategoryWithSamples[] = await Promise.all(
       serviceTypes.map(async (type) => {
         const services = await db.service.findMany({
           where: {
