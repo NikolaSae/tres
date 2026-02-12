@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle, Link as LinkIcon, Eye, EyeOff } from "lucide-react";
-import EmptyState from "@/components/EmptyState";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ServiceType } from "@prisma/client";
 import ServiceLinkToContractModal from "@/components/contracts/ServiceLinkToContractModal";
 
@@ -36,7 +36,7 @@ export default function ParkingServiceServicesOverview({
   const [error, setError] = useState<string | null>(null);
   const [showAllServices, setShowAllServices] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [selectedServiceForLink, setSelectedServiceForLink] = useState<{ id: string; name: string } | null>(null);
+  const [selectedServiceForLink, setSelectedServiceForLink] = useState<{ id: string; name: string; providerId: string } | null>(null);
 
   const fetchServices = useCallback(async () => {
     setIsLoading(true);
@@ -68,7 +68,9 @@ export default function ParkingServiceServicesOverview({
   }, [parkingServiceId, fetchServices]);
 
   const handleOpenLinkModal = (service: ServiceForContract) => {
-    setSelectedServiceForLink({ id: service.id, name: service.name });
+    // For now, we'll pass empty string for providerId since we don't have it in the service data
+    // The modal will need to handle this or we need to fetch it separately
+    setSelectedServiceForLink({ id: service.id, name: service.name, providerId: parkingServiceId });
     setIsLinkModalOpen(true);
   };
 
@@ -106,30 +108,34 @@ export default function ParkingServiceServicesOverview({
 
   if (!services || services.length === 0) {
     return (
-      <EmptyState
-        title={showAllServices ? "No Services Found" : "No Unlinked Services Found"}
-        description={showAllServices 
-          ? "This parking service does not have any associated services." 
-          : "All services for this parking service are already linked to a contract."}
-        actionLabel="Refresh Services"
-        actionOnClick={fetchServices}
-      >
-        <Button
-          variant="outline"
-          onClick={() => setShowAllServices(prev => !prev)}
-          className="mt-4"
-        >
-          {showAllServices ? (
-            <>
-              <EyeOff className="h-4 w-4 mr-2" /> Show Only Unlinked
-            </>
-          ) : (
-            <>
-              <Eye className="h-4 w-4 mr-2" /> Show All Services
-            </>
-          )}
-        </Button>
-      </EmptyState>
+      <div className="space-y-4">
+        <EmptyState
+          title={showAllServices ? "No Services Found" : "No Unlinked Services Found"}
+          description={showAllServices 
+            ? "This parking service does not have any associated services." 
+            : "All services for this parking service are already linked to a contract."}
+          action={{
+            label: "Refresh Services",
+            onClick: fetchServices,
+          }}
+        />
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={() => setShowAllServices(prev => !prev)}
+          >
+            {showAllServices ? (
+              <>
+                <EyeOff className="h-4 w-4 mr-2" /> Show Only Unlinked
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4 mr-2" /> Show All Services
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -207,7 +213,7 @@ export default function ParkingServiceServicesOverview({
           onClose={handleLinkModalClose}
           serviceId={selectedServiceForLink.id}
           serviceName={selectedServiceForLink.name}
-          parkingServiceId={parkingServiceId}
+          providerId={selectedServiceForLink.providerId}
           onLinkSuccess={handleLinkSuccess}
         />
       )}

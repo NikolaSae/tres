@@ -19,13 +19,14 @@ import ParkingServiceReports from "@/components/parking-services/ParkingServiceR
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Banknote, Pencil } from "lucide-react";
+import { Banknote, Pencil, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import DetailSkeleton from "@/components/skeletons/DetailSkeleton";
 import { formatCurrency } from "@/lib/utils";
 import { months } from "@/lib/constants";
 import { getReportFileNames } from "@/actions/reports/getReportFileNames";
+import { BackButton } from "@/components/BackButton";
 
 export const metadata: Metadata = {
   title: "Parking Service Details | Contract Management System",
@@ -80,22 +81,23 @@ export default async function ParkingServiceDetailsPage({
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title={parkingService.name}
-        description="View parking service details"
-        actions={
-          <Link href={`/parking-services/${id}/edit`} passHref>
-            <Button>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit Service
-            </Button>
-          </Link>
-        }
-        backLink={{
-          href: "/parking-services",
-          label: "Back to Services",
-        }}
-      />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <BackButton />
+          <div>
+            <PageHeader
+              title={parkingService.name}
+              description="View parking service details"
+            />
+          </div>
+        </div>
+        <Link href={`/parking-services/${id}/edit`}>
+          <Button>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Service
+          </Button>
+        </Link>
+      </div>
       
       {/* Financial Summary Bar */}
       <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -229,7 +231,6 @@ export default async function ParkingServiceDetailsPage({
                 activeContractsCount={activeContractsCount}
                 totalRevenue={totalRevenue}
                 avgDailyRevenue={avgDailyRevenue}
-                totalTransactions={serviceStats.totalTransactions}
               />
             </CardContent>
           </Card>
@@ -263,7 +264,6 @@ export default async function ParkingServiceDetailsPage({
             <CardContent className="pt-6">
               <ParkingServiceReports 
                 parkingServiceId={id}
-                parkingServiceName={parkingService.name}
               />
             </CardContent>
           </Card>
