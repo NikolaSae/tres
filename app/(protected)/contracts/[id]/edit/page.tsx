@@ -89,16 +89,30 @@ async function getContract(id: string, currentUserId?: string, userRole?: string
 
     console.log("[GET_CONTRACT] Permission granted");
 
+    // Return contract with properly typed fields matching ContractFormProps
     return {
-      ...contract,
-      startDate: contract.startDate ? new Date(contract.startDate) : null,
-      endDate: contract.endDate ? new Date(contract.endDate) : null,
+      id: contract.id,
+      name: contract.name,
+      contractNumber: contract.contractNumber,
+      type: contract.type,
+      status: contract.status,
+      startDate: contract.startDate, // Already a Date from Prisma
+      endDate: contract.endDate, // Already a Date from Prisma
+      revenuePercentage: contract.revenuePercentage,
+      description: contract.description,
+      providerId: contract.providerId,
+      humanitarianOrgId: contract.humanitarianOrgId,
+      parkingServiceId: contract.parkingServiceId,
+      operatorId: contract.operatorId,
+      operatorRevenue: contract.operatorRevenue,
+      isRevenueSharing: contract.isRevenueSharing ?? true,
       services: contract.services.map(sc => ({
         serviceId: sc.serviceId,
-        specificTerms: sc.specificTerms,
-        service: sc.service
+        specificTerms: sc.specificTerms || undefined,
       })),
-      isRevenueSharing: contract.isRevenueSharing ?? true,
+      createdAt: contract.createdAt,
+      updatedAt: contract.updatedAt,
+      createdById: contract.createdById,
     };
   } catch (error) {
     console.error("GET_CONTRACT_ERROR", error);
