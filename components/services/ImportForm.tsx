@@ -16,8 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-// Uvozimo custom useToast hook (koristite VAŠU STVARNU putanju)
-// import { useToast } from "@/components/toast/toast-context"; // <-- Proverite/Ispravite putanju!
+// Uvozimo toast - koristimo standardni shadcn/ui toast
+import { useToast } from '@/hooks/use-toast';
 
 // Uvozimo Card komponente
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -35,9 +35,7 @@ type ImportFormValues = z.infer<typeof formSchema>;
 
 
 export function ImportForm() {
-    // console.log("Rendering ImportForm (sa custom toast, rezultati prikazani)"); // Ažuriran log
-
-    // const { showToastMessage } = useToast();
+    const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     // importResult čuva rezultat akcije tipa VasImportResult
     const [importResult, setImportResult] = useState<VasImportResult | null>(null);
@@ -58,9 +56,13 @@ export function ImportForm() {
 
         // Provera tipa fajla pre čitanja (opciono, ali dobra praksa)
         if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-             showToastMessage('Please upload a valid CSV file.', true);
-             setIsLoading(false);
-             return;
+            toast({
+                title: "Invalid file type",
+                description: "Please upload a valid CSV file.",
+                variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
         }
 
 
@@ -70,9 +72,13 @@ export function ImportForm() {
             const csvContent = event.target?.result as string;
 
             if (!csvContent) {
-                showToastMessage('Could not read CSV file content.', true);
+                toast({
+                    title: "Error",
+                    description: "Could not read CSV file content.",
+                    variant: "destructive",
+                });
                 setIsLoading(false);
-                 // Nema rezultata za prikaz, setujemo null
+                // Nema rezultata za prikaz, setujemo null
                 setImportResult(null);
                 return;
             }
@@ -84,28 +90,31 @@ export function ImportForm() {
             // Postavljamo rezultat za prikaz na frontend-u
             setImportResult(result);
 
-            // console.log("Import Result:", result); // Ostavite ovaj log za server konzolu
-
             // Prikaz toast poruke na osnovu rezultata
             if (result.importErrors.length > 0 || result.invalidRows.length > 0) {
-                 // Poruka za delimičan uspeh ili potpun neuspeh
-                showToastMessage(
-                    `Import završen sa problemima. Procesirano: ${result.processedCount}, Nevalidnih redova: ${result.invalidRows.length}, Grešaka fajla: ${result.importErrors.length}.`,
-                    true // true za error stil
-                );
+                // Poruka za delimičan uspeh ili potpun neuspeh
+                toast({
+                    title: "Import completed with issues",
+                    description: `Processed: ${result.processedCount}, Invalid rows: ${result.invalidRows.length}, File errors: ${result.importErrors.length}.`,
+                    variant: "destructive",
+                });
             } else {
-                 // Poruka za potpun uspeh
-                showToastMessage(
-                    `Import uspešan! Procesirano: ${result.processedCount}, Kreirano: ${result.createdCount}, Ažurirano: ${result.updatedCount}.`,
-                    false // false za success stil
-                );
+                // Poruka za potpun uspeh
+                toast({
+                    title: "Import successful!",
+                    description: `Processed: ${result.processedCount}, Created: ${result.createdCount}, Updated: ${result.updatedCount}.`,
+                });
             }
         };
 
         reader.onerror = () => {
             setIsLoading(false);
-            showToastMessage('Failed to read file.', true);
-             setImportResult(null);
+            toast({
+                title: "Error",
+                description: "Failed to read file.",
+                variant: "destructive",
+            });
+            setImportResult(null);
         };
 
         reader.readAsText(file);
@@ -114,9 +123,7 @@ export function ImportForm() {
 
     return (
         <>
-            {/* console.log("Rendering Card start") */}
             <Card className="w-full">
-                {/* console.log("Rendering CardHeader start") */}
                 <CardHeader>
                     <CardTitle>Import VAS Service Data from CSV</CardTitle>
                     <p className="text-sm text-muted-foreground">Upload a CSV file containing VAS service usage data.</p>
@@ -127,16 +134,11 @@ export function ImportForm() {
                     >
                         Download VAS CSV Template
                     </a>
-                {/* console.log("Rendering CardHeader end") */}
                 </CardHeader>
-                {/* console.log("Rendering CardContent start") */}
                 <CardContent className="space-y-6">
 
-                    {/* console.log("Rendering Form wrapper start") */}
                     <Form {...form}>
-                        {/* console.log("Rendering form tag start") */}
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            {/* console.log("Rendering FormField start") */}
                             <FormField
                                 control={form.control}
                                 name="csvFile"
@@ -160,17 +162,13 @@ export function ImportForm() {
                                     </FormItem>
                                 )}
                             />
-                            {/* console.log("Rendering FormField end") */}
-                            <Button type="submit" disabled={isLoading || !form.formState.isValid || isLoading}>
+                            <Button type="submit" disabled={isLoading || !form.formState.isValid}>
                                 {isLoading ? 'Importing...' : 'Import VAS Data'}
                             </Button>
-                        {/* console.log("Rendering form tag end") */}
                         </form>
-                    {/* console.log("Rendering Form wrapper end") */}
                     </Form>
 
-                {/* console.log("Evaluating importResult conditional", importResult ? "true" : "false") */}
-                {/* *** OTKOMENTARISANI BLOK ZA PRIKAZ DETALJNIH REZULTATA *** */}
+                {/* *** PRIKAZ DETALJNIH REZULTATA *** */}
                 {importResult && (
                     <div className="mt-6 space-y-4">
                         <h3 className="text-lg font-semibold">Import Results</h3>
@@ -238,12 +236,10 @@ export function ImportForm() {
                         )}
 
                     </div>
-                )} {/* *** KRAJ OTKOMENTARISANOG BLOKA *** */}
+                )}
 
-                {/* console.log("Rendering CardContent end") */}
                 </CardContent>
             </Card>
-            {/* console.log("Rendering Card end") */}
         </>
     );
 }
