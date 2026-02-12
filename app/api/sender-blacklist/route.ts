@@ -1,97 +1,120 @@
 // app/api/sender-blacklist/route.ts
-// app/api/sender-blacklist/route.ts
-import { db } from "@/lib/db";
-import { NextResponse } from "next/server";
-import { SenderBlacklistWithProvider } from "@/lib/types/blacklist";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const pageSize = parseInt(searchParams.get("pageSize") || "10");
-  const senderName = searchParams.get("senderName") || "";
-  const providerId = searchParams.get("providerId") || "";
-  const isActiveParam = searchParams.get("isActive");
-  const dateFromParam = searchParams.get("dateFrom");
-  const dateToParam = searchParams.get("dateTo");
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
+export async function GET(request: NextRequest) {
   try {
-    const skip = (page - 1) * pageSize;
+    const session = await auth();
     
-    const where: any = {};
-    
-    // Filter by sender name
-    if (senderName) {
-      where.senderName = {
-        contains: senderName,
-        mode: "insensitive",
-      };
-    }
-    
-    // Filter by provider ID
-    if (providerId) {
-      where.providerId = providerId;
-    }
-    
-    // Filter by active status
-    if (isActiveParam !== null && isActiveParam !== "") {
-      where.isActive = isActiveParam === "true";
-    }
-    
-    // Filter by date range
-    if (dateFromParam || dateToParam) {
-      where.effectiveDate = {};
-      
-      if (dateFromParam) {
-        where.effectiveDate.gte = new Date(dateFromParam);
-      }
-      
-      if (dateToParam) {
-        // Add 1 day to include the entire end date
-        const dateTo = new Date(dateToParam);
-        dateTo.setDate(dateTo.getDate() + 1);
-        where.effectiveDate.lt = dateTo;
-      }
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const [rawEntries, total] = await Promise.all([
-      db.senderBlacklist.findMany({
-        skip,
-        take: pageSize,
-        where,
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+    const searchParams = request.nextUrl.searchParams;
+    const includeInactive = searchParams.get('includeInactive') === 'true';
+
+    const blacklist = await prisma.senderBlacklist.findMany({
+      where: includeInactive ? {} : { isActive: true },
+      select: {
+        id: true,
+        senderName: true,
+        effectiveDate: true,
+        description: true,
+        isActive: true,
+        matchCount: true,
+        lastMatchDate: true,
+        createdAt: true,
+        updatedAt: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
         },
-        orderBy: {
-          createdAt: "desc",
-        },
-      }),
-      db.senderBlacklist.count({ where }),
-    ]);
-
-    // Add null provider to satisfy type requirements
-    const entries = rawEntries.map(entry => ({
-      ...entry,
-      provider: null
-    }));
-
-    const totalPages = Math.ceil(total / pageSize);
-
-    return NextResponse.json({
-      entries: entries as SenderBlacklistWithProvider[],
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages,
+        modifiedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        }
       },
+      orderBy: {
+        createdAt: 'desc'
+      }
     });
+
+    return NextResponse.json(blacklist);
   } catch (error) {
-    console.error("[GET_BLACKLIST_ERROR]", error);
-    return new NextResponse("Internal server error", { status: 500 });
+    console.error('Error fetching sender blacklist:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user has permission (ADMIN or MANAGER only)
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
+      return NextResponse.json(
+        { error: 'Forbidden - insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+
+    if (!body.senderName || !body.effectiveDate) {
+      return NextResponse.json(
+        { error: 'Sender name and effective date are required' },
+        { status: 400 }
+      );
+    }
+
+    const blacklistEntry = await prisma.senderBlacklist.create({
+      data: {
+        senderName: body.senderName,
+        effectiveDate: new Date(body.effectiveDate),
+        description: body.description,
+        isActive: body.isActive ?? true,
+        createdById: session.user.id,
+      },
+      select: {
+        id: true,
+        senderName: true,
+        effectiveDate: true,
+        description: true,
+        isActive: true,
+        matchCount: true,
+        lastMatchDate: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    return NextResponse.json(blacklistEntry, { status: 201 });
+  } catch (error) {
+    console.error('Error creating blacklist entry:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

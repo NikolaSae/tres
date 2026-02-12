@@ -24,7 +24,12 @@ export async function rateLimit(
   remaining: number;
   reset: number;
 }> {
-  const ip = req.ip || "anonymous";
+  // Get IP from headers since req.ip doesn't exist in Next.js 13+
+  const ip = req.headers.get('x-forwarded-for') || 
+             req.headers.get('x-real-ip') || 
+             identifier || 
+             'anonymous';
+  
   const key = `ratelimit:${identifier}:${ip}`;
   
   const now = Math.floor(Date.now() / 1000);
