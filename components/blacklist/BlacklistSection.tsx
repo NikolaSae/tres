@@ -49,11 +49,11 @@ export function BlacklistSection() {
       const providerNames = Array.from(
         new Set(
           match.matchingServices.map(
-            service => service.provider?.name || 'Unknown'
+            (service: { provider?: { name?: string } }) => service.provider?.name || 'Unknown'
           )
         )
-      );
-      
+      ) as string[];
+
       providersMap[senderName] = providerNames;
     });
     

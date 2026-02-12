@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ServicePerformance() {
   const [serviceType, setServiceType] = useState<string>("all");
-  const { data, isLoading, error } = useServicePerformance(serviceType);
-  
+  const { performanceData, isLoading, error } = useServicePerformance("month", serviceType as "VAS" | "BULK" | "HUMANITARIAN" | "PARKING" | undefined);
+
   if (error) {
     return (
       <Card>
@@ -25,7 +25,7 @@ export default function ServicePerformance() {
       </Card>
     );
   }
-  
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -52,7 +52,7 @@ export default function ServicePerformance() {
         ) : (
           <ResponsiveContainer width="100%" height={350}>
             <BarChart
-              data={data}
+              data={performanceData}
               margin={{
                 top: 20,
                 right: 30,
