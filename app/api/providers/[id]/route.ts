@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -26,7 +26,7 @@ export async function DELETE(
       );
     }
 
-    const providerId = params.id;
+    const { id: providerId } = await params;
 
     // Check if provider exists
     const provider = await prisma.provider.findUnique({
@@ -89,7 +89,7 @@ export async function DELETE(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -101,7 +101,7 @@ export async function GET(
       );
     }
 
-    const providerId = params.id;
+    const { id: providerId } = await params;
 
     const provider = await prisma.provider.findUnique({
       where: { id: providerId },
