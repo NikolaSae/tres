@@ -163,7 +163,12 @@ export function ProviderForm({ provider }: ProviderFormProps) {
                                  <FormItem>
                                      <FormLabel>Contact Name (Optional)</FormLabel>
                                      <FormControl>
-                                         <Input placeholder="Enter contact name" {...field} disabled={isLoading} />
+                                         <Input 
+                                             placeholder="Enter contact name" 
+                                             {...field} 
+                                             value={field.value ?? ''} 
+                                             disabled={isLoading} 
+                                         />
                                      </FormControl>
                                      <FormMessage />
                                  </FormItem>
@@ -178,7 +183,13 @@ export function ProviderForm({ provider }: ProviderFormProps) {
                                  <FormItem>
                                      <FormLabel>Email (Optional)</FormLabel>
                                      <FormControl>
-                                         <Input type="email" placeholder="Enter email" {...field} disabled={isLoading} />
+                                         <Input 
+                                             type="email" 
+                                             placeholder="Enter email" 
+                                             {...field} 
+                                             value={field.value ?? ''} 
+                                             disabled={isLoading} 
+                                         />
                                      </FormControl>
                                      <FormMessage />
                                  </FormItem>
@@ -193,7 +204,13 @@ export function ProviderForm({ provider }: ProviderFormProps) {
                                  <FormItem>
                                      <FormLabel>Phone (Optional)</FormLabel>
                                      <FormControl>
-                                         <Input type="tel" placeholder="Enter phone number" {...field} disabled={isLoading} />
+                                         <Input 
+                                             type="tel" 
+                                             placeholder="Enter phone number" 
+                                             {...field} 
+                                             value={field.value ?? ''} 
+                                             disabled={isLoading} 
+                                         />
                                      </FormControl>
                                      <FormMessage />
                                  </FormItem>
@@ -208,7 +225,13 @@ export function ProviderForm({ provider }: ProviderFormProps) {
                                  <FormItem>
                                      <FormLabel>Address (Optional)</FormLabel>
                                      <FormControl>
-                                         <Textarea placeholder="Enter address" {...field} disabled={isLoading} rows={3} />
+                                         <Textarea 
+                                             placeholder="Enter address" 
+                                             {...field} 
+                                             value={field.value ?? ''} 
+                                             disabled={isLoading} 
+                                             rows={3} 
+                                         />
                                      </FormControl>
                                      <FormMessage />
                                  </FormItem>

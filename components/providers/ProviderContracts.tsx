@@ -1,162 +1,84 @@
-//components/providers/ProviderContracts.tsx
-"use client";
+// components/providers/ProviderContracts.tsx
+'use client';
 
-import React, { useState } from "react";
-import { useProviderContracts } from "@/hooks/use-provider-contracts";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { format } from "date-fns";
-import { Loader2, RefreshCw } from "lucide-react";
-import Link from "next/link";
-import EmptyState from "@/components/EmptyState";
-import { ContractStatus } from "@prisma/client";
-
-interface ProviderContractItem {
-  id: string;
-  contractNumber: string;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  status: ContractStatus;
-  revenuePercentage: number;
-  isRevenueSharing: boolean;
-  operatorRevenue?: number | null;
-  operator?: {
-     id: string;
-     name: string;
-  } | null;
-}
+import React from 'react';
+import { Contract } from '@prisma/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { FileText } from 'lucide-react';
 
 interface ProviderContractsProps {
   providerId: string;
+  contracts: Contract[];
 }
 
-export default function ProviderContracts({ providerId }: ProviderContractsProps) {
-  const { contracts, isLoading, error, refreshContracts } = useProviderContracts(providerId);
-  const [refreshing, setRefreshing] = useState(false);
+const ProviderContracts: React.FC<ProviderContractsProps> = ({ providerId, contracts }) => {
+  const router = useRouter();
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await refreshContracts();
-    setTimeout(() => setRefreshing(false), 500);
+  const handleCreateContract = () => {
+    router.push(`/contracts/new?providerId=${providerId}`);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center py-10">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error) {
+  if (!contracts || contracts.length === 0) {
     return (
       <Card>
-        <CardContent className="pt-6">
-          <div className="text-center text-destructive">
-            <p>{error}</p>
-            <Button variant="outline" onClick={handleRefresh} className="mt-4">
-              Try Again
-            </Button>
-          </div>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No contracts found</h3>
+          <p className="text-sm text-muted-foreground mb-4 max-w-md">
+            This provider doesn't have any contracts yet.
+          </p>
+          <Button onClick={handleCreateContract} variant="outline">
+            Create Contract
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
-  if (!contracts || contracts.length === 0) {
-    return (
-      <EmptyState
-        title="No Contracts Found"
-        description="This provider doesn't have any associated contracts yet."
-        actionLabel="Refresh"
-        actionOnClick={handleRefresh}
-      />
-    );
-  }
-
-   const getStatusBadge = (status: ContractStatus) => {
-     switch (status) {
-       case "ACTIVE":
-         return <Badge variant="default">Active</Badge>;
-       case "EXPIRED":
-         return <Badge variant="destructive">Expired</Badge>;
-       case "PENDING":
-         return <Badge variant="secondary">Pending</Badge>;
-       case "RENEWAL_IN_PROGRESS":
-         return <Badge variant="outline">Renewal In Progress</Badge>;
-       case "TERMINATED":
-          return <Badge variant="destructive">Terminated</Badge>;
-       default:
-         return <Badge variant="outline">{status}</Badge>;
-     }
-   };
-
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">Associated Contracts</h3>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing || isLoading}>
-          {refreshing ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
-          )}
-          Refresh
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Contracts ({contracts.length})</h3>
+        <Button onClick={handleCreateContract}>
+          Create New Contract
         </Button>
       </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Contract Number</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Platform Revenue %</TableHead>
-              <TableHead>Operator Revenue %</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(contracts as ProviderContractItem[]).map((contract) => (
-              <TableRow key={contract.id}>
-                <TableCell className="font-medium">{contract.contractNumber}</TableCell>
-                <TableCell>{contract.name}</TableCell>
-                <TableCell>{format(new Date(contract.startDate), "PPP")}</TableCell>
-                <TableCell>{format(new Date(contract.endDate), "PPP")}</TableCell>
-                <TableCell>{getStatusBadge(contract.status)}</TableCell>
-                <TableCell>{contract.revenuePercentage}%</TableCell>
-                 <TableCell>
-                   {contract.isRevenueSharing && contract.operatorRevenue !== null && contract.operatorRevenue !== undefined ? (
-                     `${contract.operatorRevenue}%`
-                   ) : (
-                     contract.isRevenueSharing ? "N/A" : "-"
-                   )}
-                 </TableCell>
-                <TableCell className="text-right">
-                  <Link href={`/contracts/${contract.id}`} passHref>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="grid gap-4">
+        {contracts.map((contract) => (
+          <Card key={contract.id} className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle className="text-base">{contract.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium">Contract Number:</span> {contract.contractNumber}
+                </div>
+                <div>
+                  <span className="font-medium">Type:</span> {contract.type}
+                </div>
+                <div>
+                  <span className="font-medium">Status:</span> {contract.status}
+                </div>
+                {contract.startDate && (
+                  <div>
+                    <span className="font-medium">Start Date:</span> {new Date(contract.startDate).toLocaleDateString()}
+                  </div>
+                )}
+                {contract.endDate && (
+                  <div>
+                    <span className="font-medium">End Date:</span> {new Date(contract.endDate).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
-}
+};
+
+export default ProviderContracts;

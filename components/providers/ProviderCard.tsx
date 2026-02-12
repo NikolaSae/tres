@@ -171,16 +171,13 @@ export function ProviderCard({ provider, onStatusChange, onRenewContract, trigge
             backgroundImage: provider.imageUrl ? `url(${provider.imageUrl})` : 'none',
             backgroundSize: '100px 100px',
             backgroundPosition: 'right',
-            // Dodajte minimalnu visinu ako je potrebno da slika bude vidljiva i bez sadržaja
-            miaHeight: '150px',
+            minHeight: '150px', // Fixed typo: miaHeight -> minHeight
             backgroundRepeat: 'no-repeat',
             // Dodajte transform za rotaciju cele kartice
             // Promenite '5deg' na željeni ugao rotacije
             // transform: 'rotate(30deg)', // Primer: 0 stepeni rotacije (promenite ovo)
             // transform: `rotate(${rotationDegrees}deg)`, // Ako koristite prop
             transition: 'transform 0.5s ease-in-out', 
-            // Dodajte minimalnu visinu ako je potrebno da slika bude vidljiva i bez sadržaja
-            // minHeight: '150px',
         }}
     >
         {/* Opciono: Preklop (overlay) za bolju čitljivost teksta preko slike */}
@@ -255,7 +252,7 @@ export function ProviderCard({ provider, onStatusChange, onRenewContract, trigge
       <CardContent className="flex-1 pb-2 relative z-10"> {/* Dodajte relative z-10 */}
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <Badge variant={provider.isActive ? "success" : "destructive"}>
+            <Badge variant={provider.isActive ? "default" : "destructive"} className={provider.isActive ? "bg-green-600" : ""}>
               {provider.isActive ? "Active" : "Inactive"}
             </Badge>
           </div>

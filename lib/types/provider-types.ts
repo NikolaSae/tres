@@ -1,13 +1,23 @@
 // /lib/types/provider-types.ts
 import { Provider } from "@prisma/client";
 
-// Основни типи
+// Основни типови
 export interface ProviderBase extends Provider {
   // Поље 'services' није потребно јер се већ налази у Prisma типу
 }
 
 // Проширени тип са бројачима релација
 export interface ProviderWithCounts extends Provider {
+  _count?: {
+    contracts: number;
+    vasServices: number;
+    bulkServices: number;
+    complaints: number;
+  };
+}
+
+// Детаљни тип са свим релацијама (за detail страницу)
+export interface ProviderWithDetails extends Provider {
   _count?: {
     contracts: number;
     vasServices: number;
