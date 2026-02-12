@@ -1,3 +1,4 @@
+
 // app/api/blacklist/route.ts
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -45,18 +46,11 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Get blacklist entries with pagination
+    // ✅ ISPRAVKA: Uklonjena nevalidna orderBy sintaksa i uklonjen provider include
     const [blacklist, total] = await Promise.all([
       db.senderBlacklist.findMany({
         where,
         include: {
-          provider: {
-            select: {
-              id: true,
-              name: true,
-              type: true
-            }
-          },
           createdBy: {
             select: {
               id: true,
@@ -65,7 +59,7 @@ export async function GET(request: NextRequest) {
           }
         },
         orderBy: [
-          { lastMatchDate: { sort: 'desc', nulls: 'last' } },
+          { lastMatchDate: 'desc' },
           { createdAt: 'desc' }
         ],
         skip,
@@ -109,77 +103,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all bulk providers
-    const bulkProviders = await db.provider.findMany({
-      where: {
-        type: "BULK"
-      },
-      select: {
-        id: true,
-        name: true
-      }
-    });
-
-    if (bulkProviders.length === 0) {
-      return NextResponse.json(
-        { error: "No bulk providers found" },
-        { status: 400 }
-      );
-    }
-
-    // Check if entries already exist for any provider
-    const existingEntries = await db.senderBlacklist.findMany({
-      where: {
+    // ✅ ISPRAVKA: Uklonjen provider include
+    const blacklistEntry = await db.senderBlacklist.create({
+      data: {
         senderName,
-        providerId: {
-          in: bulkProviders.map(p => p.id)
-        }
-      },
-      include: {
-        provider: {
-          select: {
-            name: true
-          }
-        }
-      }
-    });
-
-    if (existingEntries.length > 0) {
-      const providerNames = existingEntries.map(e => e.provider.name).join(", ");
-      return NextResponse.json(
-        { error: `Blacklist entry already exists for this sender on providers: ${providerNames}` },
-        { status: 400 }
-      );
-    }
-
-    // Create blacklist entries for all bulk providers
-    await db.senderBlacklist.createMany({
-      data: bulkProviders.map(provider => ({
-        senderName,
-        providerId: provider.id,
         effectiveDate: new Date(effectiveDate),
         description,
         isActive: isActive ?? true,
         createdById: session.user.id
-      }))
-    });
-
-    // Get the created entries with relations
-    const blacklistEntries = await db.senderBlacklist.findMany({
-      where: {
-        senderName,
-        providerId: {
-          in: bulkProviders.map(p => p.id)
-        }
       },
       include: {
-        provider: {
-          select: {
-            id: true,
-            name: true,
-            type: true
-          }
-        },
         createdBy: {
           select: {
             id: true,
@@ -189,15 +122,88 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({
-      message: `Blacklist entry created for ${bulkProviders.length} bulk providers`,
-      entries: blacklistEntries
-    }, { status: 201 });
+    return NextResponse.json(blacklistEntry, { status: 201 });
 
   } catch (error) {
     console.error("Error creating blacklist entry:", error);
     return NextResponse.json(
       { error: "Failed to create blacklist entry" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, ...updateData } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Blacklist entry ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ ISPRAVKA: Uklonjen provider include
+    const blacklistEntry = await db.senderBlacklist.update({
+      where: { id },
+      data: updateData,
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    return NextResponse.json(blacklistEntry);
+
+  } catch (error) {
+    console.error("Error updating blacklist entry:", error);
+    return NextResponse.json(
+      { error: "Failed to update blacklist entry" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Blacklist entry ID is required" },
+        { status: 400 }
+      );
+    }
+
+    await db.senderBlacklist.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true });
+
+  } catch (error) {
+    console.error("Error deleting blacklist entry:", error);
+    return NextResponse.json(
+      { error: "Failed to delete blacklist entry" },
       { status: 500 }
     );
   }

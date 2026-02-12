@@ -1,87 +1,78 @@
 // app/api/providers/[id]/edit/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/auth";
-import { UserRole } from "@prisma/client";
-import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
-const updateProviderSchema = z.object({
-  name: z.string().min(1, { message: "Name is required." }),
-  contactName: z.string().nullable().optional(),
-  email: z.string().email({ message: "Invalid email format." }).nullable().optional().or(z.literal("")),
-  phone: z.string().nullable().optional(),
-  address: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  isActive: z.boolean(),
-  imageUrl: z.string().url({ message: "Invalid URL format." }).nullable().optional().or(z.literal("")),
-});
-
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
-    const user = session?.user;
-
-    // Check authorization
-    if (!user || ![UserRole.ADMIN, UserRole.MANAGER].includes(user.role as UserRole)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const { id: providerId } = await params;
     
-    if (!providerId) {
-        return NextResponse.json({ error: "Provider ID is missing" }, { status: 400 });
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const body = await req.json();
-
-    // Validate the request body
-    const validationResult = updateProviderSchema.safeParse(body);
-
-    if (!validationResult.success) {
-        console.error("Provider update validation failed:", validationResult.error.errors);
-        return NextResponse.json({ error: "Invalid input data", details: validationResult.error.errors }, { status: 400 });
+    // Check if user has permission (ADMIN or MANAGER only)
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
+      return NextResponse.json(
+        { error: 'Forbidden - insufficient permissions' },
+        { status: 403 }
+      );
     }
 
-    const updateData = validationResult.data;
+    const providerId = params.id;
+    const body = await request.json();
 
-    // Find the existing provider to ensure it exists
-     const existingProvider = await db.provider.findUnique({
-         where: { id: providerId },
-     });
-
-     if (!existingProvider) {
-         return NextResponse.json({ error: "Provider not found" }, { status: 404 });
-     }
-
-    // Update the provider in the database
-    const updatedProvider = await db.provider.update({
+    // Verify provider exists
+    const existingProvider = await prisma.provider.findUnique({
       where: { id: providerId },
-      data: {
-        ...updateData,
-        contactName: updateData.contactName === '' ? null : updateData.contactName,
-        email: updateData.email === '' ? null : updateData.email,
-        phone: updateData.phone === '' ? null : updateData.phone,
-        address: updateData.address === '' ? null : updateData.address,
-        description: updateData.description === '' ? null : updateData.description,
-        imageUrl: updateData.imageUrl === '' ? null : updateData.imageUrl,
-      },
+      select: { id: true }
     });
 
-    // Revalidate paths related to providers
-    revalidatePath("/providers");
-    revalidatePath(`/providers/${providerId}`);
+    if (!existingProvider) {
+      return NextResponse.json(
+        { error: 'Provider not found' },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json({ success: true, data: updatedProvider });
+    // Update provider
+    const updatedProvider = await prisma.provider.update({
+      where: { id: providerId },
+      data: {
+        name: body.name,
+        contactName: body.contactName,
+        email: body.email,
+        phone: body.phone,
+        address: body.address,
+        isActive: body.isActive,
+        imageUrl: body.imageUrl,
+      },
+      select: {
+        id: true,
+        name: true,
+        contactName: true,
+        email: true,
+        phone: true,
+        address: true,
+        isActive: true,
+        imageUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
 
+    return NextResponse.json(updatedProvider);
   } catch (error) {
-    console.error("Provider PATCH API error:", error);
+    console.error('Error updating provider:', error);
     return NextResponse.json(
-      { error: "Failed to update provider" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

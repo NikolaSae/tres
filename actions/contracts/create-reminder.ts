@@ -65,3 +65,4 @@ export async function createReminder(data: CreateReminderFormData) {
     return { error: 'Neuspešno kreiranje podsetnika.' };
   }
 }
+export const createContractReminder = createReminder;

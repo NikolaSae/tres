@@ -83,7 +83,7 @@ export function generateReportPath(
 // Dodaj ove console.log-ove u getOriginalReportValue funkciju
 // Popravljena funkcija koja može da čita .xls fajlove
 async function getOriginalReportValue(
-  orgData: OrganizationData,
+  orgData: OrganizationReportData,
   month: number,
   year: number,
   paymentType: PaymentType

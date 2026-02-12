@@ -152,14 +152,14 @@ export async function PUT(
     delete updateData.id;
     
     if (validatedData.status && validatedData.status !== existingComplaint.status) {
-      // Add to status history
+      // ✅ ISPRAVKA: Uklonjeno korišćenje notes polja koje ne postoji
+      // Add to status history without notes field
       await db.complaintStatusHistory.create({
         data: {
           complaintId: id,
           previousStatus: existingComplaint.status,
           newStatus: validatedData.status,
-          changedById: session.user.id,
-          notes: validatedData.notes || undefined
+          changedById: session.user.id
         }
       });
       
@@ -227,7 +227,7 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation error", details: error.errors },
         { status: 400 }
       );
     }
@@ -252,29 +252,28 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    const { id } = await params;
-    
-    // Check if user has permission to delete
+    // Only ADMIN and MANAGER can delete complaints
     if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     
+    const { id } = await params;
+    
     // Check if complaint exists
     const complaint = await db.complaint.findUnique({
-      where: { id },
-      select: { id: true, title: true }
+      where: { id }
     });
     
     if (!complaint) {
       return NextResponse.json({ error: "Complaint not found" }, { status: 404 });
     }
     
-    // Delete the complaint (related records will be deleted via cascading)
+    // Delete complaint (cascading deletes will handle related records)
     await db.complaint.delete({
       where: { id }
     });
     
-    // Record activity log
+    // Log activity
     await db.activityLog.create({
       data: {
         action: "DELETE_COMPLAINT",

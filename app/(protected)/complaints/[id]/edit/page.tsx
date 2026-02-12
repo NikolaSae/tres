@@ -1,6 +1,5 @@
 // app/(protected)/complaints/[id]/edit/page.tsx
 
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,18 +10,26 @@ import { NotificationBanner } from "@/components/complaints/NotificationBanner";
 import { getComplaintById } from "@/lib/actions/complaints";
 import { updateComplaint } from "@/actions/complaints/update";
 import { Complaint } from "@/lib/types/interfaces";
+import { Complaint as PrismaComplaint } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 
 export default function EditComplaintPage() {
   const params = useParams();
   const router = useRouter();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
+  const [prismaComplaint, setPrismaComplaint] = useState<PrismaComplaint | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{
     type: "success" | "error";
+    title: string;
     message: string;
   } | null>(null);
+
+  // Add state for dropdown data
+  const [providersData, setProvidersData] = useState<{ id: string; name: string; type: 'VAS' | 'BULK' }[]>([]);
+  const [humanitarianOrgsData, setHumanitarianOrgsData] = useState<{ id: string; name: string }[]>([]);
+  const [parkingServicesData, setParkingServicesData] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     const fetchComplaint = async () => {
@@ -42,6 +49,31 @@ export default function EditComplaintPage() {
         }
 
         setComplaint(data);
+        
+        // Convert custom Complaint interface to Prisma Complaint for ComplaintForm
+        // Note: Adjust fields based on your actual Prisma schema
+        const prismaData: PrismaComplaint = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          status: data.status,
+          priority: data.priority,
+          submittedById: data.submittedById,
+          assignedAgentId: data.assignedAgentId ?? null,
+          serviceId: data.serviceId ?? null,
+          productId: data.productId ?? null,
+          providerId: data.providerId ?? null,
+          humanitarianOrgId: data.humanitarianOrgId ?? null,
+          parkingServiceId: data.parkingServiceId ?? null,
+          financialImpact: data.financialImpact ?? null,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          assignedAt: data.assignedAt ?? null,
+          resolvedAt: data.resolvedAt ?? null,
+          closedAt: data.closedAt ?? null,
+        } as PrismaComplaint;
+
+        setPrismaComplaint(prismaData);
       } catch (err) {
         setError("Failed to load complaint");
         console.error("Error loading complaint:", err);
@@ -52,6 +84,40 @@ export default function EditComplaintPage() {
 
     fetchComplaint();
   }, [params]);
+
+  // Fetch dropdown data (providers, humanitarian orgs, parking services)
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        // Fetch providers
+        const providersResponse = await fetch('/api/providers');
+        if (providersResponse.ok) {
+          const providers = await providersResponse.json();
+          setProvidersData(providers);
+        }
+
+        // Fetch humanitarian organizations
+        const humanitarianResponse = await fetch('/api/humanitarian-organizations');
+        if (humanitarianResponse.ok) {
+          const orgs = await humanitarianResponse.json();
+          setHumanitarianOrgsData(orgs);
+        }
+
+        // Fetch parking services
+        const parkingResponse = await fetch('/api/parking-services');
+        if (parkingResponse.ok) {
+          const services = await parkingResponse.json();
+          setParkingServicesData(services);
+        }
+      } catch (err) {
+        console.error("Error loading dropdown data:", err);
+        // Don't set error state here, just log it
+        // The form can still work without dropdown data if editing existing complaint
+      }
+    };
+
+    fetchDropdownData();
+  }, []);
 
   const handleSubmit = async (formData: any) => {
     try {
@@ -65,6 +131,7 @@ export default function EditComplaintPage() {
       
       setNotification({
         type: "success",
+        title: "Success",
         message: "Complaint updated successfully"
       });
       
@@ -75,6 +142,7 @@ export default function EditComplaintPage() {
       console.error("Error updating complaint:", err);
       setNotification({
         type: "error",
+        title: "Error",
         message: "Failed to update complaint"
       });
     } finally {
@@ -112,15 +180,19 @@ export default function EditComplaintPage() {
       
       {notification && (
         <NotificationBanner
+          title={notification.title}
           type={notification.type}
           message={notification.message}
           onClose={() => setNotification(null)}
         />
       )}
       
-      {complaint && (
+      {prismaComplaint && (
         <ComplaintForm
-          initialData={complaint}
+          complaint={prismaComplaint}
+          providersData={providersData}
+          humanitarianOrgsData={humanitarianOrgsData}
+          parkingServicesData={parkingServicesData}
           onSubmit={handleSubmit}
           isSubmitting={loading}
         />

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getParkingServiceById } from "@/actions/parking-services/getParkingServiceById";
 import ParkingServiceForm from "@/components/parking-services/ParkingServiceForm";
 import PageHeader from "@/components/PageHeader";
+import { BackButton } from "@/components/BackButton";
 
 export const metadata: Metadata = {
   title: "Edit Parking Service | Contract Management System",
@@ -27,18 +28,22 @@ export default async function EditParkingServicePage({
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title="Edit Parking Service"
-        description={`Edit ${parkingService.name}`}
-        backLink={{
-          href: `/parking-services/${id}`,
-          label: "Back to Service Details",
-        }}
-      />
+      <div className="flex items-center gap-4 mb-6">
+        <BackButton />
+        <PageHeader
+          title="Edit Parking Service"
+          description={`Edit ${parkingService.name}`}
+        />
+      </div>
       
       <div className="max-w-2xl">
         <ParkingServiceForm 
-          initialData={parkingService}
+          initialData={{
+            ...parkingService,
+            description: parkingService.description ?? undefined,
+            email: parkingService.email ?? undefined,
+            fileSize: parkingService.fileSize ?? undefined,
+          }}
           isEditing={true}
         />
       </div>

@@ -114,18 +114,46 @@ async function getContract(id: string) {
 export default async function ContractPage({ params }: ContractPageProps) {
   const { id } = await params;
   const contract = await getContract(id);
-  const revenueData = await calculateContractRevenue(
+  
+  // Calculate revenue data - convert null to undefined for type compatibility
+  const calculatedRevenue = await calculateContractRevenue(
     contract.id,
     contract.startDate,
     contract.endDate
   );
+  
+  // Convert null to undefined to match RevenueBreakdown's expected type
+  const revenueData = calculatedRevenue ?? undefined;
 
-  const periodStart = contract.startDate ? new Date(contract.startDate) : null;
-  const periodEnd = contract.endDate ? new Date(contract.endDate) : null;
+  const periodStart = contract.startDate ? new Date(contract.startDate) : undefined;
+  const periodEnd = contract.endDate ? new Date(contract.endDate) : undefined;
 
-  // Determine revenue sharing flags based on contract type
-  const isRevenueSharing = contract.type === "HUMANITARIAN" && contract.operatorId !== null;
-  const operatorRevenue = isRevenueSharing ? 10 : null; // 10% operator share
+  // Determine revenue sharing flags based on contract configuration
+  const isRevenueSharing = contract.isRevenueSharing ?? false;
+  const operatorRevenue = isRevenueSharing ? contract.operatorRevenue : null;
+
+  // Transform attachments to match expected type (handle nullable name)
+  const transformedAttachments = contract.attachments?.map(attachment => ({
+    id: attachment.id,
+    name: attachment.name,
+    fileUrl: attachment.fileUrl,
+    fileType: attachment.fileType,
+    uploadedAt: attachment.uploadedAt,
+    uploadedBy: {
+      name: attachment.uploadedBy.name || "Unknown User" // Handle null name
+    }
+  })) || [];
+
+  // Transform contract for ContractDetails (handle nullable names)
+  const transformedContract = {
+    ...contract,
+    createdBy: {
+      name: contract.createdBy.name || "Unknown User"
+    },
+    lastModifiedBy: contract.lastModifiedBy ? {
+      name: contract.lastModifiedBy.name || "Unknown User"
+    } : null
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -169,7 +197,7 @@ export default async function ContractPage({ params }: ContractPageProps) {
           </div>
           
           <div className="bg-white rounded-lg shadow p-6">
-            <ContractDetails contract={contract} />
+            <ContractDetails contract={transformedContract} />
           </div>
         </div>
 
@@ -178,13 +206,13 @@ export default async function ContractPage({ params }: ContractPageProps) {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-medium">Attachments</h2>
               <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
-                {contract.attachments?.length || 0} files
+                {transformedAttachments.length} files
               </span>
             </div>
             
             <AttachmentList 
               contractId={contract.id} 
-              attachments={contract.attachments || []} 
+              attachments={transformedAttachments} 
             />
             
             <div className="mt-6">

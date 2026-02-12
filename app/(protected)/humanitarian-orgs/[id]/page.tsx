@@ -26,21 +26,23 @@ async function getHumanitarianOrgDetails(orgId: string): Promise<HumanitarianOrg
         const organization = await db.humanitarianOrg.findUnique({
             where: { id: orgId },
             include: {
-                complaints: {
-                    select: { id: true, title: true, status: true, createdAt: true },
-                },
-                renewals: true,
                 _count: {
                     select: { contracts: true, complaints: true, renewals: true }
                 }
             }
         });
 
-        if (organization && !organization._count) {
-             organization._count = { contracts: 0, complaints: 0, renewals: 0 };
+        if (!organization) {
+            return null;
         }
 
-        return organization as HumanitarianOrgWithDetails | null;
+        // Ensure _count is always defined
+        const orgWithDetails: HumanitarianOrgWithDetails = {
+            ...organization,
+            _count: organization._count || { contracts: 0, complaints: 0, renewals: 0 }
+        };
+
+        return orgWithDetails;
 
     } catch (error) {
         console.error(`Error fetching humanitarian organization ${orgId} details from DB:`, error);
@@ -69,6 +71,10 @@ export default async function HumanitarianOrgDetailsPage({ params }: Humanitaria
     if (!organization) {
         notFound();
     }
+
+    // At this point, organization._count is guaranteed to exist
+    const contractsCount = organization._count?.contracts ?? 0;
+    const complaintsCount = organization._count?.complaints ?? 0;
 
     return (
         <div className="container mx-auto py-6 space-y-6">
@@ -147,12 +153,12 @@ export default async function HumanitarianOrgDetailsPage({ params }: Humanitaria
                     <TabsTrigger value="details">Details</TabsTrigger>
                     <TabsTrigger value="contracts">
                         <span className="flex items-center gap-1">
-                            Contracts <Badge variant="secondary">{organization._count.contracts}</Badge>
+                            Contracts <Badge variant="secondary">{contractsCount}</Badge>
                         </span>
                     </TabsTrigger>
                     <TabsTrigger value="complaints">
                         <span className="flex items-center gap-1">
-                            Complaints <Badge variant="secondary">{organization._count.complaints}</Badge>
+                            Complaints <Badge variant="secondary">{complaintsCount}</Badge>
                         </span>
                     </TabsTrigger>
                 </TabsList>
@@ -182,7 +188,7 @@ export default async function HumanitarianOrgDetailsPage({ params }: Humanitaria
                                 />
                             </Suspense>
                         </CardContent>
-                        {organization._count.contracts > 0 && (
+                        {contractsCount > 0 && (
                             <CardFooter className="justify-end pt-4 border-t">
                                 <Button asChild variant="outline">
                                     <Link href={`/humanitarian-orgs/${organization.id}/contracts`}>
@@ -215,7 +221,7 @@ export default async function HumanitarianOrgDetailsPage({ params }: Humanitaria
                                 </p>
                             </div>
                         </CardContent>
-                        {organization._count.complaints > 0 && (
+                        {complaintsCount > 0 && (
                             <CardFooter className="justify-end pt-4 border-t">
                                 <Button asChild variant="outline">
                                     <Link href={`/humanitarian-orgs/${organization.id}/complaints`}>

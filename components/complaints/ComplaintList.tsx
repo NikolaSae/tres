@@ -1,17 +1,10 @@
-// Fixed ComplaintList Component
+// components/complaints/ComplaintList.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import {
-  Complaint,
-  Service,
-  Product,
-  Provider,
-  User,
-  ComplaintStatus
-} from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   Table,
   TableBody,
@@ -51,13 +44,52 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type ComplaintWithRelations = Complaint & {
-  service?: Service | null;
-  product?: Product | null;
-  provider?: Provider | null;
-  submittedBy: User; // Assuming submittedBy is always present based on type
-  assignedAgent?: User | null;
-};
+// Use Prisma's generated type with proper includes
+type ComplaintWithRelations = Prisma.ComplaintGetPayload<{
+  include: {
+    service: {
+      select: {
+        id: true;
+        name: true;
+        type: true;
+      };
+    };
+    product: {
+      select: {
+        id: true;
+        name: true;
+        code: true;
+      };
+    };
+    provider: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    submittedBy: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    assignedAgent: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    humanitarianOrg: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    parkingService: true;
+  };
+}>;
 
 interface ComplaintListProps {
   complaints: ComplaintWithRelations[];
@@ -100,7 +132,6 @@ export function ComplaintList({
       await deleteComplaint(deleteId);
       toast.success("Complaint has been deleted");
       setDeleteId(null);
-      // Force a refresh - router.refresh() should work in app router
       router.refresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete complaint");

@@ -81,3 +81,78 @@ export function useProduct(productId: string | null | undefined): UseProductResu
         // refresh, // Izlažemo funkciju za osvežavanje
     };
 }
+
+export function useProducts(initialFilters: Record<string, unknown> = {}, initialPagination: { page?: number; limit?: number } = {}) {
+  const [filters, setFiltersState] = useState(initialFilters);
+  const [pagination, setPaginationState] = useState({
+    page: initialPagination.page ?? 1,
+    limit: initialPagination.limit ?? 10,
+  });
+
+  const { page, limit } = pagination;
+  const [products, setProducts] = useState<ProductWithDetails[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && `${value}`.length > 0) {
+          params.set(key, String(value));
+        }
+      });
+
+      const response = await fetch(`/api/products?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+
+      const data = await response.json();
+      setProducts(data.products || data.data || []);
+      setTotalCount(data.totalCount || data.total || 0);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch products'))
+    } finally {
+      setLoading(false)
+    }
+  }, [filters, page, limit]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const setFilters = useCallback((nextFilters: Record<string, unknown>) => {
+    setFiltersState(nextFilters);
+    setPaginationState((prev) => ({ ...prev, page: 1 }));
+  }, []);
+
+  const setPagination = useCallback((next: { page: number; limit?: number }) => {
+    setPaginationState((prev) => ({
+      page: next.page,
+      limit: next.limit ?? prev.limit,
+    }));
+  }, []);
+
+  const refresh = useCallback(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  return {
+    products,
+    totalCount,
+    loading,
+    error,
+    filters,
+    pagination,
+    setFilters,
+    setPagination,
+    refresh,
+  };
+}

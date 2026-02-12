@@ -76,6 +76,27 @@ export function ContractDetails({ contract }: ContractDetailsProps) {
     return diffDays <= 30 && diffDays > 0;
   };
 
+  // Transform attachments to include uploadedBy with name
+  const transformedAttachments = contract.attachments?.map(attachment => ({
+    id: attachment.id,
+    name: attachment.name,
+    fileUrl: attachment.fileUrl,
+    fileType: attachment.fileType,
+    uploadedAt: attachment.uploadedAt,
+    uploadedBy: {
+      name: "Unknown User" // Since ContractAttachment doesn't include uploadedBy relation in this component
+    }
+  })) || [];
+
+  // Transform reminders to match ReminderForm expected type
+  const transformedReminders = contract.reminders?.map(reminder => ({
+    id: reminder.id,
+    reminderDate: reminder.reminderDate,
+    reminderType: reminder.reminderType,
+    isAcknowledged: reminder.isAcknowledged,
+    acknowledgedBy: null // Since ContractReminder doesn't include acknowledgedBy relation in this component
+  })) || [];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -249,7 +270,7 @@ export function ContractDetails({ contract }: ContractDetailsProps) {
             <CardContent>
               <AttachmentList
                 contractId={contract.id}
-                attachments={contract.attachments || []}
+                attachments={transformedAttachments}
               />
             </CardContent>
           </Card>
@@ -257,50 +278,15 @@ export function ContractDetails({ contract }: ContractDetailsProps) {
 
         <TabsContent value="reminders" className="space-y-4 mt-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <CardTitle>Contract Reminders</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium mb-4">Existing Reminders</h3>
-                {contract.reminders && contract.reminders.length > 0 ? (
-                  <div className="space-y-2">
-                    {contract.reminders.map((reminder) => (
-                      <div
-                        key={reminder.id}
-                        className={`p-4 border rounded-md ${
-                          reminder.isAcknowledged ? 'bg-muted' : 'bg-white'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="font-medium">{reminder.reminderType}</div>
-                            <div className="text-sm text-muted-foreground">
-                              Reminder date: {formatDate(reminder.reminderDate)}
-                            </div>
-                          </div>
-                          {!reminder.isAcknowledged && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {}} // Prazna funkcija, dodajte logiku kasnije
-                            >
-                              Acknowledge
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No reminders set for this contract.</p>
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-lg font-medium mb-4">Create New Reminder</h3>
-                <ReminderForm contractId={contract.id} />
-              </div>
+            <CardContent>
+              <ReminderForm 
+                contractId={contract.id} 
+                endDate={contract.endDate}
+                reminders={transformedReminders}
+              />
             </CardContent>
           </Card>
         </TabsContent>

@@ -180,7 +180,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // Call tool handler
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+  const { name, arguments: rawArgs = {} } = request.params;
+  const args = rawArgs as Record<string, any>;
 
   try {
     switch (name) {
@@ -370,8 +371,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
 
       case 'get_financial_summary':
-        const startDate = args.startDate ? new Date(args.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const endDate = args.endDate ? new Date(args.endDate) : new Date();
+        const startDate = args.startDate ? new Date(String(args.startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const endDate = args.endDate ? new Date(String(args.endDate)) : new Date();
 
         // VAS transactions summary
         const vasTransactionsWhere: any = {
@@ -438,7 +439,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
 
       case 'search_database':
-        const searchQuery = args.query.toLowerCase();
+        const searchQuery = String(args.query).toLowerCase();
         let searchResults: any = {};
 
         if (!args.table || args.table === 'contracts') {
@@ -513,13 +514,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }]
         };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       content: [{
         type: 'text',
         text: JSON.stringify({
           success: false,
-          error: error.message
+          error: error instanceof Error ? error.message : String(error)
         })
       }]
     };

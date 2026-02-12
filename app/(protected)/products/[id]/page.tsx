@@ -2,7 +2,7 @@
 
 import { Metadata } from "next";
 // Uvozimo AŽURIRANU ProductDetails komponentu
-import { ProductDetails } from "@/components/products/ProductDetails"; // Ova komponenta je ažurirana
+import ProductDetails from "@/components/products/ProductDetails"; // Ova komponenta je ažurirana
 // Uvozimo AŽURIRANU Server Akciju za dohvatanje pojedinačnog proizvoda
 import { getProductById } from '@/actions/products/get';
 
@@ -54,7 +54,6 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
 
 
     // Renderujemo AŽURIRANU ProductDetails komponentu, prosleđujući ID proizvoda
-    {/* ProductDetails komponenta sada koristi useProduct hook */}
     return (
         <div className="p-6 space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

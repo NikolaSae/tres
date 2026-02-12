@@ -4,7 +4,7 @@ export interface HumanitarianOrg {
   name: string;
   email: string | null;
   phone: string | null;
-  contactPerson: string | null;
+  contactName: string | null;
   address: string | null;
   website: string | null;
   mission: string | null;

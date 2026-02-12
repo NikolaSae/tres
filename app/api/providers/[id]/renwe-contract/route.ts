@@ -1,62 +1,115 @@
 // app/api/providers/[id]/renew-contract/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/auth";
-import { UserRole } from "@prisma/client";
+
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
-    const user = session?.user;
-    const { id } = await params;
-    // Провера ауторизације
-    if (!user || ![UserRole.ADMIN, UserRole.MANAGER].includes(user.role as UserRole)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // Тражење провајдера
-    const provider = await db.provider.findUnique({
-      where: { id: params.id },
-      include: {
-        contracts: {
-          orderBy: { endDate: 'desc' },
-          take: 1,
-        },
-      },
+    // Check if user has permission (ADMIN or MANAGER only)
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
+      return NextResponse.json(
+        { error: 'Forbidden - insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    const providerId = params.id;
+    const body = await request.json();
+
+    // Verify provider exists
+    const provider = await prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { id: true, name: true }
     });
 
     if (!provider) {
-      return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Provider not found' },
+        { status: 404 }
+      );
     }
 
-    // Ако провајдер има постојеће уговоре, користити последњи за референцу
-    const latestContract = provider.contracts[0];
-    const startDate = new Date();
-    
-    // Крајњи датум је годину дана од почетног
-    const endDate = new Date();
-    endDate.setFullYear(endDate.getFullYear() + 1);
-    
-    // Креирање новог уговора
-    const newContract = await db.contract.create({
-      data: {
-        providerId: provider.id,
-        startDate,
-        endDate,
-        value: latestContract?.value || 0,
-        terms: latestContract?.terms || "",
-        isActive: true,
+    // Find existing active contract
+    const existingContract = await prisma.contract.findFirst({
+      where: {
+        providerId: providerId,
+        status: 'ACTIVE',
+        type: 'PROVIDER'
       },
+      select: {
+        id: true,
+        contractNumber: true,
+        name: true,
+        revenuePercentage: true,
+      }
     });
 
-    return NextResponse.json(newContract);
+    if (!existingContract) {
+      return NextResponse.json(
+        { error: 'No active contract found for this provider' },
+        { status: 404 }
+      );
+    }
+
+    // Create new contract with renewal data
+    const newContract = await prisma.contract.create({
+      data: {
+        name: body.name || `${provider.name} - Renewed Contract`,
+        contractNumber: body.contractNumber,
+        type: 'PROVIDER',
+        status: 'PENDING',
+        startDate: new Date(body.startDate),
+        endDate: new Date(body.endDate),
+        revenuePercentage: body.revenuePercentage || existingContract.revenuePercentage,
+        description: body.description,
+        providerId: providerId,
+        createdById: session.user.id,
+        operatorRevenue: body.operatorRevenue,
+        isRevenueSharing: body.isRevenueSharing ?? true,
+        operatorId: body.operatorId,
+      },
+      select: {
+        id: true,
+        name: true,
+        contractNumber: true,
+        type: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        revenuePercentage: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    // Update old contract status to EXPIRED or TERMINATED
+    await prisma.contract.update({
+      where: { id: existingContract.id },
+      data: {
+        status: 'EXPIRED',
+        lastModifiedById: session.user.id,
+      }
+    });
+
+    return NextResponse.json(newContract, { status: 201 });
   } catch (error) {
-    console.error("Failed to renew contract:", error);
+    console.error('Error renewing contract:', error);
     return NextResponse.json(
-      { error: "Failed to renew contract" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

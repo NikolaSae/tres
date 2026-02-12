@@ -1,4 +1,4 @@
-///app/api/bulk-services/import/route.ts
+//app/api/bulk-services/import/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
@@ -27,12 +27,15 @@ export async function POST(req: NextRequest) {
     // Read file content
     const fileContent = await file.text();
     
-    // Process the file
-    const result = await importBulkServices(fileContent);
+    // ✅ ISPRAVKA: Dodat nedostajući importDate parametar
+    const importDate = new Date();
+    const result = await importBulkServices(fileContent, importDate);
     
     return NextResponse.json(result);
   } catch (error) {
     console.error('[IMPORT_BULK_SERVICES_API]', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    // ✅ ISPRAVKA: Proper error handling
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

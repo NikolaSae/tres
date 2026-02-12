@@ -40,7 +40,7 @@ export default async function OperatorDetailsPage({ params }: OperatorDetailsPag
         text={`Operator code: ${operator.code}`}
       >
         <div className="flex items-center gap-2">
-          <BackButton href="/operators" />
+          <BackButton />
           <Link
             href={`/operators/${id}/edit`}
             className={cn(buttonVariants({ variant: "outline" }))}

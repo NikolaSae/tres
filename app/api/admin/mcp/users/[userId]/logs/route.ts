@@ -1,7 +1,7 @@
 // app/api/admin/mcp/users/[userId]/logs/route.ts
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { queryLogger } from '@/lib/mcp/query-logger';
+import { getRecentQueries } from '@/lib/mcp/query-logger';
 import { NextRequest } from 'next/server';
 
 export async function GET(

@@ -1,124 +1,70 @@
+//
 // app/api/chat/database-simple/route.ts
-// Jednostavan pristup bez AI-ja - koristi predefinisane upite
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Predefinisani upiti za najčešće potrebe
+// ✅ ISPRAVKA: Dodat type za predefined queries
+type QueryKey = keyof typeof PREDEFINED_QUERIES;
+
 const PREDEFINED_QUERIES = {
-  'aktivni_ugovori': {
-    sql: 'SELECT COUNT(*) as ukupno FROM "Contract" WHERE status = \'ACTIVE\'',
+  aktivni_ugovori: {
+    sql: 'SELECT COUNT(*) as count FROM "Contract" WHERE status = \'ACTIVE\'',
     description: 'Broj aktivnih ugovora'
   },
-  'provajderi_zalbe': {
-    sql: `SELECT p.name, COUNT(c.id) as broj_zalbi 
-          FROM "Provider" p 
-          LEFT JOIN "Complaint" c ON p.id = c."providerId" 
-          GROUP BY p.id, p.name 
-          ORDER BY broj_zalbi DESC 
-          LIMIT 10`,
+  provajderi_zalbe: {
+    sql: 'SELECT p.name, COUNT(c.id) as complaint_count FROM "Provider" p LEFT JOIN "Complaint" c ON p.id = c."providerId" GROUP BY p.id, p.name ORDER BY complaint_count DESC LIMIT 10',
     description: 'Provajderi sa najviše žalbi'
   },
-  'ugovori_isticanje': {
-    sql: `SELECT name, "contractNumber", "endDate" 
-          FROM "Contract" 
-          WHERE "endDate" BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' 
-          AND status = 'ACTIVE' 
-          ORDER BY "endDate" 
-          LIMIT 20`,
-    description: 'Ugovori koji ističu u narednih 30 dana'
+  ugovori_isticanje: {
+    sql: 'SELECT name, "contractNumber", "endDate" FROM "Contract" WHERE status = \'ACTIVE\' AND "endDate" > NOW() AND "endDate" < NOW() + INTERVAL \'60 days\' ORDER BY "endDate" ASC',
+    description: 'Ugovori koji ističu uskoro'
   },
-  'vas_prihod': {
-    sql: `SELECT SUM("fakturisan_iznos") as ukupno_fakturisano
-          FROM "VasService" 
-          WHERE "mesec_pruzanja_usluge" >= date_trunc('month', CURRENT_DATE)`,
-    description: 'VAS prihod u trenutnom mesecu'
+  vas_prihod: {
+    sql: 'SELECT SUM("fakturisan_iznos") as total FROM "VasService"',
+    description: 'Ukupan prihod iz VAS servisa'
   },
-  'humanitarne_neaktivne': {
-    sql: `SELECT name, email, phone 
-          FROM "HumanitarianOrg" 
-          WHERE "isActive" = false 
-          LIMIT 10`,
+  humanitarne_neaktivne: {
+    sql: 'SELECT name, email FROM "HumanitarianOrg" WHERE "isActive" = false',
     description: 'Neaktivne humanitarne organizacije'
   },
-  'zalbe_nove': {
-    sql: `SELECT title, description, "createdAt" 
-          FROM "Complaint" 
-          WHERE status = 'NEW' 
-          ORDER BY "createdAt" DESC 
-          LIMIT 10`,
-    description: 'Nove žalbe'
+  zalbe_nove: {
+    sql: 'SELECT COUNT(*) as count FROM "Complaint" WHERE status IN (\'NEW\', \'PENDING\')',
+    description: 'Broj novih žalbi'
   },
-  'ukupno_provajdera': {
-    sql: 'SELECT COUNT(*) as ukupno FROM "Provider" WHERE "isActive" = true',
-    description: 'Broj aktivnih provajdera'
+  ukupno_provajdera: {
+    sql: 'SELECT COUNT(*) as count FROM "Provider" WHERE "isActive" = true',
+    description: 'Ukupan broj aktivnih provajdera'
   },
-  'parking_servisi': {
-    sql: `SELECT name, "contactName", email 
-          FROM "ParkingService" 
-          WHERE "isActive" = true 
-          LIMIT 10`,
-    description: 'Aktivni parking servisi'
+  parking_servisi: {
+    sql: 'SELECT name, address FROM "ParkingService" LIMIT 10',
+    description: 'Lista parking servisa'
   }
-};
+} as const;
 
-// Funkcija za prepoznavanje namere korisnika
-function detectUserIntent(message: string): string | null {
-  const msg = message.toLowerCase();
-  
-  if (msg.includes('aktivn') && msg.includes('ugovor')) return 'aktivni_ugovori';
-  if (msg.includes('provajder') && msg.includes('žalb')) return 'provajderi_zalbe';
-  if (msg.includes('ugovor') && (msg.includes('istič') || msg.includes('uskoro'))) return 'ugovori_isticanje';
-  if (msg.includes('vas') && (msg.includes('prihod') || msg.includes('iznos'))) return 'vas_prihod';
-  if (msg.includes('humanitarn') && msg.includes('neaktivn')) return 'humanitarne_neaktivne';
-  if (msg.includes('žalb') && (msg.includes('nov') || msg.includes('new'))) return 'zalbe_nove';
-  if (msg.includes('provajder') && (msg.includes('ukupno') || msg.includes('broj'))) return 'ukupno_provajdera';
-  if (msg.includes('parking')) return 'parking_servisi';
-  
-  return null;
-}
-
-// Funkcija za formatiranje rezultata
-function formatResults(data: any[], queryKey: string): string {
-  if (!Array.isArray(data) || data.length === 0) {
-    return "Nema rezultata za ovaj upit.";
+// Helper funkcija za formatiranje rezultata
+function formatResults(results: any[], queryType: string): string {
+  if (!Array.isArray(results) || results.length === 0) {
+    return "Nema podataka za prikaz.";
   }
 
-  const queryInfo = PREDEFINED_QUERIES[queryKey];
+  const queryInfo = PREDEFINED_QUERIES[queryType as QueryKey];
+  
+  if (results.length === 1 && 'count' in results[0]) {
+    return `${queryInfo.description}: ${results[0].count}`;
+  }
+
+  if (results.length === 1 && 'total' in results[0]) {
+    return `${queryInfo.description}: ${Number(results[0].total).toFixed(2)} RSD`;
+  }
+
   let response = `${queryInfo.description}:\n\n`;
-
-  if (data.length === 1 && typeof data[0] === 'object') {
-    const result = data[0];
-    if (Object.keys(result).length === 1) {
-      const value = Object.values(result)[0];
-      return `${queryInfo.description}: ${value}`;
-    }
-  }
-
-  // Formatiranje tabele
-  data.slice(0, 10).forEach((row, index) => {
-    response += `${index + 1}. `;
+  results.forEach((row, index) => {
     const entries = Object.entries(row);
-    entries.forEach(([key, value], i) => {
-      if (i > 0) response += ', ';
-      
-      // Formatiranje datuma
-      if (value instanceof Date) {
-        response += `${key}: ${value.toLocaleDateString('sr-RS')}`;
-      } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
-        response += `${key}: ${new Date(value).toLocaleDateString('sr-RS')}`;
-      } else {
-        response += `${key}: ${value}`;
-      }
-    });
-    response += '\n';
+    response += `${index + 1}. ${entries.map(([key, value]) => `${key}: ${value}`).join(', ')}\n`;
   });
-
-  if (data.length > 10) {
-    response += `\n... i još ${data.length - 10} rezultata.`;
-  }
 
   return response;
 }
@@ -134,21 +80,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Detektuj nameru korisnika
-    const intent = detectUserIntent(message);
-    
+    // Pronalaženje najboljeg match-a na osnovu ključnih reči
+    const lowerMessage = message.toLowerCase();
+    let intent: string | null = null;
+
+    // Mapiranje ključnih reči na query tipove
+    const keywords: Record<string, string[]> = {
+      aktivni_ugovori: ['aktivni ugovori', 'active contracts', 'koliko aktivnih', 'broj ugovora'],
+      provajderi_zalbe: ['provajderi žalbe', 'providers complaints', 'žalbe provajdera'],
+      ugovori_isticanje: ['ugovori isticanje', 'contracts expiring', 'istječu ugovori'],
+      vas_prihod: ['vas prihod', 'vas revenue', 'vas servis prihod', 'ukupan prihod vas'],
+      humanitarne_neaktivne: ['neaktivne humanitarne', 'inactive humanitarian'],
+      zalbe_nove: ['nove žalbe', 'new complaints', 'pending žalbe'],
+      ukupno_provajdera: ['broj provajdera', 'total providers', 'koliko provajdera'],
+      parking_servisi: ['parking servisi', 'parking services', 'lista parking']
+    };
+
+    for (const [queryType, terms] of Object.entries(keywords)) {
+      if (terms.some(term => lowerMessage.includes(term))) {
+        intent = queryType;
+        break;
+      }
+    }
+
     if (!intent) {
-      const availableQueries = Object.values(PREDEFINED_QUERIES).map(q => q.description).join('\n• ');
-      
+      const availableQueries = Object.entries(PREDEFINED_QUERIES)
+        .map(([key, value]) => value.description)
+        .join('\n• ');
+
       return NextResponse.json({
-        response: `Izvinjavam se, nisam razumeo vaš upit. Evo šta mogu da vam pokažem:\n\n• ${availableQueries}\n\nPokušajte da preformulišete pitanje koristeći ove ključne reči.`,
+        response: `Nisam pronašao odgovarajući upit za vašu poruku. 
+        
+Evo šta mogu da vam pokažem:\n\n• ${availableQueries}\n\nPokušajte da preformulišete pitanje koristeći ove ključne reči.`,
         sqlQuery: null,
         resultCount: 0
       });
     }
 
-    // Izvršava predefinisani SQL upit
-    const queryInfo = PREDEFINED_QUERIES[intent];
+    // ✅ ISPRAVKA: Type assertion za pristup objektu
+    const queryInfo = PREDEFINED_QUERIES[intent as QueryKey];
     console.log('Executing query:', queryInfo.sql);
     
     const result = await prisma.$queryRawUnsafe(queryInfo.sql);
@@ -166,10 +136,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Database query error:', error);
     
+    // ✅ ISPRAVKA: Proper error type handling
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
     return NextResponse.json(
       { 
         error: 'Došlo je do greške prilikom pretrage baze podataka',
-        details: error.message 
+        details: errorMessage
       },
       { status: 500 }
     );

@@ -1,92 +1,144 @@
-// /app/api/providers/[id]/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/auth";
-import { UserRole } from "@prisma/client";
+// app/api/providers/[id]/route.ts
 
-export async function GET(req: NextRequest) {
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await auth();
-    const user = session?.user;
-
-    if (!user || ![UserRole.ADMIN, UserRole.MANAGER].includes(user.role as UserRole)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const searchParams = req.nextUrl.searchParams;
-    const page = Number(searchParams.get("page") || "1");
-    const limit = Number(searchParams.get("limit") || "12");
-    const search = searchParams.get("search") || undefined;
-    const isActive = searchParams.get("isActive")
-      ? searchParams.get("isActive") === "true"
-      : undefined;
-    const hasContracts = searchParams.get("hasContracts") === "true";
-    const hasComplaints = searchParams.get("hasComplaints") === "true";
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortDirection = searchParams.get("sortDirection") || "desc";
-
-    const where: any = {};
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { contactName: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-      ];
+    // Check if user has permission (ADMIN or MANAGER only)
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
+      return NextResponse.json(
+        { error: 'Forbidden - insufficient permissions' },
+        { status: 403 }
+      );
     }
 
-    if (isActive !== undefined) {
-      where.isActive = isActive;
-    }
+    const providerId = params.id;
 
-    if (hasContracts) {
-      where.contracts = { some: {} };
-    }
-
-    if (hasComplaints) {
-      where.complaints = { some: {} };
-    }
-
-    const orderBy: any = {};
-    orderBy[sortBy] = sortDirection;
-
-    const [providers, total] = await Promise.all([
-      db.provider.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-        select: {
-          id: true,
-          name: true,
-          contactName: true,
-          email: true,
-          phone: true,
-          isActive: true,
-          imageUrl: true, // Include the imageUrl field
-          _count: {
-            select: {
-              contracts: true,
-              complaints: true,
-              vasServices: true,
-              bulkServices: true,
-            },
-          },
-        },
-      }),
-      db.provider.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      items: providers,
-      total,
-      page,
-      limit,
+    // Check if provider exists
+    const provider = await prisma.provider.findUnique({
+      where: { id: providerId },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            contracts: true,
+            vasServices: true,
+            bulkServices: true,
+            complaints: true,
+          }
+        }
+      }
     });
+
+    if (!provider) {
+      return NextResponse.json(
+        { error: 'Provider not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if provider has related data
+    if (
+      provider._count.contracts > 0 ||
+      provider._count.vasServices > 0 ||
+      provider._count.bulkServices > 0 ||
+      provider._count.complaints > 0
+    ) {
+      return NextResponse.json(
+        { 
+          error: 'Cannot delete provider with existing contracts, services, or complaints',
+          details: {
+            contracts: provider._count.contracts,
+            vasServices: provider._count.vasServices,
+            bulkServices: provider._count.bulkServices,
+            complaints: provider._count.complaints,
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    // Delete the provider
+    await prisma.provider.delete({
+      where: { id: providerId }
+    });
+
+    return NextResponse.json({ success: true, message: 'Provider deleted successfully' });
   } catch (error) {
-    console.error("Provider API error:", error);
+    console.error('Error deleting provider:', error);
     return NextResponse.json(
-      { error: "Failed to fetch providers" },
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const providerId = params.id;
+
+    const provider = await prisma.provider.findUnique({
+      where: { id: providerId },
+      select: {
+        id: true,
+        name: true,
+        contactName: true,
+        email: true,
+        phone: true,
+        address: true,
+        isActive: true,
+        imageUrl: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            contracts: true,
+            vasServices: true,
+            bulkServices: true,
+            complaints: true,
+          }
+        }
+      }
+    });
+
+    if (!provider) {
+      return NextResponse.json(
+        { error: 'Provider not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(provider);
+  } catch (error) {
+    console.error('Error fetching provider:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

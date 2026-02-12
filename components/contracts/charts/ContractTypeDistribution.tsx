@@ -33,6 +33,7 @@ export function ContractTypeDistribution({ data }: ContractTypeDistributionProps
         PROVIDER: 'Provider Contracts',
         HUMANITARIAN: 'Humanitarian Contracts',
         PARKING: 'Parking Service Contracts',
+        BULK: 'Bulk Contracts',
         // Dodajte ostale ako postoje
     };
      const displayLabels = chartLabels.map(type => typeLabels[type] || type);

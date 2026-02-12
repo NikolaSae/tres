@@ -1,298 +1,347 @@
-///app/api/reports/generate/route.ts
+// app/api/reports/generate/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db"; // Assuming your Prisma client is exported as db
-import { auth } from "@/auth"; // Assuming your NextAuth options are here
-import { generateExcelReport } from "@/lib/reports/excel-generator"; // Assuming this function exists
-import { logActivity } from "@/actions/security/log-event"; // Assuming this action exists
-import { ReportStatus } from "@prisma/client"; // Assuming you have a ReportStatus enum in Prisma
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { logEvent } from '@/actions/security/log-event';
+import * as XLSX from 'xlsx';
+import { writeFile } from 'fs/promises';
+import path from 'path';
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  const userId = session?.user?.id; // Get the user ID from the session
-
-  // Prepare activity log payload
-  const activityLogPayload = {
-    userId: userId || null, // Log null if user is not authenticated
-    entityType: 'Report', // or 'ReportGeneration'
-    entityId: null, // Will be set after report is saved to DB
-    activityType: 'GENERATE',
-    details: {} as any, // Details will be filled based on the request and outcome
-    status: 'FAILED' as 'SUCCESS' | 'FAILED', // Default to FAILED, update on success
-  };
-
   try {
-    // Check authentication
-    if (!userId) {
-      activityLogPayload.details = { message: "Unauthorized attempt to generate report" };
-      await logActivity(activityLogPayload);
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get user role
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    // Check permissions
-    if (!user || !["ADMIN", "MANAGER"].includes(user.role)) {
-      activityLogPayload.details = { message: "Insufficient permissions to generate report", userId };
-      await logActivity(activityLogPayload);
+    const session = await auth();
+    
+    if (!session) {
       return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    // Parse request body
-    const data = await request.json();
-    const { reportType, parameters, name } = data;
+    const body = await request.json();
+    const { reportType, startDate, endDate, filters } = body;
 
-    // Basic input validation
-    if (!reportType || !name) {
-      activityLogPayload.details = { message: "Report type and name are required", userId, requestData: data };
-      await logActivity(activityLogPayload);
+    if (!reportType) {
+      await logEvent({
+        action: 'REPORT_GENERATION_FAILED',
+        entityType: 'report',
+        details: 'Missing report type',
+        userId: session.user.id,
+        severity: 'ERROR'
+      });
+
       return NextResponse.json(
-        { error: "Report type and name are required" },
+        { error: 'Report type is required' },
         { status: 400 }
       );
     }
 
-    // Store parameters in log details (excluding potentially sensitive data)
-    activityLogPayload.details = { reportType, reportName: name, parameters };
+    let reportData: any[] = [];
+    let fileName = '';
 
-    // Generate unique report name with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const generatedReportName = `${name}_${timestamp}`;
+    try {
+      switch (reportType) {
+        case 'financial':
+          reportData = await generateFinancialReport(startDate, endDate, filters);
+          fileName = `financial-report-${Date.now()}.xlsx`;
+          break;
 
-    let reportData: any;
-    let fileUrl: string | null = null; // Initialize fileUrl
+        case 'complaints':
+          reportData = await generateComplaintsReport(startDate, endDate, filters);
+          fileName = `complaints-report-${Date.now()}.xlsx`;
+          break;
 
-    // Fetch data and generate report based on report type
-    switch (reportType) {
-      case "financial": { // Use block scope for switch cases to avoid variable conflicts
-        const { startDate, endDate, providerId, ...restParams } = parameters || {};
+        case 'contracts':
+          reportData = await generateContractsReport(startDate, endDate, filters);
+          fileName = `contracts-report-${Date.now()}.xlsx`;
+          break;
 
-        const where: any = {};
+        case 'providers':
+          reportData = await generateProvidersReport(filters);
+          fileName = `providers-report-${Date.now()}.xlsx`;
+          break;
 
-        if (startDate && endDate) {
-          // Assuming mesec_pruzanja_usluge is a Date or DateTime field
-          where.mesec_pruzanja_usluge = {
-            gte: new Date(startDate),
-            lte: new Date(endDate),
-          };
-        }
+        default:
+          await logEvent({
+            action: 'REPORT_GENERATION_FAILED',
+            entityType: 'report',
+            details: `Invalid report type: ${reportType}`,
+            userId: session.user.id,
+            severity: 'ERROR'
+          });
 
-        if (providerId) {
-          where.provajderId = providerId;
-        }
-
-        reportData = await db.vasService.findMany({
-          where,
-          include: {
-            service: true,
-            provider: true,
-          },
-        });
-
-        // Generate Excel report
-        fileUrl = await generateExcelReport(
-          "financial",
-          generatedReportName, // Use the unique generated name
-          reportData,
-          parameters // Pass original parameters to generator for column/grouping options
-        );
-        break;
+          return NextResponse.json(
+            { error: 'Invalid report type' },
+            { status: 400 }
+          );
       }
 
-      case "sales": { // Use block scope
-        const salesWhere: any = {};
-        const { salesStartDate, salesEndDate, salesProviderId, ...restParams } = parameters || {};
+      // Generate Excel file
+      const filePath = await createExcelFile(reportData, fileName);
 
-        if (salesStartDate && salesEndDate) {
-          salesWhere.mesec_pruzanja_usluge = {
-            gte: new Date(salesStartDate),
-            lte: new Date(salesEndDate),
-          };
+      // Save report metadata to database
+      const savedReport = await prisma.generatedReport.create({
+        data: {
+          name: fileName,
+          reportType,
+          fileUrl: `/reports/${fileName}`,
+          generatedAt: new Date(),
         }
+      });
 
-        if (salesProviderId) {
-          salesWhere.provajderId = salesProviderId;
-        }
+      await logEvent({
+        action: 'REPORT_GENERATED',
+        entityType: 'report',
+        entityId: savedReport.id,
+        details: `Generated ${reportType} report`,
+        userId: session.user.id,
+        severity: 'INFO'
+      });
 
-        reportData = await db.vasService.findMany({
-          where: salesWhere,
-          include: {
-            service: true,
-            provider: true,
-          },
-        });
+      return NextResponse.json({
+        success: true,
+        reportId: savedReport.id,
+        fileUrl: `/reports/${fileName}`,
+        fileName,
+      });
 
-        // Generate Excel report
-        fileUrl = await generateExcelReport(
-          "sales",
-          generatedReportName, // Use the unique generated name
-          reportData,
-          parameters // Pass original parameters
-        );
-        break;
-      }
+    } catch (error) {
+      await logEvent({
+        action: 'REPORT_GENERATION_FAILED',
+        entityType: 'report',
+        details: `Error generating report: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        userId: session.user.id,
+        severity: 'ERROR'
+      });
 
-      case "contracts": { // Use block scope
-        const { contractStatus, contractType, ...restParams } = parameters || {};
-
-        const contractWhere: any = {};
-
-        if (contractStatus) {
-          contractWhere.status = contractStatus;
-        }
-
-        if (contractType) {
-          contractWhere.type = contractType;
-        }
-
-        reportData = await db.contract.findMany({
-          where: contractWhere,
-          include: {
-            provider: true,
-            humanitarianOrg: true,
-            parkingService: true,
-            createdBy: {
-              select: { name: true, email: true },
-            },
-          },
-        });
-
-        // Generate Excel report
-        fileUrl = await generateExcelReport(
-          "contracts",
-          generatedReportName, // Use the unique generated name
-          reportData,
-          parameters // Pass original parameters
-        );
-        break;
-      }
-
-      case "complaints": { // Use block scope
-        const { complaintStatus, priority, serviceId, ...restParams } = parameters || {};
-
-        const complaintWhere: any = {};
-
-        if (complaintStatus) {
-          complaintWhere.status = complaintStatus;
-        }
-
-        if (priority) {
-          complaintWhere.priority = priority;
-        }
-
-        if (serviceId) {
-          complaintWhere.serviceId = serviceId;
-        }
-
-        reportData = await db.complaint.findMany({
-          where: complaintWhere,
-          include: {
-            service: true,
-            product: true,
-            provider: true,
-            submittedBy: {
-              select: { name: true, email: true },
-            },
-            assignedAgent: {
-              select: { name: true, email: true },
-            },
-          },
-        });
-
-        // Generate Excel report
-        fileUrl = await generateExcelReport(
-          "complaints",
-          generatedReportName, // Use the unique generated name
-          reportData,
-          parameters // Pass original parameters
-        );
-        break; // Added break
-      }
-
-      default:
-        // Handle unsupported report types
-        activityLogPayload.details.message = `Unsupported report type: ${reportType}`;
-        await logActivity(activityLogPayload);
-        return NextResponse.json(
-          { error: `Unsupported report type: ${reportType}` },
-          { status: 400 }
-        );
+      throw error;
     }
-
-    // If fileUrl was not generated (e.g., generateExcelReport failed or returned null)
-    if (!fileUrl) {
-         activityLogPayload.details.message = `Excel file generation failed for report type: ${reportType}`;
-         await logActivity(activityLogPayload);
-         return NextResponse.json(
-             { error: "Failed to generate Excel file" },
-             { status: 500 } // Internal server error for generation failure
-         );
-    }
-
-
-    // Save report metadata to the database
-    const savedReport = await db.report.create({
-      data: {
-        name: generatedReportName, // Save the unique generated name
-        reportType: reportType, // Save the requested type
-        parameters: parameters, // Save the original parameters as JSON
-        fileUrl: fileUrl,
-        status: ReportStatus.GENERATED, // Assuming GENERATED is a valid status
-        generatedById: userId,
-        createdAt: new Date(),
-      },
-    });
-
-    // Update activity log with success status and entity ID
-    activityLogPayload.entityId = savedReport.id;
-    activityLogPayload.status = 'SUCCESS';
-    activityLogPayload.details.message = `Report generated successfully: ${savedReport.name}`;
-    await logActivity(activityLogPayload);
-
-    // Return success response with file URL
-    return NextResponse.json({
-      success: true,
-      reportId: savedReport.id,
-      name: savedReport.name,
-      fileUrl: savedReport.fileUrl,
-      status: savedReport.status,
-      createdAt: savedReport.createdAt,
-    }, { status: 200 });
 
   } catch (error) {
-    console.error("Error generating report:", error);
-
-    // Log the error as part of the activity details if not already set
-    if (!activityLogPayload.details.message) {
-        activityLogPayload.details.message = "An unexpected error occurred during report generation.";
-    }
-    activityLogPayload.details.error = error instanceof Error ? error.message : String(error);
-    activityLogPayload.status = 'FAILED';
-    // Ensure userId is logged even if the initial auth check failed within the try block
-    if (!activityLogPayload.userId && session?.user?.id) {
-        activityLogPayload.userId = session.user.id;
-    }
-
-    // Attempt to log the failed activity
-    try {
-      await logActivity(activityLogPayload);
-    } catch (logError) {
-      console.error("Failed to log report generation activity:", logError);
-      // Continue without throwing if logging fails
-    }
-
-
-    // Return error response
+    console.error('Error generating report:', error);
     return NextResponse.json(
-      { error: "Failed to generate report", details: (error instanceof Error ? error.message : String(error)) },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
+}
+
+async function generateFinancialReport(startDate: string, endDate: string, filters: any) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const vasTransactions = await prisma.vasTransaction.findMany({
+    where: {
+      date: {
+        gte: start,
+        lte: end,
+      },
+      ...(filters?.providerId && { providerId: filters.providerId }),
+    },
+    include: {
+      provider: {
+        select: {
+          name: true,
+        }
+      },
+      service: {
+        select: {
+          name: true,
+        }
+      }
+    },
+    orderBy: {
+      date: 'desc'
+    }
+  });
+
+  return vasTransactions.map(tx => ({
+    'Provider': tx.provider.name,
+    'Service': tx.service.name,
+    'Date': tx.date.toISOString().split('T')[0],
+    'Service Name': tx.serviceName,
+    'Service Code': tx.serviceCode,
+    'Group': tx.group,
+    'Price': tx.price,
+    'Quantity': tx.quantity,
+    'Amount': tx.amount,
+  }));
+}
+
+async function generateComplaintsReport(startDate: string, endDate: string, filters: any) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const complaints = await prisma.complaint.findMany({
+    where: {
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+      ...(filters?.status && { status: filters.status }),
+      ...(filters?.providerId && { providerId: filters.providerId }),
+    },
+    include: {
+      submittedBy: {
+        select: {
+          name: true,
+          email: true,
+        }
+      },
+      provider: {
+        select: {
+          name: true,
+        }
+      },
+      service: {
+        select: {
+          name: true,
+        }
+      },
+      assignedAgent: {
+        select: {
+          name: true,
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
+  return complaints.map(complaint => ({
+    'ID': complaint.id,
+    'Title': complaint.title,
+    'Status': complaint.status,
+    'Priority': complaint.priority,
+    'Provider': complaint.provider?.name || 'N/A',
+    'Service': complaint.service?.name || 'N/A',
+    'Submitted By': complaint.submittedBy.name,
+    'Assigned To': complaint.assignedAgent?.name || 'Unassigned',
+    'Created At': complaint.createdAt.toISOString().split('T')[0],
+    'Resolved At': complaint.resolvedAt ? complaint.resolvedAt.toISOString().split('T')[0] : 'N/A',
+  }));
+}
+
+async function generateContractsReport(startDate: string, endDate: string, filters: any) {
+  const start = startDate ? new Date(startDate) : undefined;
+  const end = endDate ? new Date(endDate) : undefined;
+
+  const contracts = await prisma.contract.findMany({
+    where: {
+      ...(start && end && {
+        OR: [
+          {
+            startDate: {
+              gte: start,
+              lte: end,
+            }
+          },
+          {
+            endDate: {
+              gte: start,
+              lte: end,
+            }
+          }
+        ]
+      }),
+      ...(filters?.status && { status: filters.status }),
+      ...(filters?.type && { type: filters.type }),
+    },
+    include: {
+      provider: {
+        select: {
+          name: true,
+        }
+      },
+      humanitarianOrg: {
+        select: {
+          name: true,
+        }
+      },
+      parkingService: {
+        select: {
+          name: true,
+        }
+      },
+      createdBy: {
+        select: {
+          name: true,
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
+  return contracts.map(contract => ({
+    'Contract Number': contract.contractNumber,
+    'Name': contract.name,
+    'Type': contract.type,
+    'Status': contract.status,
+    'Entity': contract.provider?.name || contract.humanitarianOrg?.name || contract.parkingService?.name || 'N/A',
+    'Revenue %': contract.revenuePercentage,
+    'Start Date': contract.startDate.toISOString().split('T')[0],
+    'End Date': contract.endDate.toISOString().split('T')[0],
+    'Created By': contract.createdBy.name,
+    'Created At': contract.createdAt.toISOString().split('T')[0],
+  }));
+}
+
+async function generateProvidersReport(filters: any) {
+  const providers = await prisma.provider.findMany({
+    where: {
+      ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
+    },
+    include: {
+      _count: {
+        select: {
+          contracts: true,
+          vasServices: true,
+          bulkServices: true,
+          complaints: true,
+        }
+      }
+    },
+    orderBy: {
+      name: 'asc'
+    }
+  });
+
+  return providers.map(provider => ({
+    'Name': provider.name,
+    'Contact': provider.contactName || 'N/A',
+    'Email': provider.email || 'N/A',
+    'Phone': provider.phone || 'N/A',
+    'Active': provider.isActive ? 'Yes' : 'No',
+    'Contracts': provider._count.contracts,
+    'VAS Services': provider._count.vasServices,
+    'Bulk Services': provider._count.bulkServices,
+    'Complaints': provider._count.complaints,
+    'Created At': provider.createdAt.toISOString().split('T')[0],
+  }));
+}
+
+async function createExcelFile(data: any[], fileName: string): Promise<string> {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+
+  // Create reports directory if it doesn't exist
+  const reportsDir = path.join(process.cwd(), 'public', 'reports');
+  const filePath = path.join(reportsDir, fileName);
+
+  // Ensure directory exists
+  const fs = require('fs');
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+
+  // Write file
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  await writeFile(filePath, buffer);
+
+  return filePath;
 }

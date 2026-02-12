@@ -226,3 +226,18 @@ export function createReminderNotification(params: ReminderParams) {
 export function createSystemNotification(params: SystemParams) {
   return createNotificationContent("SYSTEM", params);
 }
+
+export function getEmailTemplate(templateName: string, templateData: Record<string, any>): string {
+  const title = templateData.title || "Notification";
+  const message = templateData.message || "You have a new notification.";
+  const actionUrl = templateData.actionUrl || process.env.NEXT_PUBLIC_APP_URL || "#";
+
+  return `
+    <div style="font-family: Arial, sans-serif; line-height:1.5;">
+      <h2>${title}</h2>
+      <p>${message}</p>
+      <p>Template: ${templateName}</p>
+      <p><a href="${actionUrl}">Open application</a></p>
+    </div>
+  `;
+}

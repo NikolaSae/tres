@@ -74,7 +74,7 @@ export default async function OperatorsPage({
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              <OperatorFilters initialFilters={searchParamsData} />
+              <OperatorFilters />
               
               <Separator className="my-6" />
               
@@ -115,7 +115,11 @@ async function OperatorsList({ filters }: {
     };
 }) {
   const result = await getOperators(filters);
-  return <OperatorList data={result.operators} totalCount={result.totalCount} pageCount={result.pageCount} currentPage={result.currentPage} />;
+  return (
+    <OperatorList 
+      data={result.operators}
+    />
+  );
 }
 
 function OperatorListSkeleton() {

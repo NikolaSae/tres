@@ -16,7 +16,7 @@ export async function getProductById(id: string) {
       return { error: "Product not found" };
     }
 
-    return { product };
+    return { product, data: product };
   } catch (error) {
     console.error("[GET_PRODUCT_BY_ID]", error);
     return { error: "Failed to fetch product" };

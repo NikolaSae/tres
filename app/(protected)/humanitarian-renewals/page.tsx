@@ -152,16 +152,16 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
 
   return (
     <div className="space-y-4">
-      {/* ISPRAVKA 5: Dodaj error handling i debug informacije */}
+      {/* ISPRAVKA 5: Dodaj error handling i debug informacije - konvertuj Error u string */}
       {contractsError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">Greška pri učitavanju ugovora: {contractsError}</p>
+          <p className="text-sm text-red-600">Greška pri učitavanju ugovora: {contractsError.message || String(contractsError)}</p>
         </div>
       )}
       
       {orgsError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">Greška pri učitavanju organizacija: {orgsError}</p>
+          <p className="text-sm text-red-600">Greška pri učitavanju organizacija: {orgsError.message || String(orgsError)}</p>
         </div>
       )}
 
@@ -489,7 +489,7 @@ const HumanitarianRenewalsPage: React.FC = () => {
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
             ) : (
               <div className="text-2xl font-bold">
-                {statistics?.inProgressRenewals ?? 0}
+                {statistics?.inProgress ?? 0}
               </div>
             )}
           </CardContent>
@@ -505,7 +505,7 @@ const HumanitarianRenewalsPage: React.FC = () => {
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
             ) : (
               <div className="text-2xl font-bold">
-                {statistics?.awaitingSignatureRenewals ?? 0}
+                {statistics?.awaitingSignature ?? 0}
               </div>
             )}
           </CardContent>

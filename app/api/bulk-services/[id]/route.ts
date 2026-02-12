@@ -8,6 +8,7 @@ import { deleteBulkService } from '@/actions/bulk-services/delete';
 
 export async function GET(
   req: NextRequest,
+  // ✅ ISPRAVKA: Dodat tip parametar za Promise
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -50,11 +51,13 @@ export async function PATCH(
   } catch (error) {
     console.error('[UPDATE_BULK_SERVICE_API]', error);
     
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+    // ✅ ISPRAVKA: Proper type assertion
+    if (error instanceof Error && error.name === 'ZodError') {
+      return NextResponse.json({ error: (error as any).errors }, { status: 400 });
     }
     
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
