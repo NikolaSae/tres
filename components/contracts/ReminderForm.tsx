@@ -1,6 +1,5 @@
 ///components/contracts/ReminderForm.tsx
 
-
 "use client";
 
 import { useState } from "react";
@@ -54,15 +53,10 @@ export function ReminderForm({
   const [reminderType, setReminderType] = useState<string>("expiration");
   const [creating, setCreating] = useState(false);
   const [acknowledging, setAcknowledging] = useState<string | null>(null);
-  // const { toast } = useToast();
 
   const handleCreate = async () => {
     if (!date) {
-      toast({
-        title: "Missing date",
-        description: "Please select a reminder date",
-        variant: "destructive",
-      });
+      toast.error("Please select a reminder date");
       return;
     }
 
@@ -71,15 +65,13 @@ export function ReminderForm({
       
       const result = await createReminder({
         contractId,
-        reminderDate: date,
+        remindAt: date, // Changed from reminderDate to remindAt
         reminderType,
+        isDismissed: false,
       });
       
       if (result.success) {
-        toast({
-          title: "Reminder created",
-          description: `Reminder set for ${formatDate(date)}`,
-        });
+        toast.success(`Reminder created for ${formatDate(date)}`);
         
         setDate(undefined);
         setReminderType("expiration");
@@ -88,19 +80,11 @@ export function ReminderForm({
           onReminderCreated();
         }
       } else {
-        toast({
-          title: "Failed to create reminder",
-          description: result.error || "An error occurred while creating the reminder",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to create reminder");
       }
     } catch (error) {
       console.error("Error creating reminder:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create reminder",
-        variant: "destructive",
-      });
+      toast.error("Failed to create reminder");
     } finally {
       setCreating(false);
     }
@@ -110,33 +94,22 @@ export function ReminderForm({
     try {
       setAcknowledging(reminderId);
       
-      const result = await acknowledgeReminder({
-        reminderId,
-      });
+      const result = await acknowledgeReminder(reminderId); // Pass string directly, not object
       
       if (result.success) {
-        toast({
-          title: "Reminder acknowledged",
-          description: "You have acknowledged this reminder",
-        });
+        toast.success("Reminder acknowledged");
         
         if (onReminderAcknowledged) {
           onReminderAcknowledged(reminderId);
         }
+      } else if (result.info) {
+        toast.info(result.info);
       } else {
-        toast({
-          title: "Failed to acknowledge reminder",
-          description: result.error || "An error occurred while acknowledging the reminder",
-          variant: "destructive",
-        });
+        toast.error(result.error || "Failed to acknowledge reminder");
       }
     } catch (error) {
       console.error("Error acknowledging reminder:", error);
-      toast({
-        title: "Error",
-        description: "Failed to acknowledge reminder",
-        variant: "destructive",
-      });
+      toast.error("Failed to acknowledge reminder");
     } finally {
       setAcknowledging(null);
     }

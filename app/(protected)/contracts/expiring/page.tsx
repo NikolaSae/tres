@@ -29,6 +29,7 @@ import { EnhancedContractList } from "@/components/contracts/enhanced-contract-l
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ContractStatus } from '@prisma/client';
 
 // Updated interfaces to match API response
 interface ContractProvider {
@@ -283,7 +284,7 @@ const getContractTypeLabel = (type: string): string => {
 };
 
 const ExpiringContractsPage: React.FC = () => {
-  console.log("Rendering ExpiringContractsPage"); // Debug log
+  console.log("Rendering ExpiringContractsPage");
   const {
     contracts,
     loading: contractsLoading,
@@ -310,7 +311,7 @@ const ExpiringContractsPage: React.FC = () => {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("Initial data fetch triggered"); // Debug log
+    console.log("Initial data fetch triggered");
     fetchStatistics();
     fetchTimelineData();
   }, [fetchStatistics, fetchTimelineData]);
@@ -362,10 +363,28 @@ const ExpiringContractsPage: React.FC = () => {
     return new Intl.NumberFormat('sr-RS').format(num);
   };
 
+  // Transform timeline data for ExpiryTimelineChart (convert date strings to Date objects)
+  const transformedTimelineData = timelineData.map(item => ({
+    ...item,
+    date: new Date(item.date), // Convert string to Date
+    contracts: item.contracts.map(contract => ({
+      ...contract,
+      endDate: new Date(contract.endDate), // Convert string to Date
+      type: contract.type as any, // Cast to ContractType
+    }))
+  }));
+
+  // Transform contracts for EnhancedContractList (ensure proper status type)
+  const transformedContracts = contracts.map(contract => ({
+    ...contract,
+    status: contract.status as ContractStatus, // Cast to proper enum type
+  }));
+
   // Calculate server time for contract list
   const serverTime = new Date().toISOString();
-  console.log("Server time for contracts:", serverTime); // Debug log
-  console.log("Contracts data to pass to EnhancedContractList:", contracts); // Debug log
+  console.log("Server time for contracts:", serverTime);
+  console.log("Contracts data to pass to EnhancedContractList:", transformedContracts);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -453,7 +472,7 @@ const ExpiringContractsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Statistics Cards - rest of the component remains the same */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -599,7 +618,7 @@ const ExpiringContractsPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Timeline Chart */}
+      {/* Timeline Chart with transformed data */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -620,12 +639,12 @@ const ExpiringContractsPage: React.FC = () => {
               Greška pri učitavanju kalendara: {timelineError}
             </div>
           ) : (
-            <ExpiryTimelineChart data={timelineData} />
+            <ExpiryTimelineChart data={transformedTimelineData} />
           )}
         </CardContent>
       </Card>
 
-      {/* Filters */}
+      {/* Filters - continues from here with rest of original code... */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -720,96 +739,96 @@ const ExpiringContractsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Contracts List */}
+      {/* Contracts List with transformed contracts */}
       <Card>
-  <CardHeader>
-    <CardTitle className="flex items-center gap-2">
-      <FileText className="h-5 w-5" />
-      Lista ugovora ({contractsLoading ? '...' : formatNumber(contracts.length)})
-    </CardTitle>
-    <CardDescription>
-      Detaljni pregled svih ugovora koji ističu u narednih 60 dana
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    {contractsLoading ? (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    ) : contractsError ? (
-      <div className="text-center py-8 text-red-500">
-        {contractsError}
-        <div className="mt-2">
-          <button 
-            onClick={fetchContracts}
-            className="
-              relative overflow-hidden
-              inline-flex items-center justify-center
-              px-4 py-2 rounded-lg
-              text-white font-medium text-sm
-              bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
-              shadow-md shadow-blue-600/20
-              hover:shadow-lg hover:shadow-blue-600/30
-              hover:-translate-y-0.5
-              active:translate-y-0
-              transition-all duration-300 ease-in-out
-              before:absolute before:inset-0
-              before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
-              before:translate-x-[-200%]
-              hover:before:translate-x-[200%]
-              before:transition-transform before:duration-700
-            "
-          >
-            Pokušaj ponovo
-          </button>
-        </div>
-      </div>
-    ) : contracts.length === 0 ? (
-      <div className="flex flex-col items-center justify-center p-8 text-center bg-muted/50 rounded-md">
-        <h3 className="text-lg font-medium">Nema pronađenih ugovora</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Nije pronađen nijedan ugovor koji ističe u narednih 60 dana.
-        </p>
-        <button 
-          onClick={fetchContracts}
-          className="
-            mt-4
-            relative overflow-hidden
-            inline-flex items-center justify-center gap-2
-            px-4 py-2 rounded-lg
-            text-white font-medium text-sm
-            bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
-            shadow-md shadow-blue-600/20
-            hover:shadow-lg hover:shadow-blue-600/30
-            hover:-translate-y-0.5
-            active:translate-y-0
-            transition-all duration-300 ease-in-out
-            before:absolute before:inset-0
-            before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
-            before:translate-x-[-200%]
-            hover:before:translate-x-[200%]
-            before:transition-transform before:duration-700
-          "
-        >
-          <RefreshCw className="h-4 w-4" />
-          Osveži podatke
-        </button>
-      </div>
-    ) : (
-      <>
-        {console.log('Rendering EnhancedContractList with contracts:', contracts)}
-        <EnhancedContractList 
-          contracts={contracts}
-          serverTime={serverTime}
-          onContractUpdate={fetchContracts}
-        />
-        </>
-    )}
-  </CardContent>
-</Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Lista ugovora ({contractsLoading ? '...' : formatNumber(transformedContracts.length)})
+          </CardTitle>
+          <CardDescription>
+            Detaljni pregled svih ugovora koji ističu u narednih 60 dana
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {contractsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : contractsError ? (
+            <div className="text-center py-8 text-red-500">
+              {contractsError}
+              <div className="mt-2">
+                <button 
+                  onClick={fetchContracts}
+                  className="
+                    relative overflow-hidden
+                    inline-flex items-center justify-center
+                    px-4 py-2 rounded-lg
+                    text-white font-medium text-sm
+                    bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+                    shadow-md shadow-blue-600/20
+                    hover:shadow-lg hover:shadow-blue-600/30
+                    hover:-translate-y-0.5
+                    active:translate-y-0
+                    transition-all duration-300 ease-in-out
+                    before:absolute before:inset-0
+                    before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+                    before:translate-x-[-200%]
+                    hover:before:translate-x-[200%]
+                    before:transition-transform before:duration-700
+                  "
+                >
+                  Pokušaj ponovo
+                </button>
+              </div>
+            </div>
+          ) : transformedContracts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center bg-muted/50 rounded-md">
+              <h3 className="text-lg font-medium">Nema pronađenih ugovora</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Nije pronađen nijedan ugovor koji ističe u narednih 60 dana.
+              </p>
+              <button 
+                onClick={fetchContracts}
+                className="
+                  mt-4
+                  relative overflow-hidden
+                  inline-flex items-center justify-center gap-2
+                  px-4 py-2 rounded-lg
+                  text-white font-medium text-sm
+                  bg-gradient-to-r from-blue-900 via-blue-800 to-blue-600
+                  shadow-md shadow-blue-600/20
+                  hover:shadow-lg hover:shadow-blue-600/30
+                  hover:-translate-y-0.5
+                  active:translate-y-0
+                  transition-all duration-300 ease-in-out
+                  before:absolute before:inset-0
+                  before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent
+                  before:translate-x-[-200%]
+                  hover:before:translate-x-[200%]
+                  before:transition-transform before:duration-700
+                "
+              >
+                <RefreshCw className="h-4 w-4" />
+                Osveži podatke
+              </button>
+            </div>
+          ) : (
+            <>
+              {console.log('Rendering EnhancedContractList with contracts:', transformedContracts)}
+              <EnhancedContractList 
+                contracts={transformedContracts}
+                serverTime={serverTime}
+                onContractUpdate={fetchContracts}
+              />
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pagination */}
-      {contracts.length > 0 && pagination.totalPages > 1 && (
+      {transformedContracts.length > 0 && pagination.totalPages > 1 && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
