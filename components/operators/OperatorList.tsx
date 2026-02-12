@@ -123,7 +123,10 @@ export function OperatorList({ data, canCreate = false }: DataTableProps) {
       accessorKey: "active",
       header: "Status",
       cell: ({ row }) => (
-        <Badge variant={row.original?.active ? "success" : "destructive"}>
+        <Badge 
+          variant={row.original?.active ? "default" : "destructive"}
+          className={row.original?.active ? "bg-green-500 hover:bg-green-600" : ""}
+        >
           {row.original?.active ? "Active" : "Inactive"}
         </Badge>
       ),
