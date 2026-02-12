@@ -1,18 +1,67 @@
-// /lib/types/complaint-types.ts:
+// lib/types/complaint-types.ts
 
-import { ComplaintStatus, ServiceType } from "@prisma/client";
+import { Prisma, ComplaintStatus, ServiceType } from "@prisma/client";
 import { ComplaintPriority, ServiceCategoryType } from "./enums";
-import { Complaint, User, Service, Product, Provider, HumanitarianOrg, ParkingService } from "./interfaces";
 
-export type ComplaintWithRelations = Complaint & {
-  submittedBy: User;
-  assignedAgent?: User;
-  service?: Service;
-  product?: Product;
-  provider?: Provider;
-  humanitarianOrg?: HumanitarianOrg;
-  parkingService?: ParkingService;
-};
+// Use Prisma's generated type with proper includes - this matches what the API returns
+export type ComplaintWithRelations = Prisma.ComplaintGetPayload<{
+  include: {
+    submittedBy: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    assignedAgent: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    service: {
+      select: {
+        id: true;
+        name: true;
+        type: true;
+      };
+    };
+    product: {
+      select: {
+        id: true;
+        name: true;
+        code: true;
+      };
+    };
+    provider: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    humanitarianOrg: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    parkingService: true;
+  };
+}>;
+
+// Alternative: If you need a more flexible type that works with partial includes
+export type ComplaintWithPartialRelations = Prisma.ComplaintGetPayload<{
+  include: {
+    submittedBy: true;
+    assignedAgent: true;
+    service: true;
+    product: true;
+    provider: true;
+    humanitarianOrg: true;
+    parkingService: true;
+  };
+}>;
 
 export type ComplaintSummary = {
   id: string;
@@ -22,12 +71,12 @@ export type ComplaintSummary = {
   createdAt: Date;
   updatedAt: Date;
   submittedByName: string;
-  assignedAgentName?: string;
-  serviceName?: string;
-  productName?: string;
-  providerName?: string;
-  humanitarianOrgName?: string;
-  parkingServiceName?: string;
+  assignedAgentName?: string | null;
+  serviceName?: string | null;
+  productName?: string | null;
+  providerName?: string | null;
+  humanitarianOrgName?: string | null;
+  parkingServiceName?: string | null;
 };
 
 export type ComplaintStatusUpdate = {

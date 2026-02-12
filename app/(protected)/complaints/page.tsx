@@ -1,7 +1,7 @@
 // app/(protected)/complaints/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ComplaintList } from "@/components/complaints/ComplaintList";
 import { ComplaintFilters, ComplaintFiltersState } from "@/components/complaints/ComplaintFilters";
@@ -45,29 +45,7 @@ export default function ComplaintsPage() {
     page: currentPage,
   }), [status, serviceId, providerId, productId, startDateString, endDateString, search, currentPage, pageSize, safeDate]);
 
-  const { complaints: rawComplaints, isLoading, error, totalCount } = useComplaints(queryParams);
-
-  // Transform undefined to null for compatibility with ComplaintList component (Prisma types)
-  const complaints = useMemo(() => {
-    if (!rawComplaints) return null;
-    return rawComplaints.map(complaint => ({
-      ...complaint,
-      // Transform all optional foreign key fields from undefined to null
-      providerId: complaint.providerId ?? null,
-      humanitarianOrgId: complaint.humanitarianOrgId ?? null,
-      productId: complaint.productId ?? null,
-      serviceId: complaint.serviceId ?? null,
-      parkingServiceId: complaint.parkingServiceId ?? null,
-      assignedAgentId: complaint.assignedAgentId ?? null,
-      // Transform optional relation objects
-      assignedAgent: complaint.assignedAgent ?? null,
-      service: complaint.service ?? null,
-      product: complaint.product ?? null,
-      provider: complaint.provider ?? null,
-      humanitarianOrg: complaint.humanitarianOrg ?? null,
-      parkingService: complaint.parkingService ?? null,
-    }));
-  }, [rawComplaints]);
+  const { complaints, isLoading, error, totalCount } = useComplaints(queryParams);
 
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info"; title?: string; } | null>(null);
 
