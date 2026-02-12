@@ -10,12 +10,14 @@ import { NotificationBanner } from "@/components/complaints/NotificationBanner";
 import { getComplaintById } from "@/lib/actions/complaints";
 import { updateComplaint } from "@/actions/complaints/update";
 import { Complaint } from "@/lib/types/interfaces";
+import { Complaint as PrismaComplaint } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 
 export default function EditComplaintPage() {
   const params = useParams();
   const router = useRouter();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
+  const [prismaComplaint, setPrismaComplaint] = useState<PrismaComplaint | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{
@@ -47,6 +49,31 @@ export default function EditComplaintPage() {
         }
 
         setComplaint(data);
+        
+        // Convert custom Complaint interface to Prisma Complaint for ComplaintForm
+        // Note: Adjust fields based on your actual Prisma schema
+        const prismaData: PrismaComplaint = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          status: data.status,
+          priority: data.priority,
+          submittedById: data.submittedById,
+          assignedAgentId: data.assignedAgentId ?? null,
+          serviceId: data.serviceId ?? null,
+          productId: data.productId ?? null,
+          providerId: data.providerId ?? null,
+          humanitarianOrgId: data.humanitarianOrgId ?? null,
+          parkingServiceId: data.parkingServiceId ?? null,
+          financialImpact: data.financialImpact ?? null,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          assignedAt: data.assignedAt ?? null,
+          resolvedAt: data.resolvedAt ?? null,
+          closedAt: data.closedAt ?? null,
+        } as PrismaComplaint;
+
+        setPrismaComplaint(prismaData);
       } catch (err) {
         setError("Failed to load complaint");
         console.error("Error loading complaint:", err);
@@ -160,9 +187,9 @@ export default function EditComplaintPage() {
         />
       )}
       
-      {complaint && (
+      {prismaComplaint && (
         <ComplaintForm
-          complaint={complaint}
+          complaint={prismaComplaint}
           providersData={providersData}
           humanitarianOrgsData={humanitarianOrgsData}
           parkingServicesData={parkingServicesData}
