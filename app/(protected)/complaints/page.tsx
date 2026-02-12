@@ -47,13 +47,13 @@ export default function ComplaintsPage() {
 
   const { complaints, isLoading, error, totalCount } = useComplaints(queryParams);
 
-  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info"; } | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info"; title?: string; } | null>(null);
 
   useEffect(() => {
     const message = searchParams.get("message");
     const type = searchParams.get("type") as "success" | "error" | "info" | null;
     if (message && type) {
-      setNotification({ message, type });
+      setNotification({ message, type, title: type.charAt(0).toUpperCase() + type.slice(1) });
       const timer = setTimeout(() => setNotification(null), 5000);
       return () => clearTimeout(timer);
     }
@@ -88,16 +88,20 @@ export default function ComplaintsPage() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+    
     if (error) return (
       <div className="bg-destructive/10 text-destructive p-4 rounded-md">
         Error loading complaints: {error.message}
       </div>
     );
-    if (complaints.length === 0) return (
+    
+    // Add null check for complaints
+    if (!complaints || complaints.length === 0) return (
       <div className="text-center py-8 text-muted-foreground">
         {currentPage === 1 && !hasActiveFilters ? "No complaints found." : "No complaints found matching the criteria."}
       </div>
     );
+    
     return (
       <ComplaintList
         complaints={complaints}
@@ -127,10 +131,10 @@ export default function ComplaintsPage() {
       {/* Notification */}
       {notification && (
         <NotificationBanner
+          title={notification.title || "Notification"}
           message={notification.message}
           type={notification.type}
           onClose={() => setNotification(null)}
-          className="card bg-card text-card-foreground shadow-container"
         />
       )}
 
