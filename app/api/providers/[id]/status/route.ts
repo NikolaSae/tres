@@ -1,35 +1,66 @@
 // app/api/providers/[id]/status/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/auth";
-import { UserRole } from "@prisma/client";
+
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
-    const user = session?.user;
-    const { id } = await params;
-    // Провера ауторизације
-    if (!user || ![UserRole.ADMIN, UserRole.MANAGER].includes(user.role as UserRole)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const { isActive } = await req.json();
+    // Check if user has permission (ADMIN or MANAGER only)
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
+      return NextResponse.json(
+        { error: 'Forbidden - insufficient permissions' },
+        { status: 403 }
+      );
+    }
 
-    // Ажурирање статуса провајдера
-    const updatedProvider = await db.provider.update({
-      where: { id: params.id },
-      data: { isActive },
+    const providerId = params.id;
+    const body = await request.json();
+
+    // Verify provider exists
+    const provider = await prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { id: true, isActive: true }
+    });
+
+    if (!provider) {
+      return NextResponse.json(
+        { error: 'Provider not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update provider status
+    const updatedProvider = await prisma.provider.update({
+      where: { id: providerId },
+      data: {
+        isActive: body.isActive,
+      },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        updatedAt: true,
+      }
     });
 
     return NextResponse.json(updatedProvider);
   } catch (error) {
-    console.error("Failed to update provider status:", error);
+    console.error('Error updating provider status:', error);
     return NextResponse.json(
-      { error: "Failed to update provider status" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

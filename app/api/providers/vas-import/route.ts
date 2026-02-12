@@ -1,228 +1,168 @@
 // app/api/providers/vas-import/route.ts
-import { NextResponse } from "next/server";
-import { promises as fs } from 'fs';
-import path from 'path';
-import { auth } from "@/auth";
-import { db } from "@/lib/db";
-import { VasImportService } from "@/scripts/vas-import/VasImportService";
 
-const PROJECT_ROOT = process.cwd();
-const SCRIPTS_DIR = path.join(PROJECT_ROOT, 'scripts');
-const ERROR_FOLDER = path.join(SCRIPTS_DIR, 'errors');
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import * as XLSX from 'xlsx';
 
-export async function POST(req: Request) {
-  const session = await auth();
-  
-  if (!session?.user?.email) {
-    return NextResponse.json(
-      { error: "Niste prijavljeni" },
-      { status: 401 }
-    );
-  }
-
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const userEmail = body.userEmail || session.user.email;
-    const uploadedFilePath = body.uploadedFilePath;
-
-    // Find user in database
-    const user = await db.user.findUnique({
-      where: { email: userEmail },
-      select: { id: true, name: true, email: true }
-    });
-
-    if (!user) {
+    const session = await auth();
+    
+    if (!session) {
       return NextResponse.json(
-        { error: "Korisnik nije pronađen u bazi podataka" },
-        { status: 404 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    if (!uploadedFilePath) {
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const providerId = formData.get('providerId') as string;
+
+    if (!file) {
       return NextResponse.json(
-        { error: "Nije pronađena putanja fajla" },
+        { error: 'No file provided' },
         { status: 400 }
       );
     }
 
-    // Check if file exists
-    let fileInfo = null;
-    try {
-      const stats = await fs.stat(uploadedFilePath);
-      fileInfo = {
-        filePath: uploadedFilePath,
-        fileName: path.basename(uploadedFilePath),
-        fileSize: stats.size,
-        mimeType: uploadedFilePath.endsWith('.xlsx') 
-          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          : 'application/vnd.ms-excel'
-      };
-    } catch (error) {
+    if (!providerId) {
       return NextResponse.json(
-        { error: `Fajl nije pronađen: ${uploadedFilePath}` },
+        { error: 'Provider ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify provider exists
+    const provider = await prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { id: true, name: true }
+    });
+
+    if (!provider) {
+      return NextResponse.json(
+        { error: 'Provider not found' },
         { status: 404 }
       );
     }
 
-    // Initialize VAS importer
-    const vasImporter = new VasImportService(user.id);
-    await vasImporter.ensureDirectories();
-    
-    let output = '';
-    let errorOutput = '';
-    let reportPath: string | null = null;
-    let parseInfo = null;
+    // Read Excel file
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(worksheet);
 
-    try {
-      // Parse and process file
-      console.log(`\n🚀 Starting import for: ${fileInfo.fileName}`);
-      console.log(`   User: ${user.name} (${user.email})`);
-      
-      const result = await vasImporter.processExcelFile(uploadedFilePath);
-      
-      // Store parse info for response
-      parseInfo = {
-        provider: result.providerName,
-        providerId: result.providerId,
-        recordCount: result.records.length
-      };
-      
-      // Build initial output with file info
-      const outputLines: string[] = [
-        `📋 File: ${fileInfo.fileName}`,
-        `📁 Size: ${(fileInfo.fileSize / 1024).toFixed(2)} KB`,
-        ``,
-      ];
-      
-      // Add import logs from processing (contains contract info)
-      if (result.importLogs && result.importLogs.length > 0) {
-        outputLines.push(...result.importLogs);
-        outputLines.push('');
-      }
-      
-      // Process records if any found
-      if (result.records.length > 0) {
-        outputLines.push(`📊 Found ${result.records.length} records to process`);
-        outputLines.push('');
-        
-        const importResult = await vasImporter.importRecordsToDatabase(result.records);
-        
-        // Add import logs
-        outputLines.push(...importResult.logs);
-        outputLines.push('');
-        
-        // Add summary
-        outputLines.push('📈 Import Summary:');
-        outputLines.push(`   ✅ Inserted: ${importResult.inserted}`);
-        outputLines.push(`   🔄 Updated: ${importResult.updated}`);
-        outputLines.push(`   ❌ Errors: ${importResult.errors}`);
-        outputLines.push('');
-        
-        // Update provider status to success
-        if (body.providerId) {
-          await db.provider.update({
-            where: { id: body.providerId },
-            data: {
-              importStatus: 'completed',
-              lastImportDate: new Date(),
-              importedBy: user.id,
-              originalFileName: fileInfo.fileName,
-              originalFilePath: fileInfo.filePath,
-              fileSize: fileInfo.fileSize,
-              mimeType: fileInfo.mimeType,
-            }
-          });
-        }
-      } else {
-        outputLines.push('⚠️  No valid records found in file');
-        errorOutput = 'No valid records found';
-      }
-
-      // Move file to provider directory
-      const movedPath = await vasImporter.moveFileToProviderDirectory(
-        uploadedFilePath,
-        result.providerId,
-        result.providerName,
-        path.basename(uploadedFilePath)
+    if (!data || data.length === 0) {
+      return NextResponse.json(
+        { error: 'No data found in Excel file' },
+        { status: 400 }
       );
-      
-      if (movedPath) {
-        // Extract relative path from public folder
-        const publicIndex = movedPath.indexOf('public');
-        if (publicIndex !== -1) {
-          reportPath = movedPath.substring(publicIndex + 6); // +6 to skip 'public'
-        }
-        
-        outputLines.push(`✅ File moved to: ${movedPath.replace(PROJECT_ROOT, '')}`);
-        
-        if (reportPath) {
-          outputLines.push(`🔗 Report path: ${reportPath}`);
-        }
-      }
-      
-      output = outputLines.join('\n');
-      
-    } catch (error: any) {
-      errorOutput = error.message || "Error processing file";
-      console.error("❌ Processing error:", error);
-      
-      output = `❌ Error: ${errorOutput}\n\nStack trace:\n${error.stack || 'No stack trace available'}`;
-      
-      // Move file to error folder
+    }
+
+    let imported = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    // Process each row
+    for (const row of data) {
       try {
-        const errorFile = path.join(ERROR_FOLDER, path.basename(uploadedFilePath));
-        await fs.rename(uploadedFilePath, errorFile);
-        output += `\n\n📁 File moved to error folder: ${errorFile}`;
-      } catch (moveError) {
-        console.error("Failed to move file to error folder:", moveError);
-        output += `\n\n⚠️  Failed to move file: ${(moveError as Error).message}`;
-      }
-      
-      // Update provider status to failed
-      if (body.providerId) {
-        try {
-          await db.provider.update({
-            where: { id: body.providerId },
+        const rowData = row as any;
+
+        // Validate required fields
+        if (!rowData.proizvod || !rowData.mesec_pruzanja_usluge) {
+          failed++;
+          errors.push(`Missing required fields in row: ${JSON.stringify(rowData)}`);
+          continue;
+        }
+
+        // Find or create service
+        let service = await prisma.service.findFirst({
+          where: {
+            name: rowData.proizvod,
+            type: 'VAS'
+          }
+        });
+
+        if (!service) {
+          service = await prisma.service.create({
             data: {
-              importStatus: 'failed',
-              lastImportDate: new Date(),
-              importedBy: user.id,
-              originalFileName: fileInfo.fileName,
-              originalFilePath: fileInfo.filePath,
-              fileSize: fileInfo.fileSize,
-              mimeType: fileInfo.mimeType,
+              name: rowData.proizvod,
+              type: 'VAS',
+              isActive: true,
+              createdById: session.user.id,
             }
           });
-        } catch (dbError) {
-          console.error("Failed to update provider status:", dbError);
         }
+
+        // Parse date
+        const serviceDate = new Date(rowData.mesec_pruzanja_usluge);
+
+        // Create or update VAS service entry
+        await prisma.vasService.upsert({
+          where: {
+            proizvod_mesec_pruzanja_usluge_provajderId: {
+              proizvod: rowData.proizvod,
+              mesec_pruzanja_usluge: serviceDate,
+              provajderId: providerId,
+            }
+          },
+          create: {
+            proizvod: rowData.proizvod,
+            mesec_pruzanja_usluge: serviceDate,
+            jedinicna_cena: parseFloat(rowData.jedinicna_cena) || 0,
+            broj_transakcija: parseInt(rowData.broj_transakcija) || 0,
+            fakturisan_iznos: parseFloat(rowData.fakturisan_iznos) || 0,
+            fakturisan_korigovan_iznos: parseFloat(rowData.fakturisan_korigovan_iznos) || 0,
+            naplacen_iznos: parseFloat(rowData.naplacen_iznos) || 0,
+            kumulativ_naplacenih_iznosa: parseFloat(rowData.kumulativ_naplacenih_iznosa) || 0,
+            nenaplacen_iznos: parseFloat(rowData.nenaplacen_iznos) || 0,
+            nenaplacen_korigovan_iznos: parseFloat(rowData.nenaplacen_korigovan_iznos) || 0,
+            storniran_iznos: parseFloat(rowData.storniran_iznos) || 0,
+            otkazan_iznos: parseFloat(rowData.otkazan_iznos) || 0,
+            kumulativ_otkazanih_iznosa: parseFloat(rowData.kumulativ_otkazanih_iznosa) || 0,
+            iznos_za_prenos_sredstava: parseFloat(rowData.iznos_za_prenos_sredstava) || 0,
+            serviceId: service.id,
+            provajderId: providerId,
+          },
+          update: {
+            jedinicna_cena: parseFloat(rowData.jedinicna_cena) || 0,
+            broj_transakcija: parseInt(rowData.broj_transakcija) || 0,
+            fakturisan_iznos: parseFloat(rowData.fakturisan_iznos) || 0,
+            fakturisan_korigovan_iznos: parseFloat(rowData.fakturisan_korigovan_iznos) || 0,
+            naplacen_iznos: parseFloat(rowData.naplacen_iznos) || 0,
+            kumulativ_naplacenih_iznosa: parseFloat(rowData.kumulativ_naplacenih_iznosa) || 0,
+            nenaplacen_iznos: parseFloat(rowData.nenaplacen_iznos) || 0,
+            nenaplacen_korigovan_iznos: parseFloat(rowData.nenaplacen_korigovan_iznos) || 0,
+            storniran_iznos: parseFloat(rowData.storniran_iznos) || 0,
+            otkazan_iznos: parseFloat(rowData.otkazan_iznos) || 0,
+            kumulativ_otkazanih_iznosa: parseFloat(rowData.kumulativ_otkazanih_iznosa) || 0,
+            iznos_za_prenos_sredstava: parseFloat(rowData.iznos_za_prenos_sredstava) || 0,
+          }
+        });
+
+        imported++;
+      } catch (error) {
+        failed++;
+        errors.push(`Error processing row: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error('Error processing row:', error);
       }
     }
 
     return NextResponse.json({
-      success: !errorOutput,
-      output,
-      error: errorOutput || null,
-      reportPath,
-      userId: user.id,
-      userEmail: user.email,
-      fileInfo,
-      parseInfo
+      success: true,
+      message: `Import completed: ${imported} records imported, ${failed} failed`,
+      imported,
+      failed,
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined, // Return first 10 errors
     });
-
-  } catch (error: any) {
-    console.error("❌ Error in VAS import API:", error);
-    
+  } catch (error) {
+    console.error('Error importing VAS data:', error);
     return NextResponse.json(
-      { 
-        error: "Greška prilikom importa VAS podataka: " + error.message,
-        success: false,
-        output: `❌ Fatal error: ${error.message}`,
-        stack: error.stack
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
-  } finally {
-    await db.$disconnect();
   }
 }
