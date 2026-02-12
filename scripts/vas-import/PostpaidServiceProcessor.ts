@@ -2,11 +2,11 @@
 import { PrismaClient } from '@prisma/client';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { 
-  PostpaidExcelProcessor, 
-  VasServiceRecord, 
-  VasServiceFileProcessResult, 
-  VasServiceProgressCallback 
+import {
+  PostpaidExcelProcessor,
+  VasServiceRecord,
+  VasServiceFileProcessResult,
+  VasServiceProgressCallback
 } from './processors/PostpaidExcelProcessor';
 import {
   ensureDirectories,
@@ -32,11 +32,13 @@ export class PostpaidServiceProcessor {
   private serviceCache: Map<string, string> = new Map();
   private providerCache: Map<string, string> = new Map();
   private postpaidExcelProcessor: PostpaidExcelProcessor;
+  private parkingServiceId: string;
 
-  constructor(userId?: string, progressCallback?: VasServiceProgressCallback) {
+  constructor(userId?: string, progressCallback?: VasServiceProgressCallback, parkingServiceId?: string) {
     this.currentUserId = userId || 'system-user';
     this.progressCallback = progressCallback;
     this.postpaidExcelProcessor = new PostpaidExcelProcessor(userId, progressCallback);
+    this.parkingServiceId = parkingServiceId || '';
   }
 
   private log(message: string, type: 'info' | 'error' | 'success' = 'info', file?: string): void {
@@ -94,7 +96,7 @@ export class PostpaidServiceProcessor {
 
   async ensureDirectories(): Promise<void> {
     const dirs = [FOLDER_PATH, PROCESSED_FOLDER, ERROR_FOLDER];
-    
+
     for (const dir of dirs) {
       try {
         await fs.mkdir(dir, { recursive: true });
@@ -104,16 +106,16 @@ export class PostpaidServiceProcessor {
     }
   }
 
-  async getOrCreateVasServiceProvider(name: string): Promise<string> {
+  async getOrCreateProvider(name: string): Promise<string> {
     const normalizedName = normalizeProviderName(name);
     const cacheKey = `provider_${normalizedName}`;
-    
+
     if (this.providerCache.has(cacheKey)) {
       return this.providerCache.get(cacheKey)!;
     }
 
     try {
-      let provider = await prisma.vasServiceProvider.findFirst({
+      let provider = await prisma.provider.findFirst({
         where: {
           name: {
             contains: normalizedName,
@@ -123,83 +125,36 @@ export class PostpaidServiceProcessor {
       });
 
       if (!provider) {
-        provider = await prisma.vasServiceProvider.create({
+        provider = await prisma.provider.create({
           data: {
             name: normalizedName,
-            description: `Auto-created provider: ${normalizedName}`,
+            contactName: `Auto-created provider: ${normalizedName}`,
             isActive: true,
-            createdBy: this.currentUserId
           }
         });
 
         await this.safeLogActivity(
-          'VAS_SERVICE_PROVIDER',
+          'PROVIDER',
           provider.id,
           'CREATE',
-          `Created VAS service provider: ${normalizedName}`
+          `Created provider: ${normalizedName}`
         );
 
-        this.log(`Created new VAS service provider: ${normalizedName}`, 'success');
+        this.log(`Created new provider: ${normalizedName}`, 'success');
       }
 
       this.providerCache.set(cacheKey, provider.id);
       return provider.id;
     } catch (error) {
-      this.log(`Error getting/creating VAS service provider ${normalizedName}: ${error}`, 'error');
-      throw error;
-    }
-  }
-
-  async getOrCreateVasService(name: string, providerId: string): Promise<string> {
-    const normalizedName = name.trim();
-    const cacheKey = `service_${providerId}_${normalizedName}`;
-    
-    if (this.serviceCache.has(cacheKey)) {
-      return this.serviceCache.get(cacheKey)!;
-    }
-
-    try {
-      let service = await prisma.vasService.findFirst({
-        where: {
-          name: {
-            equals: normalizedName,
-            mode: 'insensitive'
-          },
-          providerId: providerId
-        }
-      });
-
-      if (!service) {
-        service = await prisma.vasService.create({
-          data: {
-            name: normalizedName,
-            providerId: providerId,
-            isActive: true,
-            createdBy: this.currentUserId
-          }
-        });
-
-        await this.safeLogActivity(
-          'VAS_SERVICE',
-          service.id,
-          'CREATE',
-          `Created VAS service: ${normalizedName}`
-        );
-
-        this.log(`Created new VAS service: ${normalizedName}`, 'success');
-      }
-
-      this.serviceCache.set(cacheKey, service.id);
-      return service.id;
-    } catch (error) {
-      this.log(`Error getting/creating VAS service ${normalizedName}: ${error}`, 'error');
+      this.log(`Error getting/creating provider ${normalizedName}: ${error}`, 'error');
       throw error;
     }
   }
 
   async saveVasServiceRecordsToDatabase(
     records: VasServiceRecord[],
-    fileName: string
+    fileName: string,
+    providerName: string
   ): Promise<VasServiceDatabaseOperationResult> {
     const result: VasServiceDatabaseOperationResult = {
       inserted: 0,
@@ -209,9 +164,12 @@ export class PostpaidServiceProcessor {
     };
 
     this.log(`Starting database operations for ${records.length} VAS service records`, 'info', fileName);
-    
+
     const batchSize = 100;
     const totalBatches = Math.ceil(records.length / batchSize);
+
+    // Get or create provider
+    const providerId = await this.getOrCreateProvider(providerName);
 
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const start = batchIndex * batchSize;
@@ -219,24 +177,18 @@ export class PostpaidServiceProcessor {
       const batch = records.slice(start, end);
 
       this.log(`Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} records)`, 'info', fileName);
-      
+
       const progress = Math.round(((batchIndex + 1) / totalBatches) * 100);
       this.updateProgress(fileName, progress);
 
       for (const record of batch) {
         try {
-          // Ensure provider and service exist
-          const providerId = await this.getOrCreateVasServiceProvider(record.providerName);
-          const serviceId = await this.getOrCreateVasService(record.serviceName, providerId);
-
-          // Check if record already exists
-          const existingRecord = await prisma.vasServiceUsage.findFirst({
+          // Check if record already exists by matching product name, month, and provider
+          const existingRecord = await prisma.vasService.findFirst({
             where: {
-              serviceId: serviceId,
-              msisdn: record.msisdn,
-              transactionDate: record.transactionDate,
-              amount: record.amount,
-              transactionId: record.transactionId || undefined
+              proizvod: record.proizvod,
+              mesec_pruzanja_usluge: record.mesec_pruzanja_usluge,
+              provajderId: providerId
             }
           });
 
@@ -245,18 +197,25 @@ export class PostpaidServiceProcessor {
             continue;
           }
 
-          // Create new record
-          const newRecord = await prisma.vasServiceUsage.create({
+          // Create new VasService record
+          await prisma.vasService.create({
             data: {
-              serviceId: serviceId,
-              msisdn: record.msisdn,
-              transactionDate: record.transactionDate,
-              amount: record.amount,
-              currency: record.currency || 'RSD',
-              transactionId: record.transactionId,
-              description: record.description,
-              additionalData: record.additionalData ? JSON.stringify(record.additionalData) : null,
-              createdBy: this.currentUserId
+              proizvod: record.proizvod,
+              mesec_pruzanja_usluge: record.mesec_pruzanja_usluge,
+              jedinicna_cena: record.jedinicna_cena,
+              broj_transakcija: record.broj_transakcija,
+              fakturisan_iznos: record.fakturisan_iznos,
+              fakturisan_korigovan_iznos: record.fakturisan_korigovan_iznos,
+              naplacen_iznos: record.naplacen_iznos,
+              kumulativ_naplacenih_iznosa: record.kumulativ_naplacenih_iznosa,
+              nenaplacen_iznos: record.nenaplacen_iznos,
+              nenaplacen_korigovan_iznos: record.nenaplacen_korigovan_iznos,
+              storniran_iznos: record.storniran_iznos,
+              otkazan_iznos: record.otkazan_iznos,
+              kumulativ_otkazanih_iznosa: record.kumulativ_otkazanih_iznosa,
+              iznos_za_prenos_sredstava: record.iznos_za_prenos_sredstava,
+              serviceId: record.serviceId,
+              provajderId: providerId,
             }
           });
 
@@ -264,7 +223,7 @@ export class PostpaidServiceProcessor {
 
         } catch (error) {
           result.errors++;
-          this.log(`Error processing record for MSISDN ${record.msisdn}: ${error}`, 'error', fileName);
+          this.log(`Error processing record for product ${record.proizvod}: ${error}`, 'error', fileName);
         }
       }
     }
@@ -279,17 +238,24 @@ export class PostpaidServiceProcessor {
     this.updateFileStatus(fileName, 'processing');
 
     try {
-      // Process Excel file
-      const excelResult = await this.postpaidExcelProcessor.processExcelFile(filePath);
-      
-      if (!excelResult.success || !excelResult.records || excelResult.records.length === 0) {
-        throw new Error(`No valid VAS service records found in file: ${excelResult.error || 'Unknown error'}`);
+      // Process Excel file using the PostpaidExcelProcessor
+      const excelResult = await this.postpaidExcelProcessor.processPostpaidExcelFile(
+        filePath,
+        this.parkingServiceId
+      );
+
+      if (!excelResult.records || excelResult.records.length === 0) {
+        throw new Error('No valid VAS service records found in file');
       }
 
       this.log(`Processed ${excelResult.records.length} VAS service records from Excel`, 'success', fileName);
 
       // Save to database
-      const dbResult = await this.saveVasServiceRecordsToDatabase(excelResult.records, fileName);
+      const dbResult = await this.saveVasServiceRecordsToDatabase(
+        excelResult.records,
+        fileName,
+        excelResult.providerName
+      );
 
       // Move processed file
       const processedPath = path.join(PROCESSED_FOLDER, `processed_${Date.now()}_${fileName}`);
@@ -298,20 +264,7 @@ export class PostpaidServiceProcessor {
 
       this.updateFileStatus(fileName, 'completed');
 
-      return {
-        success: true,
-        fileName,
-        totalRecords: excelResult.records.length,
-        processedRecords: dbResult.inserted + dbResult.updated,
-        errors: dbResult.errors,
-        duplicates: dbResult.duplicates,
-        details: {
-          inserted: dbResult.inserted,
-          updated: dbResult.updated,
-          errors: dbResult.errors,
-          duplicates: dbResult.duplicates
-        }
-      };
+      return excelResult;
 
     } catch (error) {
       this.log(`Error processing VAS service file ${fileName}: ${error}`, 'error', fileName);
@@ -326,15 +279,7 @@ export class PostpaidServiceProcessor {
         this.log(`Failed to move error file: ${moveError}`, 'error', fileName);
       }
 
-      return {
-        success: false,
-        fileName,
-        error: error instanceof Error ? error.message : String(error),
-        totalRecords: 0,
-        processedRecords: 0,
-        errors: 1,
-        duplicates: 0
-      };
+      throw error;
     }
   }
 
@@ -356,15 +301,7 @@ export class PostpaidServiceProcessor {
           .map(file => path.join(FOLDER_PATH, file));
       } catch (error) {
         this.log(`Error reading input directory: ${error}`, 'error');
-        return [{
-          success: false,
-          fileName: 'directory_scan',
-          error: `Failed to read input directory: ${error}`,
-          totalRecords: 0,
-          processedRecords: 0,
-          errors: 1,
-          duplicates: 0
-        }];
+        return [];
       }
     }
 
@@ -378,23 +315,23 @@ export class PostpaidServiceProcessor {
     const results: VasServiceFileProcessResult[] = [];
 
     for (const filePath of filesToProcess) {
-      const result = await this.processVasServiceFile(filePath);
-      results.push(result);
+      try {
+        const result = await this.processVasServiceFile(filePath);
+        results.push(result);
+      } catch (error) {
+        this.log(`Failed to process file ${filePath}: ${error}`, 'error');
+      }
     }
 
     // Summary
     const totalFiles = results.length;
-    const successfulFiles = results.filter(r => r.success).length;
-    const totalRecords = results.reduce((sum, r) => sum + r.totalRecords, 0);
-    const totalProcessed = results.reduce((sum, r) => sum + r.processedRecords, 0);
-    const totalErrors = results.reduce((sum, r) => sum + r.errors, 0);
-    const totalDuplicates = results.reduce((sum, r) => sum + r.duplicates, 0);
+    const totalRecords = results.reduce((sum, r) => sum + r.records.length, 0);
+    const totalWarnings = results.reduce((sum, r) => sum + r.warnings.length, 0);
 
     this.log(`VAS Service Processing Summary:`, 'success');
-    this.log(`- Files: ${successfulFiles}/${totalFiles} successful`, 'info');
-    this.log(`- Records: ${totalProcessed}/${totalRecords} processed`, 'info');
-    this.log(`- Duplicates: ${totalDuplicates}`, 'info');
-    this.log(`- Errors: ${totalErrors}`, 'info');
+    this.log(`- Files: ${totalFiles} processed`, 'info');
+    this.log(`- Records: ${totalRecords} total`, 'info');
+    this.log(`- Warnings: ${totalWarnings}`, 'info');
 
     return results;
   }

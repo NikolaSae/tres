@@ -22,7 +22,7 @@ interface HumanitarianOrgFormProps {
   organization?: {
     id: string;
     name: string;
-    contactName: string | null;
+    contactPerson: string | null;
     email: string | null;
     phone: string | null;
     address: string | null;
@@ -49,7 +49,7 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
     defaultValues: isEditing && organization
       ? {
           name: organization.name,
-          contactName: organization.contactName ?? '',
+          contactPerson: organization.contactPerson ?? '',
           email: organization.email ?? '',
           phone: organization.phone ?? '',
           address: organization.address ?? '',
@@ -65,7 +65,7 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
       : {
           isActive: true,
           name: '',
-          contactName: '',
+          contactPerson: '',
           email: '',
           phone: '',
           address: '',
@@ -133,14 +133,15 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
 
               <FormField
                 control={form.control}
-                name="contactName"
+                name="contactPerson"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Contact Person</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter contact person name" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter contact person name"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -155,10 +156,11 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         type="email"
-                        placeholder="Enter email" 
-                        {...field} 
+                        placeholder="Enter email"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -173,10 +175,11 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         type="tel"
-                        placeholder="Enter phone number" 
-                        {...field} 
+                        placeholder="Enter phone number"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -191,10 +194,11 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Website</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         type="url"
-                        placeholder="Enter website URL" 
-                        {...field} 
+                        placeholder="Enter website URL"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -241,9 +245,10 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>PIB</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter PIB" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter PIB"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -258,9 +263,10 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Matični broj</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter registration number" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter registration number"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -275,9 +281,10 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Banka</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter bank name" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter bank name"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -292,9 +299,10 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Tekući račun</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter account number" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter account number"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -309,9 +317,10 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Kratki broj</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter short number" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter short number"
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -335,10 +344,11 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Enter address" 
+                      <Textarea
+                        placeholder="Enter address"
                         rows={2}
-                        {...field} 
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -353,10 +363,11 @@ export function HumanitarianOrgForm({ organization, isEditing = false }: Humanit
                   <FormItem>
                     <FormLabel>Mission Statement</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Enter organization mission" 
+                      <Textarea
+                        placeholder="Enter organization mission"
                         rows={3}
-                        {...field} 
+                        {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />

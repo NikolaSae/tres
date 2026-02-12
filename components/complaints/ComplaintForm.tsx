@@ -40,7 +40,18 @@ export function ComplaintForm({
   isSubmitting = false,
   onSubmit,
 }: ComplaintFormProps) {
-  const [serviceType, setServiceType] = useState(complaint?.serviceType || '');
+  // Derive service type from the complaint's foreign keys
+  const deriveServiceType = (c?: Complaint | null): string => {
+    if (!c) return '';
+    if (c.humanitarianOrgId) return ServiceTypeEnum.HUMANITARIAN;
+    if (c.parkingServiceId) return ServiceTypeEnum.PARKING;
+    if (c.providerId) {
+      return c.serviceId?.startsWith('bulk') ? ServiceTypeEnum.BULK : ServiceTypeEnum.PROVIDER;
+    }
+    return '';
+  };
+
+  const [serviceType, setServiceType] = useState(deriveServiceType(complaint));
   const [selectedEntityId, setSelectedEntityId] = useState(
     complaint?.providerId || complaint?.humanitarianOrgId || complaint?.parkingServiceId || ''
   );
@@ -51,7 +62,7 @@ export function ComplaintForm({
       title: complaint?.title || '',
       description: complaint?.description || '',
       priority: complaint?.priority || 3,
-      serviceType: complaint?.serviceType || '',
+      serviceType: deriveServiceType(complaint),
       providerId: complaint?.providerId || '',
       humanitarianOrgId: complaint?.humanitarianOrgId || '',
       parkingServiceId: complaint?.parkingServiceId || '',
@@ -67,13 +78,13 @@ export function ComplaintForm({
 
   useEffect(() => {
     if (watchedServiceType === ServiceTypeEnum.PROVIDER) {
-      setSelectedEntityId(watchedProviderId);
+      setSelectedEntityId(watchedProviderId ?? '');
     } else if (watchedServiceType === ServiceTypeEnum.HUMANITARIAN) {
-      setSelectedEntityId(watchedHumanitarianOrgId);
+      setSelectedEntityId(watchedHumanitarianOrgId ?? '');
     } else if (watchedServiceType === ServiceTypeEnum.PARKING) {
-      setSelectedEntityId(watchedParkingServiceId);
+      setSelectedEntityId(watchedParkingServiceId ?? '');
     } else if (watchedServiceType === ServiceTypeEnum.BULK) {
-      setSelectedEntityId(watchedProviderId);
+      setSelectedEntityId(watchedProviderId ?? '');
     } else {
       setSelectedEntityId('');
     }
@@ -165,8 +176,8 @@ export function ComplaintForm({
   const renderEntitySelection = () => {
     if (!watchedServiceType) return null;
 
-    let formFieldName = '';
-    let entityData: { id: string; name: string; type?: 'VAS' | 'BULK' }[] = []; // Dodali smo 'type'
+    let formFieldName: 'providerId' | 'humanitarianOrgId' | 'parkingServiceId' = 'providerId';
+    let entityData: { id: string; name: string; type?: 'VAS' | 'BULK' }[] = [];
     let placeholderText = '';
 
     switch (watchedServiceType) {
@@ -202,9 +213,9 @@ export function ComplaintForm({
                 ? 'Parking Service'
                 : 'Provider'}
             </FormLabel>
-            <Select 
-              onValueChange={handleEntityChange} 
-              value={field.value}
+            <Select
+              onValueChange={handleEntityChange}
+              value={field.value ?? undefined}
             >
               <FormControl>
                 <SelectTrigger>
@@ -401,8 +412,8 @@ export function ComplaintForm({
                     <FormControl>
                       <ServiceSelection
                         entityId={selectedEntityId}
-                        entityType={watchedServiceType}
-                        selectedServiceId={field.value}
+                        entityType={watchedServiceType || ''}
+                        selectedServiceId={field.value || ''}
                         onServiceSelect={(id) => handleServiceChange(id)}
                         // KLJUČNA IZMENA: Prosleđujemo 'type' provajdera
                         providerCategory={selectedProvider?.type} 
