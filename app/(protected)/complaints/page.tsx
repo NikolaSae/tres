@@ -143,8 +143,8 @@ export default function ComplaintsPage() {
         <ComplaintFilters
           filters={{
             statuses: status ? [status] : [],
-            serviceId: serviceId || null,
-            providerId: providerId || null,
+            serviceId: serviceId || undefined,
+            providerId: providerId || undefined,
             dateRange: { from: safeDate(startDateString), to: safeDate(endDateString) }
           }}
           onFiltersChange={handleFilterChange}
