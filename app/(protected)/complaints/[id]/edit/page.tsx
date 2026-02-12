@@ -24,6 +24,11 @@ export default function EditComplaintPage() {
     message: string;
   } | null>(null);
 
+  // Add state for dropdown data
+  const [providersData, setProvidersData] = useState<{ id: string; name: string; type: 'VAS' | 'BULK' }[]>([]);
+  const [humanitarianOrgsData, setHumanitarianOrgsData] = useState<{ id: string; name: string }[]>([]);
+  const [parkingServicesData, setParkingServicesData] = useState<{ id: string; name: string }[]>([]);
+
   useEffect(() => {
     const fetchComplaint = async () => {
       try {
@@ -52,6 +57,40 @@ export default function EditComplaintPage() {
 
     fetchComplaint();
   }, [params]);
+
+  // Fetch dropdown data (providers, humanitarian orgs, parking services)
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        // Fetch providers
+        const providersResponse = await fetch('/api/providers');
+        if (providersResponse.ok) {
+          const providers = await providersResponse.json();
+          setProvidersData(providers);
+        }
+
+        // Fetch humanitarian organizations
+        const humanitarianResponse = await fetch('/api/humanitarian-organizations');
+        if (humanitarianResponse.ok) {
+          const orgs = await humanitarianResponse.json();
+          setHumanitarianOrgsData(orgs);
+        }
+
+        // Fetch parking services
+        const parkingResponse = await fetch('/api/parking-services');
+        if (parkingResponse.ok) {
+          const services = await parkingResponse.json();
+          setParkingServicesData(services);
+        }
+      } catch (err) {
+        console.error("Error loading dropdown data:", err);
+        // Don't set error state here, just log it
+        // The form can still work without dropdown data if editing existing complaint
+      }
+    };
+
+    fetchDropdownData();
+  }, []);
 
   const handleSubmit = async (formData: any) => {
     try {
@@ -123,7 +162,10 @@ export default function EditComplaintPage() {
       
       {complaint && (
         <ComplaintForm
-          initialData={complaint}
+          complaint={complaint}
+          providersData={providersData}
+          humanitarianOrgsData={humanitarianOrgsData}
+          parkingServicesData={parkingServicesData}
           onSubmit={handleSubmit}
           isSubmitting={loading}
         />
