@@ -1,130 +1,35 @@
 // app/api/chat/database/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import OpenAI from 'openai';
 
 const prisma = new PrismaClient();
 
-// Konfiguracija za OpenRouter
 const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY || '',
+  baseURL: 'https://openrouter.ai/api/v1',
+  defaultHeaders: {
+    'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || '',
+    'X-Title': 'Contract Management Chat'
+  }
 });
 
-// Database schema informacije za AI
-const DATABASE_SCHEMA = `
-Database Schema Information:
-
-Tables and their relationships:
-1. User (korisnici sistema) - id, name, email, role (ADMIN, MANAGER, AGENT, USER)
-2. Provider (provajderi usluga) - id, name, contactName, email, phone, isActive
-3. HumanitarianOrg (humanitarne organizacije) - id, name, contactName, email, phone, pib, registrationNumber
-4. ParkingService (parking servisi) - id, name, contactName, email, phone, isActive
-5. Contract (ugovori) - id, name, contractNumber, type (PROVIDER, HUMANITARIAN, PARKING, BULK), status (ACTIVE, EXPIRED, PENDING, TERMINATED), startDate, endDate, revenuePercentage
-6. Service (servisi) - id, name, type (VAS, BULK, HUMANITARIAN, PARKING), description, isActive, billingType (PREPAID, POSTPAID)
-7. VasService (VAS transakcije) - proizvod, mesec_pruzanja_usluge, jedinicna_cena, broj_transakcija, fakturisan_iznos
-8. BulkService (bulk transakcije) - provider_name, service_name, sender_name, requests, message_parts, datumNaplate
-9. ParkingTransaction (parking transakcije) - date, serviceName, price, quantity, amount
-10. VasTransaction (VAS transakcije nova tabla) - date, serviceName, serviceCode, price, quantity, amount, group (prepaid/postpaid)
-11. Complaint (žalbe) - id, title, description, status (NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED), priority, submittedBy, assignedAgent
-12. Product (proizvodi) - id, name, code, description, isActive
-13. LogEntry (log zapisi) - entityType, action, subject, description, status, providerId, parkingServiceId
-14. Notification (notifikacije) - title, message, type, isRead, userId
-15. ContractRenewal (renewal procesi) - contractId, subStatus, proposedStartDate, proposedEndDate
-16. SenderBlacklist (blacklista pošaljilaca) - senderName, effectiveDate, isActive
-
-Important relationships:
-- Contract belongs to Provider, HumanitarianOrg, or ParkingService
-- Services are linked to Contracts through ServiceContract
-- Complaints can be related to Services, Products, Providers
-- VasService/BulkService belong to Provider and Service
-- Users have roles and can create/modify various entities
-
-Common queries:
-- Active/inactive entities: use isActive field
-- Financial data: VasService, BulkService, ParkingTransaction tables
-- Date ranges: use createdAt, startDate, endDate, mesec_pruzanja_usluge
-- Status filtering: Contract.status, Complaint.status
-`;
-
-// Funkcija za generisanje SQL upita iz prirodnog jezika
-async function generateSQLQuery(userMessage: string, conversationHistory: any[]) {
-  const systemPrompt = `You are a helpful database assistant that converts natural language questions to SQL queries for a PostgreSQL database.
-
-${DATABASE_SCHEMA}
-
-CRITICAL RULES:
-1. Return ONLY the SQL query - NO explanations, NO markdown, NO code blocks
-2. Do NOT use markdown formatting 
-3. Always use proper PostgreSQL syntax with double quotes for table/column names
-4. Use table aliases for readability (e.g., c for Contract, p for Provider)
-5. Always include LIMIT clauses to prevent large result sets (usually LIMIT 10-50)
-6. Use proper JOIN syntax when relating tables
-7. Format dates using PostgreSQL date functions
-8. Use Serbian language in column names as they appear in schema
-9. For counts and aggregations, use proper GROUP BY
-10. Always handle null values appropriately
-11. Use proper WHERE clauses for filtering
-12. NEVER use columns that don't exist like shortNumber, shortCode, etc.
-13. Only use the exact column names provided in the schema
-
-EXAMPLES OF CORRECT OUTPUT:
-SELECT COUNT(*) as ukupno_aktivnih FROM "Contract" WHERE status = 'ACTIVE';
-
-SELECT p.name, COUNT(c.id) as broj_zalbi FROM "Provider" p LEFT JOIN "Complaint" c ON p.id = c."providerId" GROUP BY p.id, p.name ORDER BY broj_zalbi DESC LIMIT 10;
-
-SELECT name, "contractNumber", "endDate" FROM "Contract" WHERE "endDate" BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' AND status = 'ACTIVE' ORDER BY "endDate" LIMIT 20;
-
-SELECT h.name, h."shortNumber" FROM "HumanitarianOrg" h WHERE h."isActive" = true LIMIT 20;
-
-WRONG EXAMPLES - NEVER DO THIS:
-SELECT c.shortNumber FROM "Contract" c; -- shortNumber does not exist in Contract table
-SELECT p.contractCode FROM "Provider" p; -- contractCode does not exist anywhere
-
-User question: "${userMessage}"
-
-SQL query (no formatting, just the query):`;
-
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "deepseek/deepseek-chat-v3.1:free", // ili neki drugi besplatan model
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...conversationHistory.slice(-3).map(msg => ({
-          role: msg.role,
-          content: msg.content
-        })),
-        { role: "user", content: userMessage }
-      ],
-      max_tokens: 500,
-      temperature: 0.1,
-    });
-
-    return completion.choices[0]?.message?.content?.trim() || "";
-  } catch (error) {
-    console.error('Error generating SQL:', error);
-    throw new Error('Failed to generate SQL query');
-  }
-}
-
 // Funkcija za izvršavanje SQL upita
-async function executeSQLQuery(sqlQuery: string) {
+async function executeSqlQuery(sqlQuery: string) {
   try {
-    // Uklanjanje potencijalnih opasnih komandi
-    const dangerousKeywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE', 'TRUNCATE'];
-    const upperQuery = sqlQuery.toUpperCase();
-    
-    if (dangerousKeywords.some(keyword => upperQuery.includes(keyword))) {
-      throw new Error('Ovaj upit nije dozvoljen iz bezbednosnih razloga');
+    // Provera da li upit počinje sa SELECT
+    if (!sqlQuery.trim().toUpperCase().startsWith('SELECT')) {
+      throw new Error('Samo SELECT upiti su dozvoljeni iz bezbednosnih razloga.');
     }
 
-    // Provera za zabranjene kolone
-    const forbiddenColumns = ['shortNumber', 'shortCode', 'contractCode'];
-    const queryLower = sqlQuery.toLowerCase();
+    // Provera da li upit sadrži opasne komande
+    const dangerousKeywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'TRUNCATE', 'ALTER', 'CREATE'];
+    const upperQuery = sqlQuery.toUpperCase();
     
-    for (const forbidden of forbiddenColumns) {
-      if (queryLower.includes(forbidden.toLowerCase()) && !queryLower.includes('humanitarianorg')) {
-        throw new Error(`Kolona '${forbidden}' ne postoji u ovoj tabeli. Proverite dostupne kolone.`);
+    for (const keyword of dangerousKeywords) {
+      if (upperQuery.includes(keyword)) {
+        throw new Error(`Upit sadrži zabranjenu komandu: ${keyword}. Samo READ operacije su dozvoljene.`);
       }
     }
 
@@ -136,7 +41,9 @@ async function executeSQLQuery(sqlQuery: string) {
   } catch (error) {
     console.error('SQL execution error:', error);
     console.error('Failed query:', sqlQuery);
-    throw new Error(`Greška u izvršavanju upita: ${error.message}`);
+    // ✅ ISPRAVKA: Proper error type handling
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Greška u izvršavanju upita: ${errorMessage}`);
   }
 }
 
@@ -166,7 +73,7 @@ Format the results into a natural Serbian response:`;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "google/gemma-2-9b-it:free", // Koristi jedan od pouzdanih besplatnih modela
+      model: "google/gemma-2-9b-it:free",
       messages: [
         { role: "system", content: formatPrompt },
         { role: "user", content: "Format this response" }
@@ -188,7 +95,7 @@ Format the results into a natural Serbian response:`;
           return `Rezultat: ${obj[keys[0]]}`;
         }
       }
-      return `Pronašao sam ${queryResult.length} rezultat(a). Evo prvих nekoliko:\n\n${JSON.stringify(queryResult.slice(0, 5), null, 2)}`;
+      return `Pronašao sam ${queryResult.length} rezultat(a). Evo prvih nekoliko:\n\n${JSON.stringify(queryResult.slice(0, 5), null, 2)}`;
     } else {
       return "Nema rezultata za ovaj upit.";
     }
@@ -206,45 +113,94 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Generiši SQL upit
-    const sqlQuery = await generateSQLQuery(message, history);
-    
+    // Kreiraj prompt za AI da generiše SQL
+    const systemPrompt = `Ti si AI asistent koji pomaže korisnicima da pretražuju bazu podatakaContract Management sistema.
+
+Dostupne tabele i njihove glavne kolone:
+- Contract: id, name, contractNumber, type, status, startDate, endDate, providerId, humanitarianOrgId, parkingServiceId
+- Provider: id, name, contactName, email, phone, type, isActive
+- HumanitarianOrg: id, name, shortNumber, contactPerson, email, phone, isActive
+- ParkingService: id, name, address, contactName, email, phone
+- Service: id, name, type, description, isActive
+- Complaint: id, title, description, status, priority, serviceId, providerId, submittedById
+- User: id, name, email, role
+
+Tvoj zadatak je da na osnovu korisnikovog pitanja generišeš SAMO JEDAN validan PostgreSQL SELECT upit.
+VAŽNO: Nemoj dodavati nikakva objašnjenja, markdown formatiranje ili dodatni tekst - samo čist SQL upit.
+
+Pravila:
+1. Koristi SAMO SELECT upite
+2. Koristi pravilne nazive tabela i kolona
+3. Koristi JOIN gde je potrebno
+4. Koristi LIMIT za ograničavanje rezultata ako nije specificirano drugačije
+5. Formatiranje datuma: koristi PostgreSQL DATE funkcije
+6. Za pretragu teksta koristi ILIKE za case-insensitive pretragu`;
+
+    const conversationHistory = history.map((msg: any) => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
+    const aiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory,
+      { role: 'user', content: message }
+    ];
+
+    // Pozovi AI da generiše SQL
+    const completion = await openai.chat.completions.create({
+      model: 'google/gemma-2-9b-it:free',
+      messages: aiMessages as any,
+      max_tokens: 500,
+      temperature: 0.1,
+    });
+
+    let sqlQuery = completion.choices[0]?.message?.content?.trim() || '';
+
+    // Očisti SQL upit od markdown formatiranja
+    sqlQuery = sqlQuery.replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
+
+    console.log('Generated SQL query:', sqlQuery);
+
     if (!sqlQuery) {
-      return NextResponse.json(
-        { error: 'Nije moguće generisati SQL upit' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        response: 'Nisam uspeo da generišem SQL upit na osnovu vašeg pitanja. Možete li biti precizniji?',
+        sqlQuery: null,
+        resultCount: 0
+      });
     }
 
-    // 2. Izvršava SQL upit
-    const queryResult = await executeSQLQuery(sqlQuery);
+    // Izvršavanje SQL upita
+    const queryResult = await executeSqlQuery(sqlQuery);
 
-    // 3. Formatira odgovor
+    // Formatiranje odgovora
     const formattedResponse = await formatResponse(message, queryResult as any[], sqlQuery);
 
     return NextResponse.json({
       response: formattedResponse,
-      sqlQuery: sqlQuery.length < 500 ? sqlQuery : sqlQuery.substring(0, 500) + '...',
+      sqlQuery: sqlQuery,
       resultCount: Array.isArray(queryResult) ? queryResult.length : 0
     });
 
   } catch (error) {
-    console.error('Database chat error:', error);
+    console.error('Database query error:', error);
+    
+    // ✅ ISPRAVKA: Proper error type handling
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
     return NextResponse.json(
       { 
-        error: 'Došlo je do greške prilikom obrade zahteva',
-        details: error.message 
+        error: 'Došlo je do greške prilikom pretrage baze podataka',
+        details: errorMessage
       },
       { status: 500 }
     );
   }
 }
 
-// Opciono: GET endpoint za health check
 export async function GET() {
   return NextResponse.json({ 
-    status: 'ok', 
+    status: 'ok',
     message: 'Database chat API is running' 
   });
 }

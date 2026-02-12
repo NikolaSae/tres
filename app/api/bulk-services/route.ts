@@ -1,4 +1,4 @@
-///app/api/bulk-services/route.ts
+//app/api/bulk-services/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
@@ -57,10 +57,12 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[BULK_SERVICES_API]', error);
     
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+    // ✅ ISPRAVKA: Proper error handling sa type checking
+    if (error instanceof Error && error.name === 'ZodError') {
+      return NextResponse.json({ error: (error as any).errors }, { status: 400 });
     }
     
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

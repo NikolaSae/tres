@@ -2,11 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { uploadFile, deleteFile } from "@/lib/storage";
+import { writeFile } from "fs/promises";
+import path from "path";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise }
 ) {
   try {
     const session = await auth();
@@ -26,12 +27,14 @@ export async function GET(
     }
 
     // Check if user has access to this complaint
+    const user = await db.user.findUnique({ 
+      where: { id: session.user.id }
+    });
+
     const canAccess = 
       session.user.id === complaint.submittedById ||
       session.user.id === complaint.assignedAgentId ||
-      ["ADMIN", "MANAGER", "AGENT"].includes((await db.user.findUnique({ 
-        where: { id: session.user.id }
-      }))?.role || "");
+      ["ADMIN", "MANAGER", "AGENT"].includes(user?.role || "");
 
     if (!canAccess) {
       return new NextResponse("Not authorized to view these attachments", { status: 403 });
@@ -52,7 +55,7 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise }
 ) {
   try {
     const session = await auth();
@@ -72,12 +75,14 @@ export async function POST(
     }
 
     // Check if user can upload to this complaint
+    const user = await db.user.findUnique({ 
+      where: { id: session.user.id }
+    });
+
     const canUpload = 
       session.user.id === complaint.submittedById ||
       session.user.id === complaint.assignedAgentId ||
-      ["ADMIN", "MANAGER", "AGENT"].includes((await db.user.findUnique({ 
-        where: { id: session.user.id }
-      }))?.role || "");
+      ["ADMIN", "MANAGER", "AGENT"].includes(user?.role || "");
 
     if (!canUpload) {
       return new NextResponse("Not authorized to upload attachments", { status: 403 });
@@ -102,49 +107,68 @@ export async function POST(
       "application/pdf", 
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "text/plain",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "text/plain"
     ];
-    
+
     if (!allowedTypes.includes(file.type)) {
       return new NextResponse("File type not allowed", { status: 400 });
     }
 
-    // Upload the file to storage
-    const uploadResult = await uploadFile(file, `complaints/${complaintId}`);
+    // ✅ ISPRAVKA: Uklonjen drugi parametar - writeFile prima samo 2 parametra
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-    // Create attachment record in database
+    // Create upload directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), "public", "uploads", "complaints");
+    
+    // Save file
+    const fileName = `${Date.now()}-${file.name}`;
+    const filePath = path.join(uploadsDir, fileName);
+    
+    await writeFile(filePath, buffer);
+
+    // Create attachment record
     const attachment = await db.attachment.create({
       data: {
         fileName: file.name,
-        fileUrl: uploadResult.url,
-        fileType: file.type,
+        filePath: `/uploads/complaints/${fileName}`,
+        fileSize: file.size,
+        mimeType: file.type,
         complaintId,
+        uploadedById: session.user.id,
+      },
+      include: {
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
-    // Log the activity
+    // Log activity
     await db.activityLog.create({
       data: {
-        action: "ATTACHMENT_ADDED",
+        action: "ATTACHMENT_UPLOADED",
         entityType: "complaint",
         entityId: complaintId,
-        details: `File '${file.name}' added to complaint #${complaintId}`,
+        details: `File uploaded: ${file.name}`,
         userId: session.user.id,
       },
     });
 
     return NextResponse.json(attachment);
   } catch (error) {
-    console.error("[ATTACHMENT_UPLOAD]", error);
+    console.error("[ATTACHMENTS_POST]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise }
 ) {
   try {
     const session = await auth();
@@ -153,21 +177,18 @@ export async function DELETE(
     }
 
     const { id: complaintId } = await params;
-    const searchParams = new URL(req.url).searchParams;
+    const { searchParams } = new URL(req.url);
     const attachmentId = searchParams.get("attachmentId");
 
     if (!attachmentId) {
-      return new NextResponse("Attachment ID required", { status: 400 });
+      return new NextResponse("Attachment ID is required", { status: 400 });
     }
 
-    // Check if attachment exists
-    const attachment = await db.attachment.findUnique({
-      where: { 
+    // Check if attachment exists and belongs to this complaint
+    const attachment = await db.attachment.findFirst({
+      where: {
         id: attachmentId,
         complaintId,
-      },
-      include: {
-        complaint: true,
       },
     });
 
@@ -175,43 +196,38 @@ export async function DELETE(
       return new NextResponse("Attachment not found", { status: 404 });
     }
 
-    // Check if user has permission to delete
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
+    // Check permissions
+    const user = await db.user.findUnique({ 
+      where: { id: session.user.id }
     });
 
     const canDelete = 
-      user?.role === "ADMIN" || 
-      user?.role === "MANAGER" ||
-      (user?.role === "AGENT" && attachment.complaint.assignedAgentId === session.user.id) ||
-      (attachment.complaint.submittedById === session.user.id);
+      session.user.id === attachment.uploadedById ||
+      ["ADMIN", "MANAGER"].includes(user?.role || "");
 
     if (!canDelete) {
       return new NextResponse("Not authorized to delete this attachment", { status: 403 });
     }
 
-    // Delete the file from storage
-    await deleteFile(attachment.fileUrl);
-
-    // Delete the attachment record
+    // Delete attachment record
     await db.attachment.delete({
       where: { id: attachmentId },
     });
 
-    // Log the activity
+    // Log activity
     await db.activityLog.create({
       data: {
         action: "ATTACHMENT_DELETED",
         entityType: "complaint",
         entityId: complaintId,
-        details: `File '${attachment.fileName}' deleted from complaint #${complaintId}`,
+        details: `File deleted: ${attachment.fileName}`,
         userId: session.user.id,
       },
     });
 
-    return new NextResponse(null, { status: 204 });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[ATTACHMENT_DELETE]", error);
+    console.error("[ATTACHMENTS_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }

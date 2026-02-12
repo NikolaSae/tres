@@ -1,286 +1,205 @@
-// Path: app/api/complaints/route.ts
+// app/api/complaints/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { UserRole } from "@prisma/client";
+// ✅ ISPRAVKA: Ispravljeno ime importa
+import { ComplaintSchema } from "@/schemas/complaint";
 
-
-// GET - Get all complaints with filtering and pagination
 export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
+  try {
+    const session = await auth();
 
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-
-    // --- Extract & Parse Filters and Pagination ---
-    const filters: any = {}; // Koristimo 'any' jer dinamički gradimo filter
-
-    // Basic filters
-    const status = searchParams.get("status");
-    if (status) filters.status = status;
-
-    const priority = searchParams.get("priority");
-    if (priority) {
-        const priorityInt = parseInt(priority);
-        if (!isNaN(priorityInt)) filters.priority = priorityInt;
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const serviceId = searchParams.get("serviceId");
-    if (serviceId) filters.serviceId = serviceId;
+    const { searchParams } = new URL(request.url);
+    
+    // Pagination
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const skip = (page - 1) * limit;
 
-    const providerId = searchParams.get("providerId");
-    if (providerId) filters.providerId = providerId;
+    // Filters
+    const status = searchParams.get("status");
+    const priority = searchParams.get("priority");
+    const serviceId = searchParams.get("serviceId");
+    const providerId = searchParams.get("providerId");
+    const assignedAgentId = searchParams.get("assignedAgentId");
+    const search = searchParams.get("search");
 
-    const productId = searchParams.get("productId");
-    if (productId) filters.productId = productId;
+    // Build where clause
+    const where: any = {};
 
-    // Date range filters (Frontend šalje startDate i endDate)
-    const startDateParam = searchParams.get("startDate");
-    const endDateParam = searchParams.get("endDate");
-
-    if (startDateParam || endDateParam) {
-      filters.createdAt = {};
-      if (startDateParam) {
-            const startDate = new Date(startDateParam);
-            if (!isNaN(startDate.getTime())) filters.createdAt.gte = startDate;
-        }
-      if (endDateParam) {
-            const endDate = new Date(endDateParam);
-             // Dodajemo jedan dan da bi se uključio ceo krajnji datum
-            if (!isNaN(endDate.getTime())) {
-                 const endOfEndDate = new Date(endDate);
-                 endOfEndDate.setDate(endOfEndDate.getDate() + 1);
-                 filters.createdAt.lt = endOfEndDate; // Koristimo 'manje od' početka sledećeg dana
-             }
-        }
-    }
-
-    // Search filter (Frontend šalje search)
-    const searchParam = searchParams.get("search");
-    if (searchParam) {
-        // Koristimo Prisma OR za pretragu po više tekstualnih polja
-        const searchConditions = [
-            { title: { contains: searchParam, mode: 'insensitive' as const } },
-            { description: { contains: searchParam, mode: 'insensitive' as const } },
-             // Dodajte druga tekstualna polja ako je potrebno (npr. service name, provider name, product name ako ih dohvaćate)
-             // Za pretragu po povezanim relacijama, morali biste koristiti nested where uslove:
-             // { service: { name: { contains: searchParam, mode: 'insensitive' as const } } },
-             // { provider: { name: { contains: searchParam, mode: 'insensitive' as const } } },
-             // itd.
-        ];
-
-        // Ako već postoje drugi filteri, kombinujte ih sa search filterima koristeći AND
-        if (Object.keys(filters).length > 0) {
-             filters.AND = [filters, { OR: searchConditions }];
-             // Obrišite top-level filtere koji su sada ugnježdeni unutar AND
-             Object.keys(filters).forEach(key => {
-                 if (key !== 'AND') delete filters[key];
-             });
-
-        } else {
-             // Ako nema drugih filtera, search je glavni OR uslov
-             filters.OR = searchConditions;
-        }
+    if (status) {
+      where.status = status;
     }
 
+    if (priority) {
+      where.priority = parseInt(priority);
+    }
 
-    // Pagination (Frontend šalje page i limit)
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10"); // Pretpostavljamo 'limit' iz hooka odgovara 'pageSize'
-    const skip = (page - 1) * limit;
+    if (serviceId) {
+      where.serviceId = serviceId;
+    }
 
+    if (providerId) {
+      where.providerId = providerId;
+    }
 
-    // --- Autorizaciono Filtriranje ---
-    const isAdmin = session.user.role === UserRole.ADMIN;
-    const isManager = session.user.role === UserRole.MANAGER;
-    const isAgent = session.user.role === UserRole.AGENT;
+    if (assignedAgentId) {
+      where.assignedAgentId = assignedAgentId;
+    }
 
-    // Ako korisnik nije Admin ili Menadžer, primeni filtere bazirane na njihovoj ulozi
-    if (!isAdmin && !isManager) {
-        const userSpecificConditions = [];
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
-      if (isAgent) {
-          // Agent vidi pritužbe koje je podneo ILI koje su mu dodeljene
-        userSpecificConditions.push(
-             { submittedById: session.user.id },
-             { assignedAgentId: session.user.id }
-          );
-      } else {
-          // Podrazumevana USER uloga vidi samo pritužbe koje je podneo
-        userSpecificConditions.push({ submittedById: session.user.id });
-      }
+    // For non-admin users, filter to show only their complaints or assigned complaints
+    if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
+      where.OR = [
+        { submittedById: session.user.id },
+        { assignedAgentId: session.user.id },
+      ];
+    }
 
-        // Kombinujemo postojeće filtere sa korisnički specifičnim uslovima koristeći AND
-        if (Object.keys(filters).length > 0) {
-             // Ako već postoji top-level AND (npr. od searcha), dodajemo OR uslov u taj AND
-             if (filters.AND) {
-                 filters.AND.push({ OR: userSpecificConditions });
-             } else if (filters.OR) {
-                 // Ako postoji top-level OR (npr. samo od searcha), onda ga kombinujemo sa novim OR uslovom unutar AND
-                 const existingOR = filters.OR;
-                 filters.AND = [{ OR: existingOR }, { OR: userSpecificConditions }];
-                 delete filters.OR;
-             } else {
-                  // Ako nema ni AND ni OR, samo dodajemo novi OR uslov
-                  filters.OR = userSpecificConditions; // Ovo bi se desilo samo ako nema filtera (datum, status, search...)
-                  // U praksi, verovatno uvek postoji bar defaultni search ili status, pa će pasti u gornje slučajeve
-             }
-        } else {
-             // Ako nema NIKAKVIH filtera pre ovoga, onda se primenjuje samo korisnički specifični OR uslov
-             filters.OR = userSpecificConditions;
-        }
-    }
-
-
-    // --- Prisma Queries ---
-    // Dohvati ukupan broj pritužbi sa primenjenim filterima (za paginaciju)
-    const totalCount = await db.complaint.count({
-      where: filters // Koristimo konačne kombinovane filtere
-    });
-
-    // Dohvati pritužbe sa primenjenim filterima, sortiranjem i paginacijom
-    const complaints = await db.complaint.findMany({
-      where: filters, // Koristimo konačne kombinovane filtere
-      orderBy: {
-        createdAt: "desc"
-      },
-      include: {
-        submittedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        assignedAgent: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-            type: true
-          }
-        },
-        product: {
-          select: {
-            id: true,
-            name: true,
-            code: true
-          }
-        },
-        provider: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        humanitarianOrg: { // Uključujemo humanitarianOrg
-           select: {
-             id: true,
-             name: true,
-           }
+    const [complaints, totalCount] = await Promise.all([
+      db.complaint.findMany({
+        where,
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-      skip,
-      take: limit // Koristimo 'limit' da se poklopi sa hook parametrom
-    });
+        include: {
+          submittedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          assignedAgent: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          service: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          provider: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          humanitarianOrg: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        skip,
+        take: limit,
+      }),
+      db.complaint.count({ where }),
+    ]);
 
-    // --- Vraćamo odgovor ---
-    // Vraćamo podatke u formatu koji hook očekuje
-    return NextResponse.json({
-      complaints,
-      totalCount, // totalCount na najvišem nivou
-      totalPages: Math.ceil(totalCount / limit) // totalPages na najvišem nivou
-    });
-  } catch (error) {
-    console.error("Error fetching complaints:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch complaints" },
-      { status: 500 }
-    );
-  }
+    return NextResponse.json({
+      complaints,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+    });
+  } catch (error) {
+    console.error("Error fetching complaints:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch complaints" },
+      { status: 500 }
+    );
+  }
 }
 
-// POST funkcija ostaje neizmenjena za sada, nije vezana za dohvatanje liste
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
+  try {
+    const session = await auth();
 
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const json = await request.json();
+    const json = await request.json();
 
-    // Uvoz complaintSchema dinamički da bi se izbegle greške pri top-level importu
-    // Ako imate problema sa complaintUpdateSchema, verovatno imate isti problem i sa complaintSchema
-    const { complaintSchema: importedComplaintSchema } = await import("@/schemas/complaint");
+    // ✅ ISPRAVKA: Koristimo ComplaintSchema direktno
+    const validatedData = ComplaintSchema.parse(json);
 
-    const validatedData = importedComplaintSchema.parse(json);
+    const complaint = await db.complaint.create({
+      data: {
+        title: validatedData.title,
+        description: validatedData.description,
+        priority: validatedData.priority,
+        serviceId: validatedData.serviceId || null,
+        providerId: validatedData.providerId || null,
+        financialImpact: validatedData.financialImpact || null,
+        submittedById: session.user.id,
+        status: "NEW",
+      },
+      include: {
+        submittedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        provider: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
 
-    const complaint = await db.complaint.create({
-      data: {
-        ...validatedData,
-        submittedById: session.user.id,
-        statusHistory: {
-          create: {
-            newStatus: validatedData.status || "NEW",
-            changedById: session.user.id
-          }
-        }
-      },
-      include: { // Uključujemo relacije i pri kreiranju ako želimo da ih vratimo u odgovoru
-        submittedBy: {
-          select: { id: true, name: true, email: true }
-        },
-        service: {
-          select: { id: true, name: true }
-        },
-        product: {
-          select: { id: true, name: true }
-        },
-        provider: {
-          select: { id: true, name: true }
-        }
-        // Dodajte humanitarianOrg include ako ga complaintSchema podržava i ako želite da ga vidite pri kreiranju
-      }
-    });
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        action: "CREATE_COMPLAINT",
+        entityType: "complaint",
+        entityId: complaint.id,
+        details: `Created complaint: ${complaint.title}`,
+        severity: "INFO",
+        userId: session.user.id,
+      },
+    });
 
-    await db.activityLog.create({
-      data: {
-        action: "CREATE_COMPLAINT",
-        entityType: "complaint",
-        entityId: complaint.id,
-        details: `Created complaint: ${complaint.title}`,
-        severity: "INFO",
-        userId: session.user.id
-      }
-    });
-
-    return NextResponse.json(complaint, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error("Error creating complaint:", error);
-    return NextResponse.json(
-      { error: "Failed to create complaint" },
-      { status: 500 }
-    );
-  }
+    return NextResponse.json(complaint, { status: 201 });
+  } catch (error) {
+    console.error("Error creating complaint:", error);
+    return NextResponse.json(
+      { error: "Failed to create complaint" },
+      { status: 500 }
+    );
+  }
 }

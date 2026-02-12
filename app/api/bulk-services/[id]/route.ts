@@ -8,7 +8,8 @@ import { deleteBulkService } from '@/actions/bulk-services/delete';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  // ✅ ISPRAVKA: Dodat tip parametar za Promise
+  { params }: { params: Promise }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -33,7 +34,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -50,17 +51,19 @@ export async function PATCH(
   } catch (error) {
     console.error('[UPDATE_BULK_SERVICE_API]', error);
     
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+    // ✅ ISPRAVKA: Proper type assertion
+    if (error instanceof Error && error.name === 'ZodError') {
+      return NextResponse.json({ error: (error as any).errors }, { status: 400 });
     }
     
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise }
 ) {
   try {
     const currentUser = await getCurrentUser();
