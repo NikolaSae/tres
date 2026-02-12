@@ -9,7 +9,7 @@ import { deleteBulkService } from '@/actions/bulk-services/delete';
 export async function GET(
   req: NextRequest,
   // ✅ ISPRAVKA: Dodat tip parametar za Promise
-  { params }: { params: Promise }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -34,7 +34,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -63,7 +63,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();

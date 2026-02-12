@@ -1,3 +1,4 @@
+//
 // app/api/chat/database-simple/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
     let intent: string | null = null;
 
     // Mapiranje ključnih reči na query tipove
-    const keywords: Record = {
+    const keywords: Record<string, string[]> = {
       aktivni_ugovori: ['aktivni ugovori', 'active contracts', 'koliko aktivnih', 'broj ugovora'],
       provajderi_zalbe: ['provajderi žalbe', 'providers complaints', 'žalbe provajdera'],
       ugovori_isticanje: ['ugovori isticanje', 'contracts expiring', 'istječu ugovori'],

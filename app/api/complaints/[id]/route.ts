@@ -9,7 +9,7 @@ import { auth } from "@/auth";
 // GET - Get a specific complaint by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -107,7 +107,7 @@ export async function GET(
 // PUT - Update a complaint
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -243,7 +243,7 @@ export async function PUT(
 // DELETE - Delete a complaint
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();

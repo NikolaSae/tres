@@ -1,3 +1,4 @@
+
 // app/api/chat/database/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';

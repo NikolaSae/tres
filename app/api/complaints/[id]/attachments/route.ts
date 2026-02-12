@@ -1,233 +1,269 @@
-// /app/api/complaints/[id]/attachments/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/auth";
-import { writeFile } from "fs/promises";
-import path from "path";
+// app/api/complaints/[id]/attachments/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const { id: complaintId } = await params;
+    const complaintId = params.id;
 
-    // Check if complaint exists
-    const complaint = await db.complaint.findUnique({
+    // Verify complaint exists and user has access
+    const complaint = await prisma.complaint.findUnique({
       where: { id: complaintId },
+      include: {
+        submittedBy: {
+          select: {
+            id: true
+          }
+        }
+      }
     });
 
     if (!complaint) {
-      return new NextResponse("Complaint not found", { status: 404 });
+      return NextResponse.json(
+        { error: 'Complaint not found' },
+        { status: 404 }
+      );
     }
 
-    // Check if user has access to this complaint
-    const user = await db.user.findUnique({ 
-      where: { id: session.user.id }
-    });
-
-    const canAccess = 
-      session.user.id === complaint.submittedById ||
-      session.user.id === complaint.assignedAgentId ||
-      ["ADMIN", "MANAGER", "AGENT"].includes(user?.role || "");
-
-    if (!canAccess) {
-      return new NextResponse("Not authorized to view these attachments", { status: 403 });
+    // Check authorization
+    if (
+      complaint.submittedBy.id !== session.user.id &&
+      session.user.role !== 'ADMIN' &&
+      session.user.role !== 'MANAGER'
+    ) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
     }
 
-    // Get attachments for the complaint
-    const attachments = await db.attachment.findMany({
+    const attachments = await prisma.attachment.findMany({
       where: { complaintId },
-      orderBy: { uploadedAt: "desc" },
+      select: {
+        id: true,
+        fileName: true,
+        fileUrl: true,
+        fileType: true,
+        uploadedAt: true,
+        complaintId: true,
+      },
+      orderBy: {
+        uploadedAt: 'desc'
+      }
     });
 
     return NextResponse.json(attachments);
   } catch (error) {
-    console.error("[ATTACHMENTS_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('Error fetching attachments:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const { id: complaintId } = await params;
+    const complaintId = params.id;
 
-    // Check if complaint exists
-    const complaint = await db.complaint.findUnique({
+    // Verify complaint exists and user has access
+    const complaint = await prisma.complaint.findUnique({
       where: { id: complaintId },
+      include: {
+        submittedBy: {
+          select: {
+            id: true
+          }
+        }
+      }
     });
 
     if (!complaint) {
-      return new NextResponse("Complaint not found", { status: 404 });
+      return NextResponse.json(
+        { error: 'Complaint not found' },
+        { status: 404 }
+      );
     }
 
-    // Check if user can upload to this complaint
-    const user = await db.user.findUnique({ 
-      where: { id: session.user.id }
-    });
-
-    const canUpload = 
-      session.user.id === complaint.submittedById ||
-      session.user.id === complaint.assignedAgentId ||
-      ["ADMIN", "MANAGER", "AGENT"].includes(user?.role || "");
-
-    if (!canUpload) {
-      return new NextResponse("Not authorized to upload attachments", { status: 403 });
+    // Check authorization
+    if (
+      complaint.submittedBy.id !== session.user.id &&
+      session.user.role !== 'ADMIN' &&
+      session.user.role !== 'MANAGER'
+    ) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
 
     if (!file) {
-      return new NextResponse("File is required", { status: 400 });
+      return NextResponse.json(
+        { error: 'No file provided' },
+        { status: 400 }
+      );
     }
 
-    // Check file size (limit to 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return new NextResponse("File size exceeds the 5MB limit", { status: 400 });
-    }
-
-    // Check file type
-    const allowedTypes = [
-      "image/jpeg", 
-      "image/png", 
-      "application/pdf", 
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "text/plain"
-    ];
-
+    // Validate file type (optional)
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (!allowedTypes.includes(file.type)) {
-      return new NextResponse("File type not allowed", { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid file type' },
+        { status: 400 }
+      );
     }
 
-    // ✅ ISPRAVKA: Uklonjen drugi parametar - writeFile prima samo 2 parametra
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 10MB' },
+        { status: 400 }
+      );
+    }
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'attachments');
+    await mkdir(uploadsDir, { recursive: true });
+
+    // Generate unique filename
+    const fileExtension = path.extname(file.name);
+    const uniqueFilename = `${uuidv4()}${fileExtension}`;
+    const filePath = path.join(uploadsDir, uniqueFilename);
+
+    // Save file
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    // Create upload directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "complaints");
-    
-    // Save file
-    const fileName = `${Date.now()}-${file.name}`;
-    const filePath = path.join(uploadsDir, fileName);
-    
     await writeFile(filePath, buffer);
 
-    // Create attachment record
-    const attachment = await db.attachment.create({
+    // Create database record
+    const attachment = await prisma.attachment.create({
       data: {
         fileName: file.name,
-        filePath: `/uploads/complaints/${fileName}`,
-        fileSize: file.size,
-        mimeType: file.type,
-        complaintId,
-        uploadedById: session.user.id,
+        fileUrl: `/uploads/attachments/${uniqueFilename}`,
+        fileType: file.type,
+        complaintId: complaintId,
       },
-      include: {
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+      select: {
+        id: true,
+        fileName: true,
+        fileUrl: true,
+        fileType: true,
+        uploadedAt: true,
+        complaintId: true,
+      }
     });
 
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        action: "ATTACHMENT_UPLOADED",
-        entityType: "complaint",
-        entityId: complaintId,
-        details: `File uploaded: ${file.name}`,
-        userId: session.user.id,
-      },
-    });
-
-    return NextResponse.json(attachment);
+    return NextResponse.json(attachment, { status: 201 });
   } catch (error) {
-    console.error("[ATTACHMENTS_POST]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('Error uploading attachment:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const { id: complaintId } = await params;
-    const { searchParams } = new URL(req.url);
-    const attachmentId = searchParams.get("attachmentId");
+    const searchParams = request.nextUrl.searchParams;
+    const attachmentId = searchParams.get('attachmentId');
 
     if (!attachmentId) {
-      return new NextResponse("Attachment ID is required", { status: 400 });
+      return NextResponse.json(
+        { error: 'Attachment ID is required' },
+        { status: 400 }
+      );
     }
 
-    // Check if attachment exists and belongs to this complaint
-    const attachment = await db.attachment.findFirst({
-      where: {
-        id: attachmentId,
-        complaintId,
-      },
+    // Get attachment with complaint and submitter info
+    const attachment = await prisma.attachment.findUnique({
+      where: { id: attachmentId },
+      select: {
+        id: true,
+        complaintId: true,
+        complaint: {
+          select: {
+            submittedById: true
+          }
+        }
+      }
     });
 
     if (!attachment) {
-      return new NextResponse("Attachment not found", { status: 404 });
+      return NextResponse.json(
+        { error: 'Attachment not found' },
+        { status: 404 }
+      );
     }
 
-    // Check permissions
-    const user = await db.user.findUnique({ 
-      where: { id: session.user.id }
-    });
-
-    const canDelete = 
-      session.user.id === attachment.uploadedById ||
-      ["ADMIN", "MANAGER"].includes(user?.role || "");
-
-    if (!canDelete) {
-      return new NextResponse("Not authorized to delete this attachment", { status: 403 });
+    // Check authorization
+    if (
+      attachment.complaint.submittedById !== session.user.id &&
+      session.user.role !== 'ADMIN' &&
+      session.user.role !== 'MANAGER'
+    ) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
     }
 
-    // Delete attachment record
-    await db.attachment.delete({
-      where: { id: attachmentId },
-    });
-
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        action: "ATTACHMENT_DELETED",
-        entityType: "complaint",
-        entityId: complaintId,
-        details: `File deleted: ${attachment.fileName}`,
-        userId: session.user.id,
-      },
+    // Delete from database
+    await prisma.attachment.delete({
+      where: { id: attachmentId }
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[ATTACHMENTS_DELETE]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error('Error deleting attachment:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
