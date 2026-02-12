@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -21,7 +21,7 @@ export async function GET(
       );
     }
 
-    const complaintId = params.id;
+    const { id: complaintId } = await params;
 
     // Verify complaint exists and user has access
     const complaint = await prisma.complaint.findUnique({
@@ -81,7 +81,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -93,7 +93,7 @@ export async function POST(
       );
     }
 
-    const complaintId = params.id;
+    const { id: complaintId } = await params;
 
     // Verify complaint exists and user has access
     const complaint = await prisma.complaint.findUnique({
@@ -198,7 +198,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -209,6 +209,8 @@ export async function DELETE(
         { status: 401 }
       );
     }
+
+    const { id: complaintId } = await params;
 
     const searchParams = request.nextUrl.searchParams;
     const attachmentId = searchParams.get('attachmentId');
@@ -238,6 +240,14 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Attachment not found' },
         { status: 404 }
+      );
+    }
+
+    // Verify attachment belongs to the complaint
+    if (attachment.complaintId !== complaintId) {
+      return NextResponse.json(
+        { error: 'Attachment does not belong to this complaint' },
+        { status: 400 }
       );
     }
 
