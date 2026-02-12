@@ -18,11 +18,9 @@ import {
   Bar
 } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSalesData } from "@/hooks/use-sales-data";
+import { useSalesData, SalesPeriod } from "@/hooks/use-sales-data";
 import { Loader2 } from "lucide-react";
 import { DataFilterOptions } from "./DataFilters";
-
-export type SalesPeriod = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 
 interface SalesDataPoint {
   date: string;
@@ -57,6 +55,8 @@ interface SalesChartProps {
 }
 
 export function SalesChart({ filters }: SalesChartProps) {
+  const router = useRouter();
+
   // Safely handle missing filters
   const safeFilters = filters || {
     period: 'monthly',
@@ -73,7 +73,7 @@ export function SalesChart({ filters }: SalesChartProps) {
       return <div>Error loading sales chart data.</div>;
   }
 
-  const period = safeFilters.period || "monthly" as SalesPeriod;
+  const period = (safeFilters.period || "monthly") as SalesPeriod;
 
   // Use safeFilters in the hook
   const { salesData, metrics, isLoading, error } = useSalesData(

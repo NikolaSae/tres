@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SalesOverview() {
   const [period, setPeriod] = useState<"weekly" | "monthly" | "quarterly">("monthly");
-  const { data, isLoading, error } = useSalesData(period);
-  
+  const { salesData, isLoading, error } = useSalesData(period);
+
   if (error) {
     return (
       <Card className="col-span-4">
@@ -25,7 +25,7 @@ export default function SalesOverview() {
       </Card>
     );
   }
-  
+
   return (
     <Card className="col-span-4">
       <CardHeader>
@@ -56,9 +56,9 @@ export default function SalesOverview() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={data?.transactionVolume} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <BarChart data={salesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
                     <Legend />
@@ -67,21 +67,20 @@ export default function SalesOverview() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium">Revenue</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={data?.revenueData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <LineChart data={salesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
                     <Legend />
                     <Line type="monotone" dataKey="revenue" stroke="#8884d8" activeDot={{ r: 8 }} />
-                    <Line type="monotone" dataKey="projected" stroke="#82ca9d" strokeDasharray="5 5" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
