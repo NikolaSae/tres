@@ -9,13 +9,13 @@ import { ArrowLeft, Edit, Trash2, Send } from "lucide-react";
 import StatusBadge from "@/components/complaints/StatusBadge";
 import CommentSection, { type CommentWithUser } from "@/components/complaints/CommentSection";
 import { ComplaintTimeline, type StatusHistoryEntry } from "@/components/complaints/ComplaintTimeline";
-import { FileUpload } from "@/components/complaints/FileUpload";
+import { FileUpload, type FileUploadAttachment } from "@/components/complaints/FileUpload";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ComplaintStatus, UserRole, Complaint } from "@prisma/client";
+import { ComplaintStatus, UserRole, Complaint, Attachment } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { useComplaints } from "@/hooks/use-complaints";
@@ -25,6 +25,16 @@ import { deleteComplaint } from "@/actions/complaints/delete";
 import { AssignComplaint } from "@/components/complaints/AssignComplaint";
 import { type getAssignableUsers } from "@/actions/users/get-assignable-users";
 
+
+// Define attachment type that matches database schema (Prisma Attachment model)
+type ComplaintAttachment = {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  uploadedAt: Date;
+  complaintId: string;
+};
 
 // Define props for the Client Component
 interface ComplaintDetailPageClientProps {
@@ -36,7 +46,7 @@ interface ComplaintDetailPageClientProps {
         provider: { id: string; name: string } | null;
         humanitarianOrg?: { id: string; name: string } | null;
         comments: (CommentWithUser | null)[];
-        attachments: ({ id: string; name: string; fileUrl: string; complaintId: string; uploadedAt: Date } | null)[];
+        attachments: (ComplaintAttachment | null)[];
         statusHistory: (StatusHistoryEntry | null)[];
     };
     assignableUsers: Awaited<ReturnType<typeof getAssignableUsers>>['users'];
@@ -340,7 +350,7 @@ export default function ComplaintDetailPageClient({
                   {canManageAttachments && (
                     <FileUpload
                          complaintId={complaint.id}
-                         existingAttachments={complaint.attachments || []}
+                         existingAttachments={complaint.attachments?.filter((att): att is ComplaintAttachment => att !== null) || []}
                          onUploadComplete={refresh}
                      />
                   )}
@@ -349,7 +359,9 @@ export default function ComplaintDetailPageClient({
                          <p className="text-sm font-medium text-muted-foreground">Attachments</p>
                          {complaint.attachments.map(attachment => attachment && (
                              <div key={attachment.id} className="text-sm">
-                                 <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="underline">{attachment.name}</a>
+                                 <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+                                   {attachment.fileName}
+                                 </a>
                              </div>
                          ))}
                      </div>
