@@ -40,9 +40,11 @@ export default async function EditParkingServicePage({
         <ParkingServiceForm 
           initialData={{
             ...parkingService,
+            contactName: parkingService.contactName ?? undefined,
             description: parkingService.description ?? undefined,
             email: parkingService.email ?? undefined,
-            fileSize: parkingService.fileSize ?? undefined,
+            phone: parkingService.phone ?? undefined,
+            address: parkingService.address ?? undefined,
           }}
           isEditing={true}
         />
