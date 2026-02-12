@@ -1,5 +1,4 @@
 // components/blacklist/SenderBlacklistTable.tsx
-
 "use client";
 
 import React from 'react';
@@ -14,8 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Loader2, Eye, EyeOff, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink } from "@/components/ui/pagination";
+import { Loader2, Eye, EyeOff, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { SenderBlacklistEntry } from "@/lib/types/blacklist";
 import { updateBlacklistEntry } from "@/actions/blacklist/update-blacklist-entry";
@@ -37,7 +36,7 @@ interface SenderBlacklistTableProps {
   pagination: BlacklistPagination;
   onPageChange: (page: number) => void;
   onRefresh: () => void;
-  matchedProviders: Record<string, string[]>; // { [senderName]: providerNames[] }
+  matchedProviders: Record<string, string[]>;
 }
 
 export function SenderBlacklistTable({ 
@@ -60,7 +59,6 @@ export function SenderBlacklistTable({
   const handleSort = (field: SortField) => {
     setSortConfig(prev => {
       if (prev.field === field) {
-        // Cycle through: asc -> desc -> null
         if (prev.direction === 'asc') {
           return { field, direction: 'desc' };
         } else if (prev.direction === 'desc') {
@@ -107,11 +105,10 @@ export function SenderBlacklistTable({
           bValue = b.effectiveDate ? new Date(b.effectiveDate).getTime() : 0;
           break;
         case 'status':
-          // Sort by: Active (no matches) -> Detected (has matches) -> Inactive
           const getStatusPriority = (entry: SenderBlacklistEntry) => {
-            if (!entry.isActive) return 3; // Inactive
+            if (!entry.isActive) return 3;
             const hasMatch = matchedProviders[entry.senderName] && matchedProviders[entry.senderName].length > 0;
-            return hasMatch ? 2 : 1; // Detected : Active
+            return hasMatch ? 2 : 1;
           };
           aValue = getStatusPriority(a);
           bValue = getStatusPriority(b);
@@ -343,10 +340,15 @@ export function SenderBlacklistTable({
         <Pagination className="mt-4">
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
                 disabled={pagination.page === 1 || isLoading || !!updatingId}
-              />
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
             </PaginationItem>
             {Array.from({ length: Math.min(5, totalPages) }).map((_, index) => {
               const pageNum = index + 1;
@@ -355,7 +357,6 @@ export function SenderBlacklistTable({
                   <PaginationLink
                     onClick={() => handlePageChange(pageNum)}
                     isActive={pageNum === pagination.page}
-                    disabled={isLoading || !!updatingId}
                   >
                     {pageNum}
                   </PaginationLink>
@@ -363,10 +364,15 @@ export function SenderBlacklistTable({
               );
             })}
             <PaginationItem>
-              <PaginationNext
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handlePageChange(Math.min(totalPages, pagination.page + 1))}
                 disabled={pagination.page >= totalPages || isLoading || !!updatingId}
-              />
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </PaginationItem>
           </PaginationContent>
         </Pagination>
