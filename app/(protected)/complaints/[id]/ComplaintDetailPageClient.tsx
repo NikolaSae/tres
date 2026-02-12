@@ -15,15 +15,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ComplaintStatus, UserRole, Complaint, Attachment } from "@prisma/client";
+import { ComplaintStatus, UserRole, Complaint } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { useComplaints } from "@/hooks/use-complaints";
 import { changeComplaintStatus } from "@/actions/complaints/change-status";
 import { addComment } from "@/actions/complaints/comment";
 import { deleteComplaint } from "@/actions/complaints/delete";
-import { AssignComplaint } from "@/components/complaints/AssignComplaint";
-import { type getAssignableUsers } from "@/actions/users/get-assignable-users";
+import { AssignComplaint, type AssignableUser } from "@/components/complaints/AssignComplaint";
 
 
 // Define attachment type that matches database schema (Prisma Attachment model)
@@ -49,7 +48,7 @@ interface ComplaintDetailPageClientProps {
         attachments: (ComplaintAttachment | null)[];
         statusHistory: (StatusHistoryEntry | null)[];
     };
-    assignableUsers: Awaited<ReturnType<typeof getAssignableUsers>>['users'];
+    assignableUsers?: AssignableUser[];
 }
 
 
@@ -426,7 +425,7 @@ export default function ComplaintDetailPageClient({
                  <AssignComplaint
                      complaintId={complaint.id}
                      currentAssignedAgentId={complaint.assignedAgentId}
-                     assignableUsers={assignableUsers}
+                     assignableUsers={assignableUsers || []}
                      canAssign={canAssign}
                      onAssignmentComplete={refresh}
                  />
