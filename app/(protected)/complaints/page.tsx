@@ -1,7 +1,7 @@
 // app/(protected)/complaints/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ComplaintList } from "@/components/complaints/ComplaintList";
 import { ComplaintFilters, ComplaintFiltersState } from "@/components/complaints/ComplaintFilters";
@@ -143,8 +143,8 @@ export default function ComplaintsPage() {
         <ComplaintFilters
           filters={{
             statuses: status ? [status] : [],
-            serviceId: serviceId || undefined,
-            providerId: providerId || undefined,
+            serviceId: serviceId || null,
+            providerId: providerId || null,
             dateRange: { from: safeDate(startDateString), to: safeDate(endDateString) }
           }}
           onFiltersChange={handleFilterChange}

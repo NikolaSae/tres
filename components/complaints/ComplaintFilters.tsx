@@ -1,300 +1,330 @@
 // /components/complaints/ComplaintFilters.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ComplaintStatus } from "@prisma/client";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
 import { getServicesByCategory } from "@/actions/services/get-by-category";
 import { getProvidersByService } from "@/actions/providers/get-by-service";
 import ServiceCategoryFilter from "./ServiceCategoryFilter";
 import ProviderFilter from "./ProviderFilter";
 import DateRangeFilter from "./DateRangeFilter";
-import { X, Filter, Loader2 } from "lucide-react"; // Dodat Loader2
-// IMPORT useSession hook
-import { useSession } from "next-auth/react"; // Prilagodite putanju ako je potrebno
+import { X, Filter, Loader2 } from "lucide-react";
 
 export interface ComplaintFiltersState {
-  statuses: ComplaintStatus[];
-  serviceId?: string;
-  providerId?: string;
-  dateRange?: {
-    from?: Date;
-    to?: Date;
-  };
+  statuses: ComplaintStatus[];
+  serviceId?: string;
+  providerId?: string;
+  dateRange?: {
+    from?: Date;
+    to?: Date;
+  };
 }
 
 interface ComplaintFiltersProps {
-  filters?: ComplaintFiltersState;
-  onFiltersChange: (filters: ComplaintFiltersState) => void;
+  filters?: ComplaintFiltersState;
+  onFiltersChange: (filters: ComplaintFiltersState) => void;
 }
 
+const DEFAULT_FILTERS: ComplaintFiltersState = {
+  statuses: [],
+  serviceId: undefined,
+  providerId: undefined,
+  dateRange: { from: undefined, to: undefined }
+};
+
 export function ComplaintFilters({
-  filters,
-  onFiltersChange
+  filters = DEFAULT_FILTERS,
+  onFiltersChange
 }: ComplaintFiltersProps) {
-  // Koristimo useSession hook da pratimo status sesije
-  const { data: session, status: sessionStatus } = useSession(); 
+  const { data: session, status: sessionStatus } = useSession();
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [services, setServices] = useState<{ id: string; name: string }[]>([]);
-  const [providers, setProviders] = useState<{ id: string; name: string }[]>([]);
-  // ISPRAVLJENO: Inicijalizacija sa podrazumevanom vrednošću ako je filters undefined
-  const [tempFilters, setTempFilters] = useState<ComplaintFiltersState>(filters || {
-    statuses: [],
-    serviceId: undefined,
-    providerId: undefined,
-    dateRange: { from: undefined, to: undefined }
-  });
+  const [isOpen, setIsOpen] = useState(false);
+  const [services, setServices] = useState<{ id: string; name: string }[]>([]);
+  const [providers, setProviders] = useState<{ id: string; name: string }[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+  const [tempFilters, setTempFilters] = useState<ComplaintFiltersState>(filters);
 
-  // Dodat useEffect da sinhronizuje tempFilters sa eksternim filters propom
-  // Ovo je korisno ako se filters prop menja od strane roditelja *nakon* inicijalnog renderovanja
-  useEffect(() => {
-      setTempFilters(filters || {
-        statuses: [],
-        serviceId: undefined,
-        providerId: undefined,
-        dateRange: { from: undefined, to: undefined }
-      });
-  }, [filters]); // Zavisnost od filters propa
+  // Sync tempFilters with external filters prop changes
+  useEffect(() => {
+    setTempFilters(filters);
+  }, [filters]);
 
-  // Fetch services when session is authenticated
-  useEffect(() => {
-    const loadServices = async () => {
-      try {
-        const servicesData = await getServicesByCategory();
-        setServices(servicesData || []); // Osiguravamo da je niz
-      } catch (error) {
-        console.error("Failed to load services", error);
-        setServices([]); // Resetujemo na prazan niz pri grešci
-      }
-    };
+  // Fetch services when authenticated
+  useEffect(() => {
+    let isMounted = true;
 
-    // KLJUČNA IZMENA: Fetch services ONLY IF session is authenticated
-    if (sessionStatus === 'authenticated') {
-      loadServices();
-    } else if (sessionStatus === 'unauthenticated') {
-        // Ako sesija nije autentikovana, resetujemo servise
+    const loadServices = async () => {
+      if (sessionStatus !== 'authenticated') {
         setServices([]);
-    }
+        return;
+      }
 
-  }, [sessionStatus]); // Dependency na sessionStatus
+      setIsLoadingServices(true);
+      try {
+        const servicesData = await getServicesByCategory();
+        if (isMounted) {
+          setServices(servicesData || []);
+        }
+      } catch (error) {
+        console.error("Failed to load services:", error);
+        if (isMounted) {
+          setServices([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingServices(false);
+        }
+      }
+    };
 
-  // Fetch providers when service changes AND session is authenticated
-  useEffect(() => {
-    const loadProviders = async () => {
-      // Pristup tempFilters.serviceId je sada bezbedan
-      if (tempFilters.serviceId) {
-        try {
-          const providersData = await getProvidersByService(tempFilters.serviceId);
-          setProviders(providersData || []); // Osiguravamo da je niz
-        } catch (error) {
-          console.error("Failed to load providers", error);
-          setProviders([]); // Resetujemo na prazan niz pri grešci
-        }
-      } else {
-        setProviders([]);
-      }
-    };
+    loadServices();
 
-    // KLJUČNA IZMENA: Fetch providers ONLY IF serviceId exists AND session is authenticated
-    if (tempFilters.serviceId && sessionStatus === 'authenticated') {
-      loadProviders();
-    } else if (!tempFilters.serviceId || sessionStatus === 'unauthenticated') {
-        // Resetujemo provajdere ako serviceId ne postoji ili sesija nije autentikovana
-        setProviders([]);
-    }
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionStatus]);
 
-  }, [tempFilters.serviceId, sessionStatus]); // Dependencies na serviceId i sessionStatus
+  // Fetch providers when service changes
+  useEffect(() => {
+    let isMounted = true;
 
+    const loadProviders = async () => {
+      if (!tempFilters.serviceId || sessionStatus !== 'authenticated') {
+        setProviders([]);
+        return;
+      }
 
-  // Handle status toggling
-  const toggleStatus = (status: ComplaintStatus) => {
-    setTempFilters(prev => {
-      const currentStatuses = prev.statuses || [];
-      if (currentStatuses.includes(status)) {
-        return {
-          ...prev,
-          statuses: currentStatuses.filter(s => s !== status)
-        };
-      } else {
-        return {
-          ...prev,
-          statuses: [...currentStatuses, status]
-        };
-      }
-    });
-  };
+      setIsLoadingProviders(true);
+      try {
+        const providersData = await getProvidersByService(tempFilters.serviceId);
+        if (isMounted) {
+          setProviders(providersData || []);
+        }
+      } catch (error) {
+        console.error("Failed to load providers:", error);
+        if (isMounted) {
+          setProviders([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingProviders(false);
+        }
+      }
+    };
 
-  // Handle service selection
-  const handleServiceChange = (serviceId: string | null) => {
-    setTempFilters(prev => ({
-      ...prev,
-      serviceId: serviceId || undefined,
-      providerId: undefined // Reset provider when service changes
-    }));
-  };
+    loadProviders();
 
-  // Handle provider selection
-  const handleProviderChange = (providerId: string | null) => {
-    setTempFilters(prev => ({
-      ...prev,
-      providerId: providerId || undefined
-    }));
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [tempFilters.serviceId, sessionStatus]);
 
-  // Handle date range changes
-  const handleDateRangeChange = (from?: Date, to?: Date) => {
-    setTempFilters(prev => ({
-      ...prev,
-      dateRange: { from, to }
-    }));
-  };
+  // Handler functions
+  const toggleStatus = (status: ComplaintStatus) => {
+    setTempFilters(prev => {
+      const currentStatuses = prev.statuses || [];
+      const newStatuses = currentStatuses.includes(status)
+        ? currentStatuses.filter(s => s !== status)
+        : [...currentStatuses, status];
 
-  // Apply filters
-  const applyFilters = () => {
-    onFiltersChange(tempFilters);
-    setIsOpen(false);
-  };
+      return { ...prev, statuses: newStatuses };
+    });
+  };
 
-  // Reset filters
-  const resetFilters = () => {
-    const emptyFilters: ComplaintFiltersState = {
-      statuses: [],
-      serviceId: undefined,
-      providerId: undefined,
-      dateRange: { from: undefined, to: undefined }
-    };
+  const handleServiceChange = (serviceId: string | null) => {
+    setTempFilters(prev => ({
+      ...prev,
+      serviceId: serviceId || undefined,
+      providerId: undefined // Reset provider when service changes
+    }));
+  };
 
-    setTempFilters(emptyFilters);
-    onFiltersChange(emptyFilters);
-    setIsOpen(false);
-  };
+  const handleProviderChange = (providerId: string | null) => {
+    setTempFilters(prev => ({
+      ...prev,
+      providerId: providerId || undefined
+    }));
+  };
 
-  // Count active filters
-  const activeFilterCount = [
-    tempFilters.statuses?.length > 0,
-    !!tempFilters.serviceId,
-    !!tempFilters.providerId,
-    !!(tempFilters.dateRange?.from || tempFilters.dateRange?.to)
-  ].filter(Boolean).length;
+  const handleDateRangeChange = (from?: Date, to?: Date) => {
+    setTempFilters(prev => ({
+      ...prev,
+      dateRange: { from, to }
+    }));
+  };
 
-  // Prikazujemo dugme za filter uvek, ali možemo ga disablovati dok se sesija učitava
-  const isFilterButtonDisabled = sessionStatus === 'loading';
+  const applyFilters = () => {
+    onFiltersChange(tempFilters);
+    setIsOpen(false);
+  };
 
-  return (
-    <div className="mb-6">
-      <Button
-        variant="outline"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2"
-        disabled={isFilterButtonDisabled} // Disablovano dok se sesija učitava
-      >
-        {isFilterButtonDisabled ? (
-            <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading...
-            </>
+  const resetFilters = () => {
+    setTempFilters(DEFAULT_FILTERS);
+    onFiltersChange(DEFAULT_FILTERS);
+    setIsOpen(false);
+  };
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    return [
+      tempFilters.statuses?.length > 0,
+      !!tempFilters.serviceId,
+      !!tempFilters.providerId,
+      !!(tempFilters.dateRange?.from || tempFilters.dateRange?.to)
+    ].filter(Boolean).length;
+  }, [tempFilters]);
+
+  // Determine UI states
+  const isAuthenticated = sessionStatus === 'authenticated';
+  const isLoading = sessionStatus === 'loading';
+  const isUnauthenticated = sessionStatus === 'unauthenticated';
+  const isFilterButtonDisabled = isLoading;
+
+  return (
+    <div className="mb-6">
+      <Button
+        variant="outline"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2"
+        disabled={isFilterButtonDisabled}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading...
+          </>
         ) : (
-            <>
-                <Filter className="h-4 w-4" />
-                Filters
-                {activeFilterCount > 0 && (
-                <span className="ml-1 rounded-full bg-primary text-primary-foreground text-xs px-2">
-                    {activeFilterCount}
-                </span>
-                )}
-            </>
+          <>
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1 rounded-full bg-primary text-primary-foreground text-xs px-2 py-0.5">
+                {activeFilterCount}
+              </span>
+            )}
+          </>
         )}
-      </Button>
+      </Button>
 
-      {isOpen && sessionStatus === 'authenticated' && (
-        <Card className="mt-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex justify-between items-center">
-              Filter Complaints
-              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </CardTitle>
-          </CardHeader>
+      {isOpen && isAuthenticated && (
+        <Card className="mt-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex justify-between items-center">
+              Filter Complaints
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsOpen(false)}
+                aria-label="Close filters"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
 
-          <CardContent className="grid gap-6">
-            <div>
-              <Label className="mb-2 block">Status</Label>
-              <div className="flex flex-wrap gap-2">
-                {Object.values(ComplaintStatus).map((status) => (
-                  <Button
-                    key={status}
-                    type="button"
-                    variant={tempFilters.statuses?.includes(status) ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => toggleStatus(status)}
-                    className="text-xs"
-                  >
-                    {status.replace(/_/g, ' ')}
-                  </Button>
-                ))}
-              </div>
-            </div>
+          <CardContent className="grid gap-6">
+            {/* Status Filter */}
+            <div>
+              <Label className="mb-2 block text-sm font-medium">Status</Label>
+              <div className="flex flex-wrap gap-2">
+                {Object.values(ComplaintStatus).map((status) => (
+                  <Button
+                    key={status}
+                    type="button"
+                    variant={tempFilters.statuses?.includes(status) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleStatus(status)}
+                    className="text-xs"
+                  >
+                    {status.replace(/_/g, ' ')}
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label className="mb-2 block">Service</Label>
-                <ServiceCategoryFilter
-                  services={services} // Prosleđujemo dobijene servise
-                  selectedServiceId={tempFilters.serviceId}
-                  onChange={handleServiceChange}
-                />
-              </div>
+            {/* Service and Provider Filters */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label className="mb-2 block text-sm font-medium">Service</Label>
+                {isLoadingServices ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading services...
+                  </div>
+                ) : (
+                  <ServiceCategoryFilter
+                    services={services}
+                    selectedServiceId={tempFilters.serviceId}
+                    onChange={handleServiceChange}
+                  />
+                )}
+              </div>
 
-              <div>
-                <Label className="mb-2 block">Provider</Label>
-                <ProviderFilter
-                  providers={providers} // Prosleđujemo dobijene provajdere
-                  selectedProviderId={tempFilters.providerId}
-                  onChange={handleProviderChange}
-                  disabled={!tempFilters.serviceId || sessionStatus !== 'authenticated'} // Disablovano ako nema servisa ILI sesija nije učitana/autentikovana
-                />
-              </div>
-            </div>
+              <div>
+                <Label className="mb-2 block text-sm font-medium">Provider</Label>
+                {isLoadingProviders ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading providers...
+                  </div>
+                ) : (
+                  <ProviderFilter
+                    providers={providers}
+                    selectedProviderId={tempFilters.providerId}
+                    onChange={handleProviderChange}
+                    disabled={!tempFilters.serviceId}
+                  />
+                )}
+              </div>
+            </div>
 
-            <div>
-              <Label className="mb-2 block">Date Range</Label>
-              <DateRangeFilter
-                fromDate={tempFilters.dateRange?.from}
-                toDate={tempFilters.dateRange?.to}
-                onChange={handleDateRangeChange}
-              />
-            </div>
-          </CardContent>
+            {/* Date Range Filter */}
+            <div>
+              <Label className="mb-2 block text-sm font-medium">Date Range</Label>
+              <DateRangeFilter
+                fromDate={tempFilters.dateRange?.from}
+                toDate={tempFilters.dateRange?.to}
+                onChange={handleDateRangeChange}
+              />
+            </div>
+          </CardContent>
 
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={resetFilters}>
-              Reset Filters
-            </Button>
-            <Button onClick={applyFilters}>
-              Apply Filters
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-      {isOpen && sessionStatus === 'loading' && (
-          <Card className="mt-2 p-6 flex justify-center items-center">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading filter options...
-          </Card>
+          <CardFooter className="flex justify-between pt-4">
+            <Button variant="outline" onClick={resetFilters}>
+              Reset Filters
+            </Button>
+            <Button onClick={applyFilters}>
+              Apply Filters
+            </Button>
+          </CardFooter>
+        </Card>
       )}
-      {isOpen && sessionStatus === 'unauthenticated' && (
-           <Card className="mt-2 p-6 text-center text-muted-foreground">
-               You must be logged in to use filters.
-           </Card>
+
+      {isOpen && isLoading && (
+        <Card className="mt-2 p-6 flex justify-center items-center">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span className="text-sm text-muted-foreground">Loading filter options...</span>
+        </Card>
       )}
-    </div>
-  );
+
+      {isOpen && isUnauthenticated && (
+        <Card className="mt-2 p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            You must be logged in to use filters.
+          </p>
+        </Card>
+      )}
+    </div>
+  );
 }
