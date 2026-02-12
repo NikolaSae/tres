@@ -45,7 +45,19 @@ export default function ComplaintsPage() {
     page: currentPage,
   }), [status, serviceId, providerId, productId, startDateString, endDateString, search, currentPage, pageSize, safeDate]);
 
-  const { complaints, isLoading, error, totalCount } = useComplaints(queryParams);
+  const { complaints: rawComplaints, isLoading, error, totalCount } = useComplaints(queryParams);
+
+  // Transform undefined to null for compatibility with ComplaintList component
+  const complaints = useMemo(() => {
+    if (!rawComplaints) return null;
+    return rawComplaints.map(complaint => ({
+      ...complaint,
+      providerId: complaint.providerId ?? null,
+      humanitarianOrgId: complaint.humanitarianOrgId ?? null,
+      productId: complaint.productId ?? null,
+      serviceId: complaint.serviceId ?? null,
+    }));
+  }, [rawComplaints]);
 
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info"; title?: string; } | null>(null);
 
