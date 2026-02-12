@@ -1,6 +1,5 @@
 // app/(protected)/complaints/[id]/edit/page.tsx
 
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -21,6 +20,7 @@ export default function EditComplaintPage() {
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{
     type: "success" | "error";
+    title: string;
     message: string;
   } | null>(null);
 
@@ -65,6 +65,7 @@ export default function EditComplaintPage() {
       
       setNotification({
         type: "success",
+        title: "Success",
         message: "Complaint updated successfully"
       });
       
@@ -75,6 +76,7 @@ export default function EditComplaintPage() {
       console.error("Error updating complaint:", err);
       setNotification({
         type: "error",
+        title: "Error",
         message: "Failed to update complaint"
       });
     } finally {
@@ -112,6 +114,7 @@ export default function EditComplaintPage() {
       
       {notification && (
         <NotificationBanner
+          title={notification.title}
           type={notification.type}
           message={notification.message}
           onClose={() => setNotification(null)}
