@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -18,7 +18,7 @@ export async function GET(
       );
     }
 
-    const serviceId = params.id;
+    const { id: serviceId } = await params;
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
@@ -124,7 +124,7 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -144,7 +144,7 @@ export async function DELETE(
       );
     }
 
-    const serviceId = params.id;
+    const { id: serviceId } = await params;
 
     // Check if service exists
     const service = await prisma.service.findUnique({
