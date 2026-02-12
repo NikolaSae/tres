@@ -44,7 +44,7 @@ export const createHumanitarianOrg = async (values: HumanitarianOrgFormData) => 
         const newOrganization = await db.humanitarianOrg.create({
             data: {
                 name: validatedData.name,
-                contactName: validatedData.contactPerson ?? null,
+                contactName: validatedData.contactName ?? null,
                 email: validatedData.email ?? null,
                 phone: validatedData.phone ?? null,
                 address: validatedData.address ?? null,
