@@ -7,7 +7,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Properly await the params promise
     const { id } = await params;
     const parkingServiceId = id;
 
@@ -18,19 +17,46 @@ export async function GET(
       );
     }
 
-    // Ensure model name matches your Prisma schema
-    const reports = await db.parkingReport.findMany({
+    // Verify parking service exists
+    const parkingService = await db.parkingService.findUnique({
+      where: { id: parkingServiceId },
+    });
+
+    if (!parkingService) {
+      return NextResponse.json(
+        { error: "Parking service not found" },
+        { status: 404 }
+      );
+    }
+
+    // Get aggregated transaction data as "reports"
+    const reports = await db.parkingTransaction.groupBy({
+      by: ['date'],
       where: { parkingServiceId },
-      orderBy: { createdAt: "desc" },
-      select: {
+      _sum: {
+        amount: true,
+        quantity: true,
+      },
+      _count: {
         id: true,
-        title: true,
-        createdAt: true,
-        status: true,
+      },
+      orderBy: {
+        date: 'desc',
       },
     });
 
-    return NextResponse.json({ reports });
+    // Format as report objects
+    const formattedReports = reports.map((report) => ({
+      id: report.date.toISOString(),
+      title: `Report for ${report.date.toLocaleDateString('sr-RS')}`,
+      createdAt: report.date,
+      status: 'completed',
+      totalAmount: report._sum.amount || 0,
+      totalQuantity: report._sum.quantity || 0,
+      transactionCount: report._count.id,
+    }));
+
+    return NextResponse.json({ reports: formattedReports });
   } catch (error) {
     console.error("Failed to fetch reports:", error);
     return NextResponse.json(

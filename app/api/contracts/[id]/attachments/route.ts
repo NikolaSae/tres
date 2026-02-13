@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { addContractAttachment } from '@/actions/contracts/add-attachment';
+import { auth } from '@/auth';
 
 // Handler za GET za dohvatanje priloga ugovora
 export async function GET(
@@ -40,11 +41,22 @@ export async function POST(
     const { id: contractId } = await params;
 
     try {
+        // Check authentication
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         // Parsiranje zahteva kao FormData (za fajl upload)
         const formData = await request.formData();
+        
+        // Add contractId to formData if not already present
+        if (!formData.has('contractId')) {
+            formData.set('contractId', contractId);
+        }
 
-        // Pozivanje Server Akcije za dodavanje priloga
-        const result = await addContractAttachment(contractId, formData);
+        // Pozivanje Server Akcije za dodavanje priloga - samo formData
+        const result = await addContractAttachment(formData);
 
         if (result.error) {
              if (result.error.includes("Contract not found")) {

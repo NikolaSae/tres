@@ -2,8 +2,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { ContractStatus, ContractType } from '@prisma/client';
+import { ContractStatus, ContractType, Prisma } from '@prisma/client';
 import { addDays } from 'date-fns';
+
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+  ttl: number;
+}
 
 class CacheManager {
   private static instance: CacheManager;
@@ -135,7 +141,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const conditions = [];
+    const conditions: Prisma.ContractWhereInput[] = [];
 
     if (type) conditions.push({ type });
     if (status) conditions.push({ status });
@@ -147,12 +153,12 @@ export async function GET(request: NextRequest) {
       const searchTerm = search.trim();
       conditions.push({
         OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { contractNumber: { contains: searchTerm, mode: 'insensitive' } },
-          { description: { contains: searchTerm, mode: 'insensitive' } },
-          { provider: { name: { contains: searchTerm, mode: 'insensitive' } } },
-          { humanitarianOrg: { name: { contains: searchTerm, mode: 'insensitive' } } },
-          { parkingService: { name: { contains: searchTerm, mode: 'insensitive' } } },
+          { name: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+          { contractNumber: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+          { description: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+          { provider: { name: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } } },
+          { humanitarianOrg: { name: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } } },
+          { parkingService: { name: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } } },
         ]
       });
     }
@@ -164,30 +170,32 @@ export async function GET(request: NextRequest) {
       const futureDate = addDays(today, days);
       const pastDate = addDays(today, -days);
 
+      const expiringConditions: Prisma.ContractWhereInput[] = [
+        // Contracts expiring in the next X days
+        {
+          endDate: {
+            gte: today,
+            lte: futureDate,
+          }
+        }
+      ];
+
+      // Contracts expired in the last X days (only if includeExpired is true)
+      if (includeExpired) {
+        expiringConditions.push({
+          endDate: {
+            gte: pastDate,
+            lt: today,
+          }
+        });
+      }
+
       conditions.push({
-        OR: [
-          // Contracts expiring in the next X days
-          {
-            endDate: {
-              gte: today,
-              lte: futureDate,
-            }
-          },
-          // Contracts expired in the last X days (only if includeExpired is true)
-          ...(includeExpired ? [{
-            endDate: {
-              gte: pastDate,
-              lt: today,
-            }
-          }] : [])
-        ]
+        OR: expiringConditions
       });
-      
-      // Remove the automatic status filter
-      // Previously this was adding { status: 'ACTIVE' } if no status filter
     }
 
-    const where = conditions.length > 0 ? { AND: conditions } : {};
+    const where: Prisma.ContractWhereInput = conditions.length > 0 ? { AND: conditions } : {};
     const skip = (page - 1) * limit;
 
     console.log('Executing database query with where clause:', JSON.stringify(where, null, 2));

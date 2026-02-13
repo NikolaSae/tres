@@ -72,17 +72,22 @@ export async function PUT(
     // Pozivanje Server Akcije za ažuriranje ugovora
     const result = await updateContract(id, values);
 
-    if (result.error) {
+    if (!result.success) {
       if (result.error === "Contract not found.") {
         return NextResponse.json({ error: result.error }, { status: 404 });
       }
-      if (result.details) {
+      // Check if details exists in the result before accessing it
+      if ('details' in result && result.details) {
         return NextResponse.json({ error: result.error, details: result.details }, { status: 400 });
       }
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ success: result.success, id: result.id }, { status: 200 });
+    // Use contractId instead of id
+    return NextResponse.json({ 
+      success: result.message, 
+      contractId: result.contractId 
+    }, { status: 200 });
 
   } catch (error) {
     console.error(`Error updating contract with ID ${id} via API:`, error);

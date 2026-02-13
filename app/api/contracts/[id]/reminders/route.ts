@@ -47,16 +47,16 @@ export async function POST(
         const result = await createContractReminder(valuesWithContractId);
 
         if (result.error) {
-             if (result.error.includes("Contract not found")) {
+             if (result.error.includes("Contract not found") || result.error.includes("Ugovor sa datim ID-om ne postoji")) {
                  return NextResponse.json({ error: result.error }, { status: 404 });
              }
-             if (result.error.includes("Reminder validation failed") || result.error.includes("Invalid input fields")) {
+             if (result.error.includes("Validacija neuspešna") || result.error.includes("Invalid input fields")) {
                   return NextResponse.json({ error: result.error, details: result.details }, { status: 400 });
              }
             return NextResponse.json({ error: result.error }, { status: 500 });
         }
 
-        return NextResponse.json({ success: result.success, reminder: result.reminder }, { status: 201 });
+        return NextResponse.json({ success: result.success, reminderId: result.reminderId }, { status: 201 });
 
     } catch (error) {
         console.error(`Error creating reminder for contract ${contractId} via API:`, error);

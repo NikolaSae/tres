@@ -70,10 +70,11 @@ export async function POST(
 
     console.log("[API_EDIT_ROUTE] Update successful for contract:", id);
     
+    // Umesto result.contract koristi result.contractId
     return NextResponse.json({
       success: true,
       message: 'Contract updated successfully',
-      contract: result.contract
+      contractId: result.contractId
     }, { status: 200 });
 
   } catch (error) {

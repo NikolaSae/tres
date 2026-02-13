@@ -6,6 +6,23 @@ import { generateParkingReportEmail } from "@/lib/email-templates/parking-report
 import { getMonthName, detectReportType } from "@/utils/parking-reports-helper";
 import open from "open"; // npm i open
 
+// Define the report type
+interface Report {
+  name: string;
+  type?: "PREPAID" | "POSTPAID";
+  // Add other properties as needed
+}
+
+interface RequestBody {
+  serviceId: string;
+  serviceName: string;
+  email?: string;
+  additionalEmails?: string[];
+  reports: Report[];
+  year: string;
+  month: string;
+}
+
 export async function POST(req: Request) {
   const session = await auth();
 
@@ -14,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json();
+    const body: RequestBody = await req.json();
     const { serviceId, serviceName, email, additionalEmails, reports, year, month } = body;
 
     if (!serviceId || !serviceName || !reports || reports.length === 0) {
@@ -28,14 +45,24 @@ export async function POST(req: Request) {
     }
 
     // Pripremi email telo
-    const reportType = reports[0].type || detectReportType(reports[0].name);
+    const detectedType = reports[0].type || detectReportType(reports[0].name);
+    
+    // Validate that reportType is either PREPAID or POSTPAID
+    const reportType: "PREPAID" | "POSTPAID" = 
+      detectedType === "PREPAID" || detectedType === "POSTPAID" 
+        ? detectedType 
+        : "PREPAID"; // default fallback
+    
     const monthName = getMonthName(parseInt(month));
 
     const emailHtml = generateParkingReportEmail({
       serviceName,
       monthName,
       year,
-      reports: reports.map(r => ({ name: r.name, type: r.type || reportType })),
+      reports: reports.map((r: Report) => ({ 
+        name: r.name, 
+        type: r.type || reportType 
+      })),
       attachmentCount: reports.length,
       reportType,
     });

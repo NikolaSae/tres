@@ -102,20 +102,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
+    // Check authentication - use auth() instead of getServerSession
+    const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // Get user role
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
+    // Get user role from session - already available in extended type
+    const userRole = session.user.role;
     
     // Check if user has permission
-    if (!user || !["ADMIN", "MANAGER"].includes(user.role)) {
+    if (!userRole || !["ADMIN", "MANAGER"].includes(userRole)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 }

@@ -11,7 +11,7 @@ export async function GET(req: Request) {
 
   const logs = await db.activityLog.findMany({
     where: { entityId: serviceId, entityType: "ParkingService" },
-    orderBy: { timestamp: "desc" },
+    orderBy: { createdAt: "desc" }, // Changed from timestamp to createdAt
     take: 20,
   });
 

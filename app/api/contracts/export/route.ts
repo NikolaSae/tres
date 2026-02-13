@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { organizationName: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: "insensitive" } },
         { contractNumber: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
       ];
@@ -61,26 +61,31 @@ export async function GET(request: NextRequest) {
     // Fetch all contracts (no pagination for export)
     const contracts = await db.contract.findMany({
       where,
+      include: {
+        provider: { select: { name: true } },
+        humanitarianOrg: { select: { name: true } },
+        parkingService: { select: { name: true } },
+      },
       orderBy: [
         { endDate: 'asc' },
         { createdAt: 'desc' }
       ]
     });
 
-    // Type labels
+    // Type labels - CORRECTED to match Prisma enum
     const typeLabels = {
-      'HUMANITARIAN_AID': 'Humanitarna pomoć',
-      'SERVICE_PROVIDER': 'Pružalac usluga',
-      'PARKING_SERVICE': 'Parking servis'
+      'HUMANITARIAN': 'Humanitarna pomoć',
+      'PROVIDER': 'Pružalac usluga',
+      'PARKING': 'Parking servis',
+      'BULK': 'Bulk servis'
     };
 
     // Status labels
     const statusLabels = {
       'ACTIVE': 'Aktivan',
       'EXPIRED': 'Istekao',
-      'EXPIRING_SOON': 'Uskoro ističe',
-      'RENEWAL_IN_PROGRESS': 'Obnova u toku',
       'PENDING': 'Na čekanju',
+      'RENEWAL_IN_PROGRESS': 'Obnova u toku',
       'TERMINATED': 'Prekinut',
       'DRAFT': 'Nacrt'
     };
@@ -88,14 +93,14 @@ export async function GET(request: NextRequest) {
     // Create CSV content
     const headers = [
       'Broj ugovora',
+      'Naziv',
       'Organizacija',
       'Tip ugovora',
       'Status',
       'Datum početka',
       'Datum kraja',
-      'Vrednost',
+      'Procenat prihoda',
       'Opis',
-      'Napomena o obnovi',
       'Dana do isteka'
     ];
 
@@ -104,16 +109,26 @@ export async function GET(request: NextRequest) {
       const endDate = new Date(contract.endDate);
       const daysToExpiry = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
+      // Get organization name based on contract type - CORRECTED enum values
+      let organizationName = '';
+      if (contract.type === 'HUMANITARIAN' && contract.humanitarianOrg) {
+        organizationName = contract.humanitarianOrg.name;
+      } else if (contract.type === 'PROVIDER' && contract.provider) {
+        organizationName = contract.provider.name;
+      } else if (contract.type === 'PARKING' && contract.parkingService) {
+        organizationName = contract.parkingService.name;
+      }
+      
       return [
         contract.contractNumber || '',
-        contract.organizationName || '',
+        contract.name || '',
+        organizationName,
         typeLabels[contract.type as keyof typeof typeLabels] || contract.type,
         statusLabels[contract.status as keyof typeof statusLabels] || contract.status,
         contract.startDate ? new Date(contract.startDate).toLocaleDateString('sr-RS') : '',
         contract.endDate ? new Date(contract.endDate).toLocaleDateString('sr-RS') : '',
-        contract.value ? contract.value.toString() : '',
+        contract.revenuePercentage ? contract.revenuePercentage.toString() : '',
         contract.description || '',
-        contract.renewalClause || '',
         daysToExpiry.toString()
       ];
     });

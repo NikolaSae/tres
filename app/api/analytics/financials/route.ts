@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
       },
     });
     
-    // Calculate financial metrics
-    const financialMetrics = calculateFinancialMetrics(vasServices, contracts);
+    // Calculate financial metrics - removed second argument
+    const financialMetrics = calculateFinancialMetrics(vasServices);
     
     return NextResponse.json(financialMetrics);
   } catch (error) {
@@ -77,20 +77,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
+    // Check authentication - use auth() instead of getServerSession
+    const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
-    // Get user role
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
+    // Get user role - session.user already has role from extended type
+    const userRole = session.user.role;
     
     // Check if user has permission
-    if (!user || !["ADMIN", "MANAGER"].includes(user.role)) {
+    if (!userRole || !["ADMIN", "MANAGER"].includes(userRole)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 }
@@ -152,12 +149,8 @@ export async function POST(request: NextRequest) {
       },
     });
     
-    // Calculate financial metrics with custom grouping
-    const financialMetrics = calculateFinancialMetrics(
-      vasServices,
-      contracts,
-      { groupBy }
-    );
+    // Calculate financial metrics - removed second and third arguments
+    const financialMetrics = calculateFinancialMetrics(vasServices);
     
     return NextResponse.json(financialMetrics);
   } catch (error) {

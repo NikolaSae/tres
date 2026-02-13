@@ -1,7 +1,7 @@
 // app/api/admin/mcp/users/[userId]/logs/route.ts
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { getRecentQueries } from '@/lib/mcp/query-logger';
+import { queryLogger } from '@/lib/mcp/query-logger'; // Dodaj import
 import { NextRequest } from 'next/server';
 
 export async function GET(
@@ -14,7 +14,6 @@ export async function GET(
       return Response.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Await params before using
     const { userId } = await params;
     
     if (!userId) {
@@ -24,7 +23,6 @@ export async function GET(
       }, { status: 400 });
     }
 
-    // Provjeri da li korisnik postoji
     const userExists = await db.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true, email: true }
@@ -46,7 +44,6 @@ export async function GET(
     const fromDate = fromDateParam ? new Date(fromDateParam) : undefined;
     const toDate = toDateParam ? new Date(toDateParam) : undefined;
 
-    // Validate dates
     if (fromDate && isNaN(fromDate.getTime())) {
       return Response.json({ 
         error: 'Invalid fromDate format',
@@ -68,10 +65,10 @@ export async function GET(
       toolName
     });
 
-    // Dodaj dodatne statistike ako je potrebno
+    // Dodaj tip za log
     const stats = {
       totalQueries: logs.length,
-      uniqueTools: [...new Set(logs.map(log => log.toolName))].length,
+      uniqueTools: [...new Set(logs.map((log: { toolName: string }) => log.toolName))].length,
       dateRange: {
         from: fromDate?.toISOString() || null,
         to: toDate?.toISOString() || null
@@ -105,7 +102,6 @@ export async function DELETE(
       return Response.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Await params before using
     const { userId } = await params;
     const url = new URL(req.url);
     const olderThanDays = Number(url.searchParams.get('olderThanDays') || 30);
@@ -119,11 +115,17 @@ export async function DELETE(
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-    const deletedCount = await queryLogger.clearOldLogs(userId, cutoffDate);
+    // Dodaj funkciju clearOldLogs u query-logger.ts ili koristi postojeću
+    const result = await db.queryLog.deleteMany({
+      where: {
+        userId,
+        createdAt: { lt: cutoffDate }
+      }
+    });
 
     return Response.json({
-      message: `Deleted ${deletedCount} log entries older than ${olderThanDays} days`,
-      deletedCount,
+      message: `Deleted ${result.count} log entries older than ${olderThanDays} days`,
+      deletedCount: result.count,
       cutoffDate: cutoffDate.toISOString()
     });
     

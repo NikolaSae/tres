@@ -12,11 +12,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const filters = Object.fromEntries(searchParams.entries());
+    const rawFilters = Object.fromEntries(searchParams.entries());
     
     // Konvertuj string parametre u odgovarajuće tipove
-    if (filters.page) filters.page = parseInt(filters.page);
-    if (filters.limit) filters.limit = parseInt(filters.limit);
+    const filters = {
+      ...rawFilters,
+      page: rawFilters.page ? parseInt(rawFilters.page) : undefined,
+      limit: rawFilters.limit ? parseInt(rawFilters.limit) : undefined,
+    };
 
     const validatedFilters = renewalFiltersSchema.safeParse(filters);
     if (!validatedFilters.success) {
@@ -143,8 +146,12 @@ export async function POST(request: NextRequest) {
 
     const renewal = await db.humanitarianContractRenewal.create({
       data: {
-        contractId,
-        humanitarianOrgId,
+        contract: {
+          connect: { id: contractId }
+        },
+        humanitarianOrg: {
+          connect: { id: humanitarianOrgId }
+        },
         proposedStartDate: new Date(data.proposedStartDate),
         proposedEndDate: new Date(data.proposedEndDate),
         proposedRevenue: data.proposedRevenue,
@@ -154,8 +161,12 @@ export async function POST(request: NextRequest) {
         financialApproved: data.financialApproved,
         signatureReceived: data.signatureReceived,
         notes: data.notes,
-        createdById: session.user.id,
-        lastModifiedById: session.user.id,
+        createdBy: {
+          connect: { id: session.user.id }
+        },
+        lastModifiedBy: {
+          connect: { id: session.user.id }
+        }
       },
       include: {
         contract: {

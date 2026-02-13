@@ -5,12 +5,16 @@ import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { updateProduct } from '@/actions/products/update';
 import { deleteProduct } from '@/actions/products/delete';
-import { productSchema, ProductFormData } from '@/schemas/product';
+import { productSchema } from '@/schemas/product';
 import { ProductWithDetails } from '@/lib/types/product-types';
 import { auth } from '@/auth';
 import { currentRole } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { z } from 'zod';
+
+// Infer the type from the schema
+type ProductFormData = z.infer<typeof productSchema>;
 
 // Handler za GET za dohvatanje pojedinačnog proizvoda po ID-u
 export async function GET(
@@ -88,16 +92,17 @@ export async function PUT(
              if (result.error.includes("not found")) {
                 return NextResponse.json({ error: result.error }, { status: 404 });
              }
-             if (result.details) {
-                 return NextResponse.json({ error: result.error, details: result.details }, { status: 400 });
-             }
              if (result.error.includes("already exists")) {
                   return NextResponse.json({ error: result.error }, { status: 409 });
              }
             return NextResponse.json({ error: result.error }, { status: 400 });
         }
 
-        return NextResponse.json({ success: result.success, id: result.id }, { status: 200 });
+        // Return the product data from the result
+        return NextResponse.json({ 
+            success: result.success, 
+            product: result.product 
+        }, { status: 200 });
 
     } catch (error) {
         console.error(`Error updating product with ID ${id} via API:`, error);

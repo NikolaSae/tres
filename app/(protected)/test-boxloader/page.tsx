@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Box, Palette, Sparkles, Zap, Cube, Layers } from 'lucide-react';
+import { Box, Palette, Sparkles, Zap, Layers } from 'lucide-react';
 
 // 3D Boxes Loader Component
 interface BoxesLoaderProps {

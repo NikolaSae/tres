@@ -222,7 +222,7 @@ ${tools.map(t => `- ${t.name}: ${t.description}`).join('\n')}
     const aiResponse = data.choices[0]?.message?.content || 'Nema odgovora';
 
     // 3️⃣ Parse AI response za tool calls
-    const toolMatch = aiResponse.match(/TOOL_CALL:\s*(\w+)\s*\n?\s*PARAMS:\s*(\{[^}]+\})/is);
+    const toolMatch = aiResponse.match(/TOOL_CALL:\s*(\w+)[\s\S]*?PARAMS:\s*(\{[^}]+\})/i);
     
     if (toolMatch) {
       const toolName = toolMatch[1].trim();

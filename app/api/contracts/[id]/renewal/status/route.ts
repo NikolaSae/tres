@@ -54,7 +54,7 @@ export async function PUT(
       case ContractRenewalSubStatus.LEGAL_REVIEW:
         updateData.documentsReceived = true;
         break;
-      case ContractRenewalSubStatus.FINANCIAL_REVIEW:
+      case ContractRenewalSubStatus.FINANCIAL_APPROVAL: // ← Changed from FINANCIAL_REVIEW
         updateData.documentsReceived = true;
         updateData.legalApproved = true;
         break;
@@ -68,6 +68,13 @@ export async function PUT(
         updateData.legalApproved = true;
         updateData.financialApproved = true;
         updateData.technicalApproved = true;
+        break;
+      case ContractRenewalSubStatus.AWAITING_SIGNATURE: // ← Also added this case
+        updateData.documentsReceived = true;
+        updateData.legalApproved = true;
+        updateData.financialApproved = true;
+        updateData.technicalApproved = true;
+        updateData.managementApproved = true;
         break;
       case ContractRenewalSubStatus.FINAL_PROCESSING:
         updateData.documentsReceived = true;
