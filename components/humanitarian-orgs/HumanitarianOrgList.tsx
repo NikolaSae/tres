@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useHumanitarianOrgs } from "@/hooks/use-humanitarian-orgs";
 import { HumanitarianOrgFilters } from "@/components/humanitarian-orgs/HumanitarianOrgFilters";
-import { HumanitarianOrgFilterOptions, PaginationOptions } from "@/lib/types/humanitarian-org-types";
+import { HumanitarianOrgFilterOptions } from "@/lib/types/humanitarian-org-types";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -15,10 +15,17 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
+  PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Define PaginationOptions locally since it's not exported
+interface PaginationOptions {
+  page: number;
+  limit: number;
+}
 
 export function HumanitarianOrgList() {
   const router = useRouter();
@@ -29,10 +36,6 @@ export function HumanitarianOrgList() {
     return {
       search: searchParams.get("search") || undefined,
       isActive: searchParams.has("isActive") ? searchParams.get("isActive") === 'true' : undefined,
-      country: searchParams.get("country") || undefined,
-      city: searchParams.get("city") || undefined,
-      hasContracts: searchParams.has("hasContracts") ? searchParams.get("hasContracts") === 'true' : undefined,
-      hasComplaints: searchParams.has("hasComplaints") ? searchParams.get("hasComplaints") === 'true' : undefined,
       sortBy: (searchParams.get("sortBy") as HumanitarianOrgFilterOptions['sortBy']) || 'name',
       sortDirection: (searchParams.get("sortDirection") as HumanitarianOrgFilterOptions['sortDirection']) || 'asc',
     };
@@ -151,27 +154,27 @@ export function HumanitarianOrgList() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow">
-            <div className="space-y-2">
-              <p className="text-sm">
-                <span className="font-medium">PIB:</span> {org.pib || 'N/A'}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Matični broj:</span> {org.registrationNumber || 'N/A'}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Contact:</span> {org.contactPerson || 'N/A'}
-              </p>
-              <p className="text-sm truncate">
-                <span className="font-medium">Email:</span> {org.email || 'N/A'}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Phone:</span> {org.phone || 'N/A'}
-              </p>
-              <div className="flex items-center">
-                <span className="font-medium mr-2">Status:</span>
-                <Badge variant={org.isActive ? "default" : "destructive"}>
-                  {org.isActive ? 'Active' : 'Inactive'}
-                </Badge>
+                  <div className="space-y-2">
+                    <p className="text-sm">
+                      <span className="font-medium">PIB:</span> {org.pib || 'N/A'}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Matični broj:</span> {org.registrationNumber || 'N/A'}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Contact:</span> {org.contactName || 'N/A'}
+                    </p>
+                    <p className="text-sm truncate">
+                      <span className="font-medium">Email:</span> {org.email || 'N/A'}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Phone:</span> {org.phone || 'N/A'}
+                    </p>
+                    <div className="flex items-center">
+                      <span className="font-medium mr-2">Status:</span>
+                      <Badge variant={org.isActive ? "default" : "destructive"}>
+                        {org.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
                     </div>
                   </div>
                 </CardContent>
@@ -200,30 +203,62 @@ export function HumanitarianOrgList() {
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
-                    onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
-                    disabled={pagination.page === 1 || loading}
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (pagination.page > 1 && !loading) {
+                        handlePageChange(pagination.page - 1);
+                      }
+                    }}
+                    className={pagination.page === 1 || loading ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
                 
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                {[...Array(totalPages)].map((_, i) => {
                   const pageNum = i + 1;
-                  return (
-                    <PaginationItem key={pageNum}>
-                      <PaginationLink
-                        onClick={() => handlePageChange(pageNum)}
-                        isActive={pageNum === pagination.page}
-                        disabled={loading}
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
+                  // Show first page, last page, current page, and pages around current
+                  if (
+                    pageNum === 1 ||
+                    pageNum === totalPages ||
+                    (pageNum >= pagination.page - 1 && pageNum <= pagination.page + 1)
+                  ) {
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <PaginationLink
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (!loading) {
+                              handlePageChange(pageNum);
+                            }
+                          }}
+                          isActive={pageNum === pagination.page}
+                          className={loading ? "pointer-events-none opacity-50" : ""}
+                        >
+                          {pageNum}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  } else if (pageNum === pagination.page - 2 || pageNum === pagination.page + 2) {
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
                 })}
                 
                 <PaginationItem>
                   <PaginationNext
-                    onClick={() => handlePageChange(Math.min(totalPages, pagination.page + 1))}
-                    disabled={pagination.page >= totalPages || loading}
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (pagination.page < totalPages && !loading) {
+                        handlePageChange(pagination.page + 1);
+                      }
+                    }}
+                    className={pagination.page >= totalPages || loading ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
               </PaginationContent>

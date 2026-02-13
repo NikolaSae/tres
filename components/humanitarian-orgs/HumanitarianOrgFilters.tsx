@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface HumanitarianOrgFiltersProps {
   onFilterChange: (filters: HumanitarianOrgFilterOptions) => void;
@@ -59,28 +58,10 @@ export function HumanitarianOrgFilters({ onFilterChange, initialFilters }: Human
     onFilterChange(updatedFilters);
   }, [localFilters, onFilterChange]);
 
-  const handleHasContractsChange = useCallback((checked: boolean | 'indeterminate') => {
-    const newValue = checked === true ? true : undefined;
-    const updatedFilters = { ...localFilters, hasContracts: newValue };
-    setLocalFilters(updatedFilters);
-    onFilterChange(updatedFilters);
-  }, [localFilters, onFilterChange]);
-
-  const handleHasComplaintsChange = useCallback((checked: boolean | 'indeterminate') => {
-    const newValue = checked === true ? true : undefined;
-    const updatedFilters = { ...localFilters, hasComplaints: newValue };
-    setLocalFilters(updatedFilters);
-    onFilterChange(updatedFilters);
-  }, [localFilters, onFilterChange]);
-
   const handleResetFilters = useCallback(() => {
     const resetFilters: HumanitarianOrgFilterOptions = {
       search: undefined,
       isActive: undefined,
-      country: undefined,
-      city: undefined,
-      hasContracts: undefined,
-      hasComplaints: undefined,
       sortBy: 'name',
       sortDirection: 'asc'
     };
@@ -136,8 +117,7 @@ export function HumanitarianOrgFilters({ onFilterChange, initialFilters }: Human
               <SelectContent>
                 <SelectItem value="name">Name</SelectItem>
                 <SelectItem value="createdAt">Date Created</SelectItem>
-                <SelectItem value="contractsCount">Contracts Count</SelectItem>
-                <SelectItem value="complaintsCount">Complaints Count</SelectItem>
+                <SelectItem value="updatedAt">Last Updated</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -152,27 +132,6 @@ export function HumanitarianOrgFilters({ onFilterChange, initialFilters }: Human
                 <SelectItem value="desc">Descending</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Relations</Label>
-          <div className="flex space-x-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="hasContracts"
-                checked={localFilters.hasContracts === true}
-                onCheckedChange={handleHasContractsChange}
-              />
-              <Label htmlFor="hasContracts">Has Contracts</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="hasComplaints"
-                checked={localFilters.hasComplaints === true}
-                onCheckedChange={handleHasComplaintsChange}
-              />
-              <Label htmlFor="hasComplaints">Has Complaints</Label>
-            </div>
           </div>
         </div>
       </div>

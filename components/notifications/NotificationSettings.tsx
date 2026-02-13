@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-// Uvezite vaš custom useToast hook
-//import { useToast } from "sonner";
+import { toast } from "sonner";
 import { NotificationPreferences } from "@/lib/types/notification-types";
 import { updateNotificationPreferences } from "@/actions/notifications/update-preferences";
 import { useTransition } from "react";
@@ -22,10 +21,6 @@ type PreferencesState = NotificationPreferences;
 export default function NotificationSettings({ initialPreferences }: NotificationSettingsProps) {
     const [preferences, setPreferences] = useState<PreferencesState>(initialPreferences);
     const [isPending, startTransition] = useTransition();
-
-    // !!! KORIGOVANO: Pribavite showToastMessage iz vašeg useToast hook-a !!!
-    // const { showToastMessage } = useToast();
-
 
     useEffect(() => {
         setPreferences(initialPreferences);
@@ -51,7 +46,6 @@ export default function NotificationSettings({ initialPreferences }: Notificatio
          }));
     };
 
-
     const handleSave = async () => {
         console.log("Attempting to save preferences:", preferences);
         startTransition(async () => {
@@ -59,23 +53,20 @@ export default function NotificationSettings({ initialPreferences }: Notificatio
 
             console.log("Result from updateNotificationPreferences:", result);
 
-            if (result?.success) {
+            if ('error' in result) {
+                console.error("Action reported error:", result.error);
+                toast.error(result.error || "Failed to save preferences.");
+            } else {
                 console.log("Action reported success.");
-                // !!! KORIGOVANO: Koristite showToastMessage za prikaz uspešne poruke !!!
-                showToastMessage(result.success, false); // false jer nije greška
+                toast.success(result.success);
 
                 if (result.preferences) {
                     console.log("Updating state with returned preferences.");
                     setPreferences(result.preferences as PreferencesState);
                 }
-            } else {
-                console.error("Action reported error or unexpected result.");
-                // !!! KORIGOVANO: Koristite showToastMessage za prikaz poruke o grešci !!!
-                showToastMessage(result?.error || "Failed to save preferences.", true); // true jer je greška
             }
         });
     };
-
 
     return (
         <Card className="w-full max-w-2xl mx-auto">
@@ -138,7 +129,7 @@ export default function NotificationSettings({ initialPreferences }: Notificatio
                             <Checkbox
                                 id="renewal-status-inapp"
                                 checked={preferences.contractRenewalStatusChange.inApp}
-                                onCheckedChange={() => handleToggle('renewalStatusChange', 'inApp')}
+                                onCheckedChange={() => handleToggle('contractRenewalStatusChange', 'inApp')}
                                 disabled={isPending}
                             />
                             <Label htmlFor="renewal-status-inapp">In-App</Label>
@@ -147,7 +138,7 @@ export default function NotificationSettings({ initialPreferences }: Notificatio
                             <Checkbox
                                 id="renewal-status-email"
                                 checked={preferences.contractRenewalStatusChange.email}
-                                onCheckedChange={() => handleToggle('renewalStatusChange', 'email')}
+                                onCheckedChange={() => handleToggle('contractRenewalStatusChange', 'email')}
                                 disabled={isPending}
                             />
                             <Label htmlFor="renewal-status-email">Email</Label>

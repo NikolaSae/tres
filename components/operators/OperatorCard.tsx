@@ -1,6 +1,5 @@
 // components/operators/OperatorCard.tsx
 
-
 "use client";
 
 import { Operator } from "@prisma/client";
@@ -34,7 +33,10 @@ export function OperatorCard({ operator }: OperatorCardProps) {
               {operator.name.substring(0, 2).toUpperCase()}
             </div>
           )}
-          <Badge variant={operator.active ? "success" : "destructive"}>
+          <Badge 
+            variant={operator.active ? "default" : "destructive"}
+            className={operator.active ? "bg-green-500 hover:bg-green-600" : ""}
+          >
             {operator.active ? "Active" : "Inactive"}
           </Badge>
         </div>
@@ -52,13 +54,13 @@ export function OperatorCard({ operator }: OperatorCardProps) {
           {operator.website && (
             <div className="flex items-center gap-2 text-sm">
               <Globe className="h-4 w-4 text-gray-500" />
-              <a
+              
                 href={operator.website.startsWith('http') ? operator.website : `https://${operator.website}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline"
               >
-                {operator.website.replace(/(^\w+:|^)\/\//, '')}
+                {operator.website.replace(/^https?:\/\//, '')}
               </a>
             </div>
           )}
@@ -66,7 +68,7 @@ export function OperatorCard({ operator }: OperatorCardProps) {
           {operator.contactEmail && (
             <div className="flex items-center gap-2 text-sm">
               <Mail className="h-4 w-4 text-gray-500" />
-              <a
+              
                 href={`mailto:${operator.contactEmail}`}
                 className="text-blue-600 hover:underline"
               >
@@ -78,7 +80,7 @@ export function OperatorCard({ operator }: OperatorCardProps) {
           {operator.contactPhone && (
             <div className="flex items-center gap-2 text-sm">
               <Phone className="h-4 w-4 text-gray-500" />
-              <a
+              
                 href={`tel:${operator.contactPhone}`}
                 className="text-blue-600 hover:underline"
               >

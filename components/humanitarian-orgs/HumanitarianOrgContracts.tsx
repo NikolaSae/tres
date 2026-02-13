@@ -7,141 +7,130 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDate } from "@/lib/utils"; // Pretpostavljamo da formatDate postoji
-import { Pagination } from "@/components/ui/pagination";
-import { AlertCircle, Clock, FileText, Loader2 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationPrevious, 
+  PaginationNext,
+  PaginationEllipsis 
+} from "@/components/ui/pagination";
+import { AlertCircle, Clock, FileText } from "lucide-react";
 
 interface Contract {
-  id: string;
-  name: string;
-  contractNumber: string;
-  status: "ACTIVE" | "EXPIRED" | "PENDING" | "RENEWAL_IN_PROGRESS";
-  startDate: string | Date;
-  endDate: string | Date;
-  revenuePercentage: number;
-  type: "HUMANITARIAN";
-  // Dodajte ovde polja koja su uključena u API ruti, npr:
-  // operator: { id: string; name: string; };
+  id: string;
+  name: string;
+  contractNumber: string;
+  status: "ACTIVE" | "EXPIRED" | "PENDING" | "RENEWAL_IN_PROGRESS";
+  startDate: string | Date;
+  endDate: string | Date;
+  revenuePercentage: number;
+  type: "HUMANITARIAN";
 }
 
 interface HumanitarianOrgContractsProps {
-  organizationId: string | undefined; // organizationId može biti undefined na početku
-  organizationName: string;
+  organizationId: string | undefined;
+  organizationName: string;
 }
 
 export function HumanitarianOrgContracts({ organizationId, organizationName }: HumanitarianOrgContractsProps) {
-  const router = useRouter();
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Počinje kao true jer očekujemo dohvatanje
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
+  const router = useRouter();
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
 
-    // DODAT LOG: Proverava vrednost organizationId kada se komponenta renderuje ili kada se prop promeni
-    useEffect(() => {
-        console.log(`[HumanitarianOrgContracts] organizationId prop value:`, organizationId);
-    }, [organizationId]);
+  useEffect(() => {
+    console.log(`[HumanitarianOrgContracts] organizationId prop value:`, organizationId);
+  }, [organizationId]);
 
+  const loadContracts = useCallback(async (page = 1) => {
+    console.log(`[HumanitarianOrgContracts] Attempting to load contracts for ID: ${organizationId}, page: ${page}`);
+    setIsLoading(true);
+    setError(null);
 
-  // Funkcija za učitavanje ugovora za ovu humanitarnu organizaciju
-  // Koristimo useCallback da memoizujemo funkciju
-  const loadContracts = useCallback(async (page = 1) => {
-    console.log(`[HumanitarianOrgContracts] Attempting to load contracts for ID: ${organizationId}, page: ${page}`);
-    setIsLoading(true);
-    setError(null);
-
-    // DODATA PROVERA NA POČETKU FUNKCIJE
     if (!organizationId) {
-        console.warn("[HumanitarianOrgContracts] loadContracts called with missing organizationId. Skipping fetch.");
-        setIsLoading(false); // Zaustavi loading state
-        setError("Organization ID is missing."); // Postavi grešku
-        setContracts([]); // Isprazni listu ugovora
-        setTotalPages(1);
-        setTotalResults(0);
-        setCurrentPage(1);
-        return; // Prekini izvršavanje funkcije
+      console.warn("[HumanitarianOrgContracts] loadContracts called with missing organizationId. Skipping fetch.");
+      setIsLoading(false);
+      setError("Organization ID is missing.");
+      setContracts([]);
+      setTotalPages(1);
+      setTotalResults(0);
+      setCurrentPage(1);
+      return;
     }
 
-    try {
-      // Ovde pretpostavljamo da postoji API endpoint za dohvatanje ugovora
-      const response = await fetch(`/api/humanitarian-orgs/${organizationId}/contracts?page=${page}&limit=5`);
+    try {
+      const response = await fetch(`/api/humanitarian-orgs/${organizationId}/contracts?page=${page}&limit=5`);
 
-      console.log(`[HumanitarianOrgContracts] API Response Status: ${response.status}`);
+      console.log(`[HumanitarianOrgContracts] API Response Status: ${response.status}`);
 
-      if (!response.ok) {
-        // Pokušajte da pročitate poruku greške iz tela odgovora ako postoji
-        const errorBody = await response.json().catch(() => ({})); // Pokušaj parsiranja, uhvati grešku ako nije JSON
-        const errorMessage = errorBody.error || `Failed to load contracts: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const errorMessage = errorBody.error || `Failed to load contracts: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
 
-      const data = await response.json();
-      console.log("[HumanitarianOrgContracts] API Response Data:", data); // DODAT LOG: Prikazuje dohvatanje podatke
+      const data = await response.json();
+      console.log("[HumanitarianOrgContracts] API Response Data:", data);
 
-      setContracts(data.items || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalResults(data.total || 0);
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("[HumanitarianOrgContracts] Error loading contracts:", err);
-      setError(err instanceof Error ? err.message : "Failed to load contracts. Please try again later.");
-      setContracts([]);
-      setTotalPages(1); // Resetuj paginaciju na grešku
-      setTotalResults(0);
-      setCurrentPage(1);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [organizationId]); // organizationId je sada dependency
+      setContracts(data.items || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalResults(data.total || 0);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error("[HumanitarianOrgContracts] Error loading contracts:", err);
+      setError(err instanceof Error ? err.message : "Failed to load contracts. Please try again later.");
+      setContracts([]);
+      setTotalPages(1);
+      setTotalResults(0);
+      setCurrentPage(1);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [organizationId]);
 
-  // Učitavanje ugovora pri prvom renderovanju ILI KADA SE organizationId PROMENI
-  useEffect(() => {
-    // Pozovite loadContracts samo ako organizationId postane definisan
+  useEffect(() => {
     if (organizationId) {
-        console.log("[HumanitarianOrgContracts] organizationId is defined, triggering loadContracts.");
-        loadContracts(1);
+      console.log("[HumanitarianOrgContracts] organizationId is defined, triggering loadContracts.");
+      loadContracts(1);
     } else {
-        console.log("[HumanitarianOrgContracts] organizationId is undefined, waiting...");
-        // Postavite početna stanja ako organizationId nedostaje
-        // Ostavite isLoading true dok se ID ne dobije, ili false ako znate da ga neće biti
-        setIsLoading(true); // Ostavljamo true dok ne dobijemo ID ili grešku
-        setError(null); // Resetujte grešku
-        setContracts([]);
-        setTotalPages(1);
-        setTotalResults(0);
-        setCurrentPage(1);
-         // Ako znate da organizationId NEĆE stići (npr. 404 stranica), postavite isLoading(false) i Error
-        // setIsLoading(false);
-        // setError("Cannot load contracts without Organization ID.");
+      console.log("[HumanitarianOrgContracts] organizationId is undefined, waiting...");
+      setIsLoading(true);
+      setError(null);
+      setContracts([]);
+      setTotalPages(1);
+      setTotalResults(0);
+      setCurrentPage(1);
     }
-  }, [organizationId, loadContracts]); // organizationId i loadContracts su dependencies
+  }, [organizationId, loadContracts]);
 
-  // Funkcija za promenu stranice
-  const handlePageChange = (page: number) => {
-    // Pozovite loadContracts samo ako organizationId postoji
+  const handlePageChange = (page: number) => {
     if (organizationId) {
-        loadContracts(page);
+      loadContracts(page);
     }
-  };
+  };
 
-  // Funkcija za status badge
-  const renderStatusBadge = (status: Contract['status']) => {
-    switch (status) {
-      case 'ACTIVE':
-        return <Badge className="bg-green-500 hover:bg-green-500">Active</Badge>; // Dodat hover style
-      case 'EXPIRED':
-        return <Badge className="bg-red-500 hover:bg-red-500">Expired</Badge>; // Dodat hover style
-      case 'PENDING':
-        return <Badge className="bg-yellow-500 hover:bg-yellow-500">Pending</Badge>; // Dodat hover style
-      case 'RENEWAL_IN_PROGRESS':
-        return <Badge className="bg-blue-500 hover:bg-blue-500">Renewal in Progress</Badge>; // Dodat hover style
-      default:
-        return <Badge className="bg-gray-500 hover:bg-gray-500">Unknown</Badge>; // Dodat hover style
-    }
-  };
+  const renderStatusBadge = (status: Contract['status']) => {
+    switch (status) {
+      case 'ACTIVE':
+        return <Badge className="bg-green-500 hover:bg-green-500">Active</Badge>;
+      case 'EXPIRED':
+        return <Badge className="bg-red-500 hover:bg-red-500">Expired</Badge>;
+      case 'PENDING':
+        return <Badge className="bg-yellow-500 hover:bg-yellow-500">Pending</Badge>;
+      case 'RENEWAL_IN_PROGRESS':
+        return <Badge className="bg-blue-500 hover:bg-blue-500">Renewal in Progress</Badge>;
+      default:
+        return <Badge className="bg-gray-500 hover:bg-gray-500">Unknown</Badge>;
+    }
+  };
 
-  return (
+  return (
     <Card className="mt-6">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-2xl font-bold">Contracts</CardTitle>
@@ -182,7 +171,6 @@ export function HumanitarianOrgContracts({ organizationId, organizationName }: H
             Organization ID is missing. Cannot load contracts.
           </div>
         ) : (
-          // This is where we render the contracts table
           <>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm table-auto">
@@ -222,8 +210,7 @@ export function HumanitarianOrgContracts({ organizationId, organizationName }: H
                         <div className="flex gap-1">
                           <Button
                             variant="outline"
-                            size="xs"
-                            className="text-xs"
+                            size="sm"
                             onClick={() => router.push(`/contracts/${contract.id}`)}
                           >
                             <span className="hidden sm:inline">View</span>
@@ -232,8 +219,7 @@ export function HumanitarianOrgContracts({ organizationId, organizationName }: H
                           {contract.status === 'ACTIVE' && (
                             <Button
                               variant="outline"
-                              size="xs"
-                              className="text-xs"
+                              size="sm"
                               onClick={() => router.push(`/contracts/${contract.id}/edit`)}
                             >
                               <span className="hidden sm:inline">Edit</span>
@@ -249,13 +235,63 @@ export function HumanitarianOrgContracts({ organizationId, organizationName }: H
             </div>
 
             {totalPages > 1 && (
-              <div className="flex justify-center mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                />
-              </div>
+              <Pagination className="mt-6">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage > 1) handlePageChange(currentPage - 1);
+                      }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                  
+                  {[...Array(totalPages)].map((_, i) => {
+                    const page = i + 1;
+                    // Show first page, last page, current page, and pages around current
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePageChange(page);
+                            }}
+                            isActive={currentPage === page}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    } else if (page === currentPage - 2 || page === currentPage + 2) {
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      );
+                    }
+                    return null;
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                      }}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             )}
 
             <div className="text-sm text-gray-500 mt-4 text-center">

@@ -46,7 +46,7 @@ export default function NotificationList({
     // Mark notification as read
     if (!notification.isRead) {
       try {
-        await markAsRead(notification.id);
+        await markAsRead({ id: notification.id }); // Changed from markAsRead(notification.id)
         
         // Update local state
         setCurrentNotifications(
