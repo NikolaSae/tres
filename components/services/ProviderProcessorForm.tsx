@@ -104,7 +104,7 @@ export function ProviderProcessorForm() {
       if (importRes.ok && result.success) {
         // Split output into log lines
         const outputLines = result.output?.split("\n").filter(Boolean) || [];
-        outputLines.forEach(line => {
+        outputLines.forEach((line: string) => {
           updateFileStatus(file.name, 'processing', '🔄 Obrada...', line);
         });
 
@@ -113,7 +113,7 @@ export function ProviderProcessorForm() {
           'completed', 
           '✅ Uspešno importovano', 
           '✅ Import uspešno završen!', 
-          result.reportPath  // Use the new reportPath
+          result.reportPath
         );
       } else {
         // Error handling
@@ -220,6 +220,7 @@ export function ProviderProcessorForm() {
                         <a 
                           href={status.reportPath} 
                           target="_blank"
+                          rel="noopener noreferrer"
                           className="text-blue-600 hover:underline"
                         >
                           Pogledaj izveštaj

@@ -1,4 +1,4 @@
-//next-auth.d.ts
+//next-
 import { UserRole } from "@prisma/client";
 import NextAuth, { DefaultSession } from "next-auth";
 import { JWT } from "next-auth/jwt";
