@@ -1,24 +1,27 @@
-// /lib/actions/contract-actions.ts
+//lib/actions/contract-actions.ts
 "use server";
 
 import { db } from "@/lib/db";
 import { ContractStatus, ContractRenewalSubStatus } from "@/lib/types/contract-types";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 
-// Action za promenu statusa ugovora
+async function getCurrentUserId() {
+  const session = await auth();
+  return session?.user?.id || "system";
+}
+
 export async function updateContractStatus(
   contractId: string,
   newStatus: ContractStatus,
   comments?: string
 ) {
   try {
-    // Validacija da ugovor postoji
     const existingContract = await db.contract.findUnique({
       where: { id: contractId },
       include: {
         renewals: {
-          where: { isActive: true },
+          // ✅ PRIVREMENO: bez isActive filtera
           orderBy: { createdAt: 'desc' },
           take: 1
         }
@@ -29,8 +32,6 @@ export async function updateContractStatus(
       throw new Error("Contract not found");
     }
 
-    // Ako menjamo status sa RENEWAL_IN_PROGRESS na nešto drugo, 
-    // treba da deaktiviramo trenutni renewal
     if (existingContract.status === ContractStatus.RENEWAL_IN_PROGRESS && 
         newStatus !== ContractStatus.RENEWAL_IN_PROGRESS) {
       
@@ -39,15 +40,13 @@ export async function updateContractStatus(
         await db.contractRenewal.update({
           where: { id: activeRenewal.id },
           data: { 
-            isActive: false,
-            completedAt: new Date(),
-            notes: comments ? `Status changed: ${comments}` : "Status changed from renewal in progress"
+            // ✅ PRIVREMENO: samo internalNotes
+            internalNotes: comments ? `Completed: ${comments}` : "Renewal completed"
           }
         });
       }
     }
 
-    // Ažuriranje statusa ugovora
     const updatedContract = await db.contract.update({
       where: { id: contractId },
       data: {
@@ -56,19 +55,6 @@ export async function updateContractStatus(
       }
     });
 
-    // Kreiranje log unosa za promenu statusa
-    await db.contractStatusLog.create({
-      data: {
-        contractId: contractId,
-        oldStatus: existingContract.status,
-        newStatus: newStatus,
-        comments: comments || "",
-        changedBy: "system", // Ovde biste trebali da stavite trenutnog korisnika
-        changedAt: new Date()
-      }
-    });
-
-    // Revalidacija stranica
     revalidatePath("/contracts");
     revalidatePath(`/contracts/${contractId}`);
 
@@ -87,48 +73,34 @@ export async function updateContractStatus(
   }
 }
 
-// Action za promenu podstatusa renewal-a
 export async function updateRenewalSubStatus(
   contractId: string,
   newSubStatus: ContractRenewalSubStatus,
   comments?: string
 ) {
   try {
-    // Pronalaženje aktivnog renewal-a
     const activeRenewal = await db.contractRenewal.findFirst({
       where: {
         contractId: contractId,
-        isActive: true
-      }
+        // ✅ PRIVREMENO: bez isActive
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1
     });
 
     if (!activeRenewal) {
       throw new Error("No active renewal found for this contract");
     }
 
-    // Ažuriranje podstatusa
     const updatedRenewal = await db.contractRenewal.update({
       where: { id: activeRenewal.id },
       data: {
         subStatus: newSubStatus,
         updatedAt: new Date(),
-        notes: comments ? `${activeRenewal.notes || ''}\n\nStatus update: ${comments}`.trim() : activeRenewal.notes
+        internalNotes: comments ? `${activeRenewal.internalNotes || ''}\n\n${comments}`.trim() : activeRenewal.internalNotes
       }
     });
 
-    // Kreiranje log unosa za promenu podstatusa
-    await db.renewalStatusLog.create({
-      data: {
-        renewalId: activeRenewal.id,
-        oldSubStatus: activeRenewal.subStatus,
-        newSubStatus: newSubStatus,
-        comments: comments || "",
-        changedBy: "system", // Ovde biste trebali da stavite trenutnog korisnika
-        changedAt: new Date()
-      }
-    });
-
-    // Revalidacija stranica
     revalidatePath("/contracts");
     revalidatePath(`/contracts/${contractId}`);
 
@@ -147,19 +119,19 @@ export async function updateRenewalSubStatus(
   }
 }
 
-// Action za kreiranje novog renewal procesa
 export async function startContractRenewal(
   contractId: string,
   initialSubStatus: ContractRenewalSubStatus = ContractRenewalSubStatus.DOCUMENT_COLLECTION,
   notes?: string
 ) {
   try {
-    // Validacija da ugovor postoji i da je u odgovarajućem statusu
+    const userId = await getCurrentUserId();
+    
     const contract = await db.contract.findUnique({
       where: { id: contractId },
       include: {
         renewals: {
-          where: { isActive: true }
+          where: { isActive: true } // ✅ Proveravamo samo aktivne renewals
         }
       }
     });
@@ -168,28 +140,37 @@ export async function startContractRenewal(
       throw new Error("Contract not found");
     }
 
-    if (contract.status !== ContractStatus.ACTIVE && contract.status !== ContractStatus.PENDING) {
+    // ✅ Provera 1: Ugovor mora biti ACTIVE ili PENDING
+    if (contract.status !== ContractStatus.ACTIVE && 
+        contract.status !== ContractStatus.PENDING) {
       throw new Error("Contract must be ACTIVE or PENDING to start renewal");
     }
 
-    // Proverava da li već postoji aktivan renewal
+    // ✅ Provera 2: Ne sme već da postoji aktivan renewal
     if (contract.renewals.length > 0) {
       throw new Error("Contract already has an active renewal process");
     }
 
-    // Kreiranje novog renewal procesa
+    // ✅ Računamo proposed datume (produženje za 1 godinu)
+    const proposedStartDate = new Date(contract.endDate);
+    proposedStartDate.setDate(proposedStartDate.getDate() + 1);
+    
+    const proposedEndDate = new Date(proposedStartDate);
+    proposedEndDate.setFullYear(proposedEndDate.getFullYear() + 1);
+
     const newRenewal = await db.contractRenewal.create({
       data: {
         contractId: contractId,
         subStatus: initialSubStatus,
         isActive: true,
         notes: notes || "",
-        createdAt: new Date(),
-        updatedAt: new Date()
+        proposedStartDate: proposedStartDate,
+        proposedEndDate: proposedEndDate,
+        proposedRevenue: contract.revenuePercentage,
+        createdById: userId,
       }
     });
 
-    // Ažuriranje statusa ugovora na RENEWAL_IN_PROGRESS
     await db.contract.update({
       where: { id: contractId },
       data: {
@@ -198,30 +179,6 @@ export async function startContractRenewal(
       }
     });
 
-    // Kreiranje log unosa
-    await db.contractStatusLog.create({
-      data: {
-        contractId: contractId,
-        oldStatus: contract.status,
-        newStatus: ContractStatus.RENEWAL_IN_PROGRESS,
-        comments: "Renewal process started",
-        changedBy: "system",
-        changedAt: new Date()
-      }
-    });
-
-    await db.renewalStatusLog.create({
-      data: {
-        renewalId: newRenewal.id,
-        oldSubStatus: null,
-        newSubStatus: initialSubStatus,
-        comments: "Renewal process initiated",
-        changedBy: "system",
-        changedAt: new Date()
-      }
-    });
-
-    // Revalidacija stranica
     revalidatePath("/contracts");
     revalidatePath(`/contracts/${contractId}`);
 
@@ -240,40 +197,35 @@ export async function startContractRenewal(
   }
 }
 
-// Action za završavanje renewal procesa
 export async function completeContractRenewal(
   contractId: string,
   newContractData?: {
     startDate?: string;
     endDate?: string;
-    value?: number;
+    revenuePercentage?: number;
   },
   notes?: string
 ) {
   try {
-    // Pronalaženje aktivnog renewal-a
     const activeRenewal = await db.contractRenewal.findFirst({
       where: {
         contractId: contractId,
-        isActive: true
-      }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1
     });
 
     if (!activeRenewal) {
       throw new Error("No active renewal found for this contract");
     }
 
-    // Ažuriranje renewal-a kao završen
     await db.contractRenewal.update({
       where: { id: activeRenewal.id },
       data: {
-        isActive: false,
-        completedAt: new Date(),
-        notes: notes ? `${activeRenewal.notes || ''}\n\nCompletion notes: ${notes}`.trim() : activeRenewal.notes
+        internalNotes: notes ? `${activeRenewal.internalNotes || ''}\n\nCompleted: ${notes}`.trim() : activeRenewal.internalNotes
       }
     });
 
-    // Ažuriranje ugovora
     const updateData: any = {
       status: ContractStatus.ACTIVE,
       updatedAt: new Date()
@@ -282,7 +234,7 @@ export async function completeContractRenewal(
     if (newContractData) {
       if (newContractData.startDate) updateData.startDate = new Date(newContractData.startDate);
       if (newContractData.endDate) updateData.endDate = new Date(newContractData.endDate);
-      if (newContractData.value) updateData.value = newContractData.value;
+      if (newContractData.revenuePercentage) updateData.revenuePercentage = newContractData.revenuePercentage;
     }
 
     const updatedContract = await db.contract.update({
@@ -290,19 +242,6 @@ export async function completeContractRenewal(
       data: updateData
     });
 
-    // Log unosi
-    await db.contractStatusLog.create({
-      data: {
-        contractId: contractId,
-        oldStatus: ContractStatus.RENEWAL_IN_PROGRESS,
-        newStatus: ContractStatus.ACTIVE,
-        comments: "Renewal process completed",
-        changedBy: "system",
-        changedAt: new Date()
-      }
-    });
-
-    // Revalidacija stranica
     revalidatePath("/contracts");
     revalidatePath(`/contracts/${contractId}`);
 

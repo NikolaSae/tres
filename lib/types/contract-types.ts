@@ -42,6 +42,9 @@ export interface ContractRenewal {
   proposedStartDate: string;
   proposedEndDate: string;
   proposedRevenue?: number;
+  isActive: boolean;
+  completedAt?: string | null;
+  notes?: string | null;
   comments?: string;
   internalNotes?: string;
   documentsReceived: boolean;

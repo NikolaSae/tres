@@ -162,3 +162,49 @@ export interface ComplaintStatistics {
   byParkingService?: Array<{ serviceId: string, serviceName: string, count: number }>;
   timelineData: Array<{ date: string, count: number }>;
 }
+
+// DODAJ OVE TIPOVE:
+
+export interface ComplaintFilters {
+  status?: ComplaintStatus;
+  priority?: number;
+  serviceId?: string;
+  productId?: string;
+  providerId?: string;
+  submittedById?: string;
+  assignedAgentId?: string;
+  startDate?: Date;
+  endDate?: Date;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  where?: any; // Za napredne filtere
+}
+
+export interface CreateComplaintData {
+  title: string;
+  description: string;
+  serviceId?: string;
+  productId?: string;
+  providerId?: string;
+  humanitarianOrgId?: string;
+  parkingServiceId?: string;
+  priority?: number;
+  financialImpact?: number;
+}
+
+export interface UpdateComplaintData {
+  title?: string;
+  description?: string;
+  status?: ComplaintStatus;
+  priority?: number;
+  financialImpact?: number;
+  serviceId?: string;
+  productId?: string;
+  providerId?: string;
+  humanitarianOrgId?: string;
+  parkingServiceId?: string;
+  assignedAgentId?: string;
+}

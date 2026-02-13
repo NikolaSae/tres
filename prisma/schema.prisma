@@ -366,7 +366,9 @@ model ContractRenewal {
   proposedStartDate   DateTime                   // Novi datum početka ugovora
   proposedEndDate     DateTime                   // Novi datum kraja ugovora
   proposedRevenue     Float?                     // Novi procenat prihoda (ako se menja)
-
+  isActive            Boolean                    @default(true)
+  completedAt         DateTime?
+  notes               String?                    @db.Text
   // Document and approval tracking
   documentsReceived   Boolean                    @default(false)
   legalApproved       Boolean                    @default(false)
@@ -394,6 +396,7 @@ model ContractRenewal {
   @@index([subStatus])
   @@index([proposedStartDate])
   @@index([renewalStartDate])
+  @@index([isActive])
 }
 
 // File attachments for renewal process
