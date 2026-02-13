@@ -66,8 +66,8 @@ export function OperatorForm({ operator }: OperatorFormProps) {
         
         if (result?.error) {
           toast.error(result.error);
-          if (result.details) {
-            console.error("Validation details:", result.details);
+          if ('errors' in result && result.errors) {
+            console.error("Validation errors:", result.errors);
           }
         } else if (result?.success) {
           toast.success("Operator updated successfully");
@@ -83,8 +83,8 @@ export function OperatorForm({ operator }: OperatorFormProps) {
         
         if (result?.error) {
           toast.error(result.error);
-          if (result.details) {
-            console.error("Validation details:", result.details);
+          if ('errors' in result && result.errors) {
+            console.error("Validation errors:", result.errors);
           }
         } else if (result?.success && result.data) {
           toast.success("Operator created successfully");

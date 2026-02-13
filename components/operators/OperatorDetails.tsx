@@ -1,6 +1,5 @@
 // components/operators/OperatorDetails.tsx
 
-
 "use client";
 
 import { Operator } from "@prisma/client";
@@ -27,7 +26,10 @@ export function OperatorDetails({ operator }: OperatorDetailsProps) {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Operator Information</span>
-            <Badge variant={operator.active ? "success" : "destructive"}>
+            <Badge 
+              variant={operator.active ? "default" : "destructive"}
+              className={operator.active ? "bg-green-500 hover:bg-green-600" : ""}
+            >
               {operator.active ? "Active" : "Inactive"}
             </Badge>
           </CardTitle>
@@ -78,8 +80,8 @@ export function OperatorDetails({ operator }: OperatorDetailsProps) {
                   <Globe className="mt-1 h-4 w-4 text-gray-500" />
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Website</h3>
-                    <a
-                      href={operator.website.startsWith('http') ? operator.website : `https://${operator.website}`}
+                    
+                    <a  href={operator.website.startsWith('http') ? operator.website : `https://${operator.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-1 inline-block text-blue-600 hover:underline"
@@ -95,8 +97,8 @@ export function OperatorDetails({ operator }: OperatorDetailsProps) {
                   <Mail className="mt-1 h-4 w-4 text-gray-500" />
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                    <a
-                      href={`mailto:${operator.contactEmail}`}
+                    
+                    <a  href={`mailto:${operator.contactEmail}`}
                       className="mt-1 inline-block text-blue-600 hover:underline"
                     >
                       {operator.contactEmail}
@@ -110,8 +112,8 @@ export function OperatorDetails({ operator }: OperatorDetailsProps) {
                   <Phone className="mt-1 h-4 w-4 text-gray-500" />
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Phone</h3>
-                    <a
-                      href={`tel:${operator.contactPhone}`}
+                    
+                    <a  href={`tel:${operator.contactPhone}`}
                       className="mt-1 inline-block text-blue-600 hover:underline"
                     >
                       {operator.contactPhone}

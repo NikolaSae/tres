@@ -1,6 +1,5 @@
 // components/operators/OperatorContracts.tsx
 
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -47,18 +46,18 @@ export function OperatorContracts({ operatorId }: OperatorContractsProps) {
     loadContracts();
   }, [operatorId]);
 
-  const getStatusBadgeColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "ACTIVE":
-        return "success";
+        return { variant: "default" as const, className: "bg-green-500 hover:bg-green-600" };
       case "EXPIRED":
-        return "destructive";
+        return { variant: "destructive" as const, className: "" };
       case "PENDING":
-        return "warning";
+        return { variant: "secondary" as const, className: "bg-yellow-500 hover:bg-yellow-600" };
       case "RENEWAL_IN_PROGRESS":
-        return "info";
+        return { variant: "secondary" as const, className: "bg-blue-500 hover:bg-blue-600" };
       default:
-        return "secondary";
+        return { variant: "secondary" as const, className: "" };
     }
   };
 
@@ -83,57 +82,63 @@ export function OperatorContracts({ operatorId }: OperatorContractsProps) {
           </div>
         ) : contracts.length > 0 ? (
           <div className="space-y-4">
-            {contracts.map((contract) => (
-              <div
-                key={contract.id}
-                className="flex flex-col rounded-lg border p-4 transition-colors hover:bg-gray-50 sm:flex-row"
-              >
-                <div className="flex-1 space-y-2">
-                  <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                    <h3 className="font-medium">{contract.name}</h3>
-                    <Badge variant={getStatusBadgeColor(contract.status)}>
-                      {contract.status.replace("_", " ")}
-                    </Badge>
-                  </div>
-                  
-                  <p className="text-sm text-gray-500">
-                    Contract #{contract.contractNumber}
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                    <div className="flex items-center text-gray-500">
-                      <CalendarIcon className="mr-1 h-3.5 w-3.5" />
-                      <span>
-                        {format(new Date(contract.startDate), "MMM d, yyyy")} - {format(new Date(contract.endDate), "MMM d, yyyy")}
-                      </span>
+            {contracts.map((contract) => {
+              const statusBadge = getStatusBadge(contract.status);
+              return (
+                <div
+                  key={contract.id}
+                  className="flex flex-col rounded-lg border p-4 transition-colors hover:bg-gray-50 sm:flex-row"
+                >
+                  <div className="flex-1 space-y-2">
+                    <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                      <h3 className="font-medium">{contract.name}</h3>
+                      <Badge 
+                        variant={statusBadge.variant}
+                        className={statusBadge.className}
+                      >
+                        {contract.status.replace("_", " ")}
+                      </Badge>
                     </div>
                     
-                    <div className="flex items-center text-gray-500">
-                      <span>Revenue: {formatCurrency(contract.revenuePercentage)}%</span>
-                    </div>
+                    <p className="text-sm text-gray-500">
+                      Contract #{contract.contractNumber}
+                    </p>
                     
-                    {contract.operatorRevenue && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
                       <div className="flex items-center text-gray-500">
-                        <span>Operator Revenue: {formatCurrency(contract.operatorRevenue)}%</span>
+                        <CalendarIcon className="mr-1 h-3.5 w-3.5" />
+                        <span>
+                          {format(new Date(contract.startDate), "MMM d, yyyy")} - {format(new Date(contract.endDate), "MMM d, yyyy")}
+                        </span>
                       </div>
-                    )}
+                      
+                      <div className="flex items-center text-gray-500">
+                        <span>Revenue: {formatCurrency(contract.revenuePercentage)}%</span>
+                      </div>
+                      
+                      {contract.operatorRevenue && (
+                        <div className="flex items-center text-gray-500">
+                          <span>Operator Revenue: {formatCurrency(contract.operatorRevenue)}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 flex items-center justify-end gap-2 sm:mt-0 sm:ml-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                    >
+                      <Link href={`/contracts/${contract.id}`}>
+                        <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                        View
+                      </Link>
+                    </Button>
                   </div>
                 </div>
-                
-                <div className="mt-4 flex items-center justify-end gap-2 sm:mt-0 sm:ml-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                  >
-                    <Link href={`/contracts/${contract.id}`}>
-                      <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                      View
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="flex h-24 flex-col items-center justify-center rounded-lg border border-dashed text-center">

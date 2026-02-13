@@ -55,7 +55,7 @@ export function OperatorCard({ operator }: OperatorCardProps) {
             <div className="flex items-center gap-2 text-sm">
               <Globe className="h-4 w-4 text-gray-500" />
               
-                href={operator.website.startsWith('http') ? operator.website : `https://${operator.website}`}
+              <a  href={operator.website.startsWith('http') ? operator.website : `https://${operator.website}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline"
@@ -69,7 +69,7 @@ export function OperatorCard({ operator }: OperatorCardProps) {
             <div className="flex items-center gap-2 text-sm">
               <Mail className="h-4 w-4 text-gray-500" />
               
-                href={`mailto:${operator.contactEmail}`}
+              <a  href={`mailto:${operator.contactEmail}`}
                 className="text-blue-600 hover:underline"
               >
                 {operator.contactEmail}
@@ -81,7 +81,7 @@ export function OperatorCard({ operator }: OperatorCardProps) {
             <div className="flex items-center gap-2 text-sm">
               <Phone className="h-4 w-4 text-gray-500" />
               
-                href={`tel:${operator.contactPhone}`}
+              <a  href={`tel:${operator.contactPhone}`}
                 className="text-blue-600 hover:underline"
               >
                 {operator.contactPhone}
