@@ -1,10 +1,10 @@
 // lib/types/parking-service-types.ts
 
 // Types for Parking Services
-import { ParkingService } from "@prisma/client";
+import { ParkingService as PrismaParkingService } from "@prisma/client";
 
 // Base Parking Service type from Prisma schema
-export type ParkingServiceType = ParkingService;
+export type ParkingServiceType = PrismaParkingService;
 
 // Base interface for parking service data
 export interface ParkingServiceFormData {
@@ -93,27 +93,9 @@ export interface PaginatedParkingServices {
 }
 
 // Complete parking service interface with all database fields
-export interface ParkingService {
-  id: string;
-  name: string;
-  description?: string | null;
-  contactName?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  additionalEmails: string[]; // Novo polje
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  
-  // File tracking fields
-  originalFileName?: string | null;
-  originalFilePath?: string | null;
-  fileSize?: number | null;
-  mimeType?: string | null;
-  lastImportDate?: Date | null;
-  importedBy?: string | null;
-  importStatus?: string | null;
+// Extended from Prisma type to include additional fields
+export interface ParkingService extends PrismaParkingService {
+  additionalEmails: string[]; // Dodatno polje koje možda nije u Prisma modelu
 }
 
 // API response types

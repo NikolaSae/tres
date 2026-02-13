@@ -1,6 +1,5 @@
 ///hooks/use-bulk-services.ts
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useTransition } from "react";
@@ -231,7 +230,19 @@ export function useBulkService(id?: string) {
     
     try {
       const updatedService = await API.update(id, data);
-      setBulkService(prev => prev ? { ...prev, ...updatedService } : updatedService);
+      
+      // Merge updated fields while preserving relations
+      setBulkService(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          ...updatedService,
+          // Preserve the relations from previous state
+          provider: prev.provider,
+          service: prev.service,
+        };
+      });
+      
       toast.success("Bulk service updated successfully");
       return updatedService;
     } catch (err) {

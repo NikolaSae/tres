@@ -17,19 +17,15 @@ import UnifiedReportsScanner from "@/components/reports/UnifiedReportsScanner";
 import { ClientGeneratedReport } from "@/components/reports/ClientGeneratedReport";
 import { getRecentReports, getGeneratedHumanitarianReports } from "@/actions/reports/get-recent-reports";
 
+// Ažuriraj interfejs da odgovara stvarnim podacima iz getRecentReports
 interface ReportFile {
   id: string;
   fileName: string;
   filePath: string;
-  organizationId: string;
-  startDate: Date;
-  endDate: Date;
-  fileSize: number;
-  mimeType: string;
   uploadedAt: Date;
-  organization?: { name: string };
-  organizationName?: string;
-  status?: "success" | "error";
+  fileSize: number;
+  organizationName: string;
+  status: string;
   data?: any;
 }
 
@@ -54,12 +50,7 @@ export default function ReportsPage() {
   React.useEffect(() => {
     async function fetchReports() {
       try {
-        let recent = await getRecentReports();
-        recent = recent.map((r) => ({
-          ...r,
-          organizationName: r.organization?.name || "Unknown Organization",
-          status: "success",
-        }));
+        const recent = await getRecentReports();
         setRecentReports(recent);
 
         const generated = await getGeneratedHumanitarianReports();

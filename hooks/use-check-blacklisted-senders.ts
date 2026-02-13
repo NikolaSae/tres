@@ -16,14 +16,14 @@ export function useCheckBlacklistedSenders() {
     try {
       const result = await checkBlacklistedSenders();
       
-      if (result.success) {
-        setMatchedSenders(result.matches || []);
+      if (result.success && result.matches) {
+        setMatchedSenders(result.matches);
         
         // Calculate total matches
-        const total = result.matches?.reduce(
+        const total = result.matches.reduce(
           (sum, match) => sum + (match.matchingServices?.length || 0),
           0
-        ) || 0;
+        );
         
         setTotalMatches(total);
         
