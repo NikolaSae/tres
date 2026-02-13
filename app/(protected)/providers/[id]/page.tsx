@@ -16,7 +16,6 @@ import DetailSkeleton from "@/components/skeletons/DetailSkeleton";
 
 import ProviderDetails from "@/components/providers/ProviderDetails";
 import ProviderContracts from "@/components/providers/ProviderContracts";
-// Uvezite preimenovanu komponentu
 import ProviderServicesOverview from "@/components/providers/ProviderServicesOverview";
 
 
@@ -47,13 +46,7 @@ async function ProviderDetailsFetcher({ providerId }: { providerId: string }) {
     return <ProviderDetails provider={provider} />;
 }
 
-async function ProviderContractsFetcher({ providerId }: { providerId: string }) {
-    return <ProviderContracts providerId={providerId} />;
-}
-
-// Nova async Server Komponenta za dohvatanje i renderovanje ProviderServicesOverview
 async function ProviderServicesOverviewFetcher({ providerId, providerName }: { providerId: string; providerName: string }) {
-    // ProviderServicesOverview je Client komponenta koja će sama pozvati server akciju
     return <ProviderServicesOverview providerId={providerId} providerName={providerName} />;
 }
 
@@ -93,7 +86,7 @@ export default async function ProviderDetailsPage({ params }: ProviderDetailsPag
                 <TabsList className="mb-4">
                     <TabsTrigger value="details">Details</TabsTrigger>
                     <TabsTrigger value="contracts">Contracts</TabsTrigger>
-                    <TabsTrigger value="services-overview">Services Overview</TabsTrigger> {/* NOVI TAB */}
+                    <TabsTrigger value="services-overview">Services Overview</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="details">
@@ -110,13 +103,12 @@ export default async function ProviderDetailsPage({ params }: ProviderDetailsPag
                      <Card>
                         <CardContent className="pt-6">
                             <Suspense fallback={<DetailSkeleton />}>
-                                <ProviderContractsFetcher providerId={providerId} />
+                                <ProviderContracts providerId={providerId} />
                             </Suspense>
                         </CardContent>
                     </Card>
                 </TabsContent>
 
-                {/* NOVI TAB CONTENT: Services Overview */}
                 <TabsContent value="services-overview">
                     <Card>
                         <CardContent className="pt-6">

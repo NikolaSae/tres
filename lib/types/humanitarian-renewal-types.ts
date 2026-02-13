@@ -36,6 +36,26 @@ export type HumanitarianRenewalsList = {
   totalPages: number;
 };
 
+// Tip za filtriranje obnova
+export type RenewalFilters = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  humanitarianOrgId?: string;
+  contractId?: string;
+  startDateFrom?: string;
+  startDateTo?: string;
+  endDateFrom?: string;
+  endDateTo?: string;
+  documentsReceived?: boolean;
+  legalApproved?: boolean;
+  financialApproved?: boolean;
+  signatureReceived?: boolean;
+  sortBy?: 'proposedStartDate' | 'proposedEndDate' | 'renewalStartDate' | 'createdAt' | 'updatedAt';
+  sortDirection?: 'asc' | 'desc';
+};
+
 // Tip za dashboard statistike
 export type RenewalStatistics = {
   totalRenewals: number;

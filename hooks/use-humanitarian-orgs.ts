@@ -5,9 +5,13 @@ import { useState, useEffect, useCallback } from "react";
 import {
   HumanitarianOrgWithDetails,
   HumanitarianOrgFilterOptions,
-  PaginationOptions
 } from "@/lib/types/humanitarian-org-types";
 import { getHumanitarianOrgs } from "@/actions/humanitarian-orgs/get";
+
+interface PaginationOptions {
+  page: number;
+  limit: number;
+}
 
 export function useHumanitarianOrgs(
   filters: HumanitarianOrgFilterOptions = {},
@@ -16,6 +20,7 @@ export function useHumanitarianOrgs(
   // Data state
   const [humanitarianOrgs, setHumanitarianOrgs] = useState<HumanitarianOrgWithDetails[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   
@@ -29,35 +34,32 @@ export function useHumanitarianOrgs(
     setError(null);
     
     try {
-      // Server Action call
+      // Server Action call - combine filters and pagination into one object
       const result = await getHumanitarianOrgs({
         ...filters,
         page: pagination.page,
         limit: pagination.limit
       });
       
-      if (result.error) {
-        setError(new Error(result.error));
-        setHumanitarianOrgs([]);
-        setTotalCount(0);
-      } else {
-        setHumanitarianOrgs(result.data);
-        setTotalCount(result.total);
-      }
+      // Now result has { data, total, page, limit, totalPages }
+      setHumanitarianOrgs(result.data);
+      setTotalCount(result.total);
+      setTotalPages(result.totalPages);
     } catch (err) {
       console.error("Error fetching humanitarian organizations:", err);
       setError(err instanceof Error ? err : new Error("Failed to fetch humanitarian organizations"));
       setHumanitarianOrgs([]);
       setTotalCount(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination]);
+  }, [filterKey, paginationKey]);
   
   // Fetch data whenever filters or pagination changes
   useEffect(() => {
     fetchOrgs();
-  }, [filterKey, paginationKey, fetchOrgs]);
+  }, [fetchOrgs]);
   
   // Method to manually refresh data with current filters
   const refresh = useCallback(() => {
@@ -67,6 +69,7 @@ export function useHumanitarianOrgs(
   return {
     humanitarianOrgs,
     totalCount,
+    totalPages,
     loading,
     error,
     refresh

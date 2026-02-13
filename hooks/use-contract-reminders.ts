@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ContractReminder, User } from '@prisma/client'; // Prisma modeli
-import { acknowledgeContractReminder } from '@/actions/contracts/acknowledge-reminder'; // Akcija za pregled podsetnika
+import { acknowledgeReminder as acknowledgeReminderAction } from '@/actions/contracts/acknowledge-reminder'; // Akcija za pregled podsetnika
 
 // Tip za podsetnik sa uključenim acknowledgedBy korisnikom
 interface ContractReminderWithUser extends ContractReminder {
@@ -15,7 +15,7 @@ interface UseContractRemindersResult {
   loading: boolean;
   error: Error | null;
   refreshReminders: () => void; // Funkcija za ručno osvežavanje liste podsetnika
-  acknowledgeReminder: (reminderId: string) => Promise<{ success?: string; error?: string }>; // Funkcija za pregled podsetnika
+  acknowledgeReminder: (reminderId: string) => Promise<{ success?: string; error?: string; info?: string }>; // Funkcija za pregled podsetnika
 }
 
 /**
@@ -68,7 +68,7 @@ export function useContractReminders(contractId: string | null | undefined): Use
 
   // Funkcija za pregled (acknowledge) podsetnika
   const acknowledgeReminder = useCallback(async (reminderId: string) => {
-      const result = await acknowledgeContractReminder({ reminderId });
+      const result = await acknowledgeReminderAction(reminderId); // Poziv akcije sa reminderId direktno kao string
 
       if (result.success) {
           console.log(`Reminder ${reminderId} acknowledged.`);

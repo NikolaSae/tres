@@ -4,8 +4,19 @@
 
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { Prisma } from '@prisma/client';
 
-export async function getHumanitarianOrgs(includeRenewals: boolean = false) {
+interface GetHumanitarianOrgsParams {
+  search?: string;
+  isActive?: boolean;
+  sortBy?: 'name' | 'createdAt' | 'updatedAt';
+  sortDirection?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+  includeRenewals?: boolean;
+}
+
+export async function getHumanitarianOrgs(params: GetHumanitarianOrgsParams = {}) {
   try {
     const session = await auth();
     
@@ -13,7 +24,37 @@ export async function getHumanitarianOrgs(includeRenewals: boolean = false) {
       throw new Error('Unauthorized');
     }
 
+    const {
+      search,
+      isActive,
+      sortBy = 'name',
+      sortDirection = 'asc',
+      page = 1,
+      limit = 10,
+      includeRenewals = false
+    } = params;
+
+    // Build where clause
+    const where: Prisma.HumanitarianOrgWhereInput = {
+      ...(isActive !== undefined && { isActive }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { contactName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ]
+      })
+    };
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Get total count
+    const totalCount = await prisma.humanitarianOrg.count({ where });
+
+    // Get organizations
     const orgs = await prisma.humanitarianOrg.findMany({
+      where,
       select: {
         id: true,
         name: true,
@@ -57,11 +98,19 @@ export async function getHumanitarianOrgs(includeRenewals: boolean = false) {
         }
       },
       orderBy: {
-        name: 'asc'
-      }
+        [sortBy]: sortDirection
+      },
+      skip,
+      take: limit,
     });
 
-    return orgs;
+    return {
+      data: orgs,
+      total: totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit)
+    };
   } catch (error) {
     console.error('Error fetching humanitarian organizations:', error);
     throw error;

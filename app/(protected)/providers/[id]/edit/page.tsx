@@ -64,8 +64,7 @@ export default async function EditProviderPage({ params }: EditProviderPageProps
              </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-
-                <ProviderForm provider={defaultValues} isEditing={true} />
+                <ProviderForm provider={defaultValues} />
             </div>
         </div>
     );
