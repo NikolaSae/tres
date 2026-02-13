@@ -25,7 +25,7 @@ interface ReportFile {
   size: number;
   month: string;
   year: string;
-  type: 'PREPAID' | 'POSTPAID';
+  type: 'PREPAID' | 'POSTPAID' | 'UNKNOWN';
 }
 
 interface SendStatus {
@@ -34,6 +34,12 @@ interface SendStatus {
   message?: string;
   timestamp?: string;
   reportCount?: number;
+}
+
+interface EmailData {
+  cc: string;
+  subject: string;
+  body: string;
 }
 
 export default function ParkingReportSender({ parkingServices }: { parkingServices: ParkingService[] }) {
@@ -148,79 +154,73 @@ export default function ParkingReportSender({ parkingServices }: { parkingServic
     setDialogOpen(true);
   };
 
-  const handleConfirmReports = async (selectedReports: ReportFile[]) => {
-    if (!dialogService || selectedReports.length === 0) return;
+  const handleConfirmReports = async (selectedReports: ReportFile[], emailData: EmailData) => {
+  if (!dialogService || selectedReports.length === 0) return;
 
-    setIsSending(true);
-    const monthRange = formatMonthRange(selectedMonth, selectedYear);
-    const recipients = [dialogService.email, ...(dialogService.additionalEmails || [])].filter(Boolean).join(';');
+  setIsSending(true);
+
+  try {
+    // Kreiraj listu primaoca
+    const recipients = [dialogService.email, ...(dialogService.additionalEmails || [])]
+      .filter(Boolean)
+      .join(';');
 
     // Grupiši reportove po tipu
     const prepaidReports = selectedReports.filter(r => r.type === 'PREPAID');
     const postpaidReports = selectedReports.filter(r => r.type === 'POSTPAID');
 
-    try {
-      // Ako ima oba tipa, otvori 2 drafta
-      if (prepaidReports.length > 0 && postpaidReports.length > 0) {
-        // PREPAID draft
-        const prepaidSubject = `Mesečni PREPAID izveštaj - ${dialogService.name} - ${selectedMonth}/${selectedYear}`;
-        const prepaidBody = `Poštovani,\n\nU prilogu vam dostavljamo Micropayment izveštaj za period ${monthRange}.\n\nFajlovi u prilogu:\n${prepaidReports.map(r => `- ${r.name}`).join('\n')}\n\nPozdrav,\nVaš tim`;
-        const prepaidMailto = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(prepaidSubject)}&body=${encodeURIComponent(prepaidBody)}`;
-        
-        // POSTPAID draft
-        const postpaidSubject = `Mesečni POSTPAID izveštaj - ${dialogService.name} - ${selectedMonth}/${selectedYear}`;
-        const postpaidBody = `Poštovani,\n\nU prilogu se nalaze izveštaji za ${monthRange}.\n\nFajlovi u prilogu:\n${postpaidReports.map(r => `- ${r.name}`).join('\n')}\n\nPozdrav,\nVaš tim`;
-        const postpaidMailto = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(postpaidSubject)}&body=${encodeURIComponent(postpaidBody)}`;
+    // Ako ima oba tipa, otvori 2 drafta
+    if (prepaidReports.length > 0 && postpaidReports.length > 0) {
+      // PREPAID draft
+      const prepaidSubject = emailData.subject.replace(/(PREPAID|POSTPAID)/, 'PREPAID');
+      const prepaidBody = `${emailData.body}\n\nFajlovi u prilogu:\n${prepaidReports.map(r => `- ${r.name}`).join('\n')}`;
+      const prepaidMailto = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(prepaidSubject)}&body=${encodeURIComponent(prepaidBody)}${emailData.cc ? `&cc=${encodeURIComponent(emailData.cc)}` : ''}`;
+      
+      // POSTPAID draft
+      const postpaidSubject = emailData.subject.replace(/(PREPAID|POSTPAID)/, 'POSTPAID');
+      const postpaidBody = `${emailData.body}\n\nFajlovi u prilogu:\n${postpaidReports.map(r => `- ${r.name}`).join('\n')}`;
+      const postpaidMailto = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(postpaidSubject)}&body=${encodeURIComponent(postpaidBody)}${emailData.cc ? `&cc=${encodeURIComponent(emailData.cc)}` : ''}`;
 
-        window.open(prepaidMailto, '_blank');
-        setTimeout(() => window.open(postpaidMailto, '_blank'), 500);
-        
-        toast.success(`Otvorena 2 drafta za ${dialogService.name} (PREPAID + POSTPAID)`);
-      } else {
-        // Samo jedan tip reporta
-        const reportType = selectedReports[0].type;
-        const subject = `Mesečni ${reportType} izveštaj - ${dialogService.name} - ${selectedMonth}/${selectedYear}`;
-        let body = '';
-        if (reportType === 'PREPAID') {
-          body = `Poštovani,\n\nU prilogu vam dostavljamo Micropayment izveštaj za period ${monthRange}.\n\nFajlovi u prilogu:\n${selectedReports.map(r => `- ${r.name}`).join('\n')}\n\nPozdrav,\nVaš tim`;
-        } else {
-          body = `Poštovani,\n\nU prilogu se nalaze izveštaji za ${monthRange}.\n\nFajlovi u prilogu:\n${selectedReports.map(r => `- ${r.name}`).join('\n')}\n\nPozdrav,\nVaš tim`;
-        }
-
-        const mailtoLink = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(mailtoLink, '_blank');
-        
-        toast.success(`Draft otvoren za ${dialogService.name} (${selectedReports.length} izveštaj${selectedReports.length > 1 ? 'a' : ''})`);
-      }
-
-      const now = new Date().toISOString();
-      setSendStatus(prev => [
-        ...prev.filter(s => s.serviceId !== dialogService.id),
-        { 
-          serviceId: dialogService.id, 
-          status: 'draftOpened', 
-          timestamp: now,
-          reportCount: selectedReports.length
-        }
-      ]);
-
-      setDialogOpen(false);
-    } catch (error: any) {
-      console.error(error);
-      toast.error(`Greška: ${error.message}`);
-      setSendStatus(prev => [
-        ...prev.filter(s => s.serviceId !== dialogService.id),
-        { 
-          serviceId: dialogService.id, 
-          status: 'error', 
-          message: error.message,
-          timestamp: new Date().toISOString()
-        }
-      ]);
-    } finally {
-      setIsSending(false);
+      window.open(prepaidMailto, '_blank');
+      setTimeout(() => window.open(postpaidMailto, '_blank'), 500);
+      
+      toast.success(`Otvorena 2 drafta za ${dialogService.name} (PREPAID + POSTPAID)`);
+    } else {
+      // Samo jedan tip reporta
+      const mailtoLink = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body)}${emailData.cc ? `&cc=${encodeURIComponent(emailData.cc)}` : ''}`;
+      window.open(mailtoLink, '_blank');
+      
+      toast.success(`Draft otvoren za ${dialogService.name} (${selectedReports.length} izveštaj${selectedReports.length > 1 ? 'a' : ''})`);
     }
-  };
+
+    const now = new Date().toISOString();
+    setSendStatus(prev => [
+      ...prev.filter(s => s.serviceId !== dialogService.id),
+      { 
+        serviceId: dialogService.id, 
+        status: 'draftOpened', 
+        timestamp: now,
+        reportCount: selectedReports.length
+      }
+    ]);
+
+    setDialogOpen(false);
+  } catch (error: any) {
+    console.error(error);
+    toast.error(`Greška: ${error.message}`);
+    setSendStatus(prev => [
+      ...prev.filter(s => s.serviceId !== dialogService.id),
+      { 
+        serviceId: dialogService.id, 
+        status: 'error', 
+        message: error.message,
+        timestamp: new Date().toISOString()
+      }
+    ]);
+  } finally {
+    setIsSending(false);
+  }
+};
 
   const handleOpenAllDrafts = () => {
     const servicesToProcess = Array.from(selectedServices)
@@ -441,16 +441,18 @@ export default function ParkingReportSender({ parkingServices }: { parkingServic
       </Card>
 
       {/* Report Selector Dialog */}
-      {dialogService && (
-        <ReportSelectorDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          reports={dialogReports}
-          serviceName={dialogService.name}
-          onConfirm={handleConfirmReports}
-          loading={isSending}
-        />
-      )}
+{dialogService && (
+  <ReportSelectorDialog
+    open={dialogOpen}
+    onOpenChange={setDialogOpen}
+    reports={dialogReports}
+    serviceName={dialogService.name}
+    serviceEmail={dialogService.email || ''}
+    additionalEmails={dialogService.additionalEmails}
+    onConfirm={handleConfirmReports}
+    loading={isSending}
+  />
+)}
     </>
   );
 }

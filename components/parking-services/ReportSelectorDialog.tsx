@@ -177,7 +177,11 @@ export default function ReportSelectorDialog({
 
           <TabsContent value="reports" className="space-y-4">
             <div className="flex items-center gap-2">
-              <Checkbox id="select-all" checked={isAllSelected} indeterminate={isIndeterminate} onCheckedChange={handleSelectAll}/>
+              <Checkbox 
+                  id="select-all" 
+                  checked={isAllSelected ? true : isIndeterminate ? "indeterminate" : false}
+                  onCheckedChange={handleSelectAll}
+                />
               <Label htmlFor="select-all" className="cursor-pointer font-medium">
                 Izaberi sve ({selectedReports.size}/{reports.length})
               </Label>
