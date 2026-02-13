@@ -75,11 +75,15 @@ export function SalesChart({ filters }: SalesChartProps) {
 
   const period = (safeFilters.period || "monthly") as SalesPeriod;
 
+  // Convert null to undefined for dates
+  const fromDate = safeFilters.dateRange?.from ?? undefined;
+  const toDate = safeFilters.dateRange?.to ?? undefined;
+
   // Use safeFilters in the hook
   const { salesData, metrics, isLoading, error } = useSalesData(
     period,
-    safeFilters.dateRange?.from,
-    safeFilters.dateRange?.to,
+    fromDate,
+    toDate,
     safeFilters.serviceTypes?.[0],
     safeFilters.providerIds?.[0]
   );

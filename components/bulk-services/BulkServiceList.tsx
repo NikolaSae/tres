@@ -1,6 +1,5 @@
 //components/bulk-services/BulkServiceList.tsx
 
-
 "use client";
 
 import { useState } from "react";
@@ -43,17 +42,12 @@ export default function BulkServiceList() {
   const providerId = searchParams.get("providerId") || undefined;
   const serviceId = searchParams.get("serviceId") || undefined;
   
-  // Fetch bulk services
-  const { data, isLoading, error } = useBulkServices({
-    page,
-    pageSize,
-    search,
-    providerId: providerId as string,
-    serviceId: serviceId as string
+  // Fetch bulk services - using the correct hook signature
+  const { bulkServices, loading, error } = useBulkServices({
+    providerName: search,
+    providerId: providerId,
+    serviceId: serviceId,
   });
-
-  const bulkServices = data?.items || [];
-  const totalPages = data?.totalPages || 1;
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -61,7 +55,7 @@ export default function BulkServiceList() {
     router.push(`/bulk-services?${params.toString()}`);
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -76,7 +70,7 @@ export default function BulkServiceList() {
           <div className="flex flex-col items-center justify-center text-center p-6 space-y-2">
             <AlertTriangle className="h-10 w-10 text-destructive" />
             <h3 className="text-lg font-semibold">Error loading bulk services</h3>
-            <p className="text-sm text-muted-foreground">{error.message}</p>
+            <p className="text-sm text-muted-foreground">{typeof error === 'string' ? error : 'An error occurred'}</p>
             <Button 
               className="mt-4" 
               onClick={() => router.refresh()}
@@ -115,6 +109,13 @@ export default function BulkServiceList() {
     );
   }
 
+  // Simple pagination calculation
+  const totalCount = bulkServices.length;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedServices = bulkServices.slice(startIndex, endIndex);
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -131,7 +132,7 @@ export default function BulkServiceList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bulkServices.map((bulkService: BulkServiceWithRelations) => (
+            {paginatedServices.map((bulkService: BulkServiceWithRelations) => (
               <TableRow key={bulkService.id}>
                 <TableCell>{bulkService.provider_name}</TableCell>
                 <TableCell>{bulkService.agreement_name}</TableCell>
@@ -160,16 +161,25 @@ export default function BulkServiceList() {
       </CardContent>
       <CardFooter className="flex items-center justify-between p-4 border-t">
         <div className="text-sm text-muted-foreground">
-          Showing <strong>{bulkServices.length}</strong> of{" "}
-          <strong>{data?.totalCount || 0}</strong> bulk services
+          Showing <strong>{paginatedServices.length}</strong> of{" "}
+          <strong>{totalCount}</strong> bulk services
         </div>
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => handlePageChange(page - 1)}
-                disabled={page <= 1} 
-              />
+              {page > 1 ? (
+                <PaginationPrevious 
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePageChange(page - 1);
+                  }}
+                />
+              ) : (
+                <span className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 gap-1 pl-2.5 opacity-50 pointer-events-none">
+                  Previous
+                </span>
+              )}
             </PaginationItem>
             <PaginationItem>
               <span className="px-4 py-1">
@@ -177,10 +187,19 @@ export default function BulkServiceList() {
               </span>
             </PaginationItem>
             <PaginationItem>
-              <PaginationNext 
-                onClick={() => handlePageChange(page + 1)}
-                disabled={page >= totalPages} 
-              />
+              {page < totalPages ? (
+                <PaginationNext 
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePageChange(page + 1);
+                  }}
+                />
+              ) : (
+                <span className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 gap-1 pr-2.5 opacity-50 pointer-events-none">
+                  Next
+                </span>
+              )}
             </PaginationItem>
           </PaginationContent>
         </Pagination>

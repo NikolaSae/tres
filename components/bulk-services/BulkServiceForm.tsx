@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { BulkServiceFormValues, bulkServiceSchema } from "@/schemas/bulk-service";
+import { BulkServiceFormData, bulkServiceSchema } from "@/schemas/bulk-service";
 import { createBulkService, updateBulkService } from "@/actions/bulk-services";
 import { Service, Provider } from "@prisma/client";
 
@@ -53,6 +53,7 @@ export const BulkServiceForm = ({
     message_parts: initialData.message_parts || 0,
     serviceId: initialData.serviceId || "",
     providerId: initialData.providerId || "",
+    datumNaplate: initialData.datumNaplate ? new Date(initialData.datumNaplate) : new Date(),
   } : {
     provider_name: "",
     agreement_name: "",
@@ -63,14 +64,15 @@ export const BulkServiceForm = ({
     message_parts: 0,
     serviceId: "",
     providerId: "",
+    datumNaplate: new Date(),
   };
 
-  const form = useForm<BulkServiceFormValues>({
+  const form = useForm<BulkServiceFormData>({
     resolver: zodResolver(bulkServiceSchema),
     defaultValues
   });
 
-  const onSubmit = async (values: BulkServiceFormValues) => {
+  const onSubmit = async (values: BulkServiceFormData) => {
     try {
       setLoading(true);
       
@@ -286,6 +288,25 @@ export const BulkServiceForm = ({
                         type="number"
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="datumNaplate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Datum Naplate</FormLabel>
+                    <FormControl>
+                      <Input
+                        disabled={loading}
+                        type="date"
+                        value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                        onChange={(e) => field.onChange(new Date(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />

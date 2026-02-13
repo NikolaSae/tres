@@ -201,7 +201,10 @@ export default function FinancialOverview({ data }: FinancialOverviewProps) {
                                             margin={{ left: 120 }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis type="number" formatter={(value) => formatCurrency(value as number)} />
+                                            <XAxis 
+                                                type="number" 
+                                                tickFormatter={(value: number) => formatCurrency(value)} 
+                                            />
                                             <YAxis
                                                 type="category"
                                                 dataKey="providerName"
@@ -238,7 +241,10 @@ export default function FinancialOverview({ data }: FinancialOverviewProps) {
                                             margin={{ left: 120 }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis type="number" formatter={(value) => formatCurrency(value as number)} />
+                                            <XAxis 
+                                                type="number" 
+                                                tickFormatter={(value: number) => formatCurrency(value)} 
+                                            />
                                             <YAxis
                                                 type="category"
                                                 dataKey="serviceType"
