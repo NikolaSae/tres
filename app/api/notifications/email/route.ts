@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
         where: {
           id: { in: validatedData.userIds },
           isActive: true,
-          NOT: { email: null }, // Changed to use NOT with null
         },
         select: { 
           email: true,
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
         },
       });
       
-      // Add user emails to the recipients
+      // Add user emails to the recipients (filters out null emails)
       emailRecipients = [
         ...emailRecipients,
         ...users.map(user => user.email).filter((email): email is string => !!email),
