@@ -1,4 +1,6 @@
 // lib/types/blacklist.ts
+import { SenderBlacklist, Provider } from '@prisma/client';
+
 export interface SenderBlacklistEntry {
   id: string;
   senderName: string;
@@ -34,3 +36,8 @@ export interface BlacklistMatch {
   blacklistEntry: SenderBlacklistEntry;
   matchingServices: any[];
 }
+
+// Dodaj ovaj tip koji hook očekuje
+export type SenderBlacklistWithProvider = SenderBlacklist & {
+  provider: Provider | null;
+};
