@@ -8,7 +8,6 @@ import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { loginSchema } from "@/schemas/auth";
-import type { NextAuthConfig } from "next-auth";
 
 // Type extensions
 declare module "next-auth" {
@@ -38,10 +37,10 @@ declare module "next-auth/jwt" {
   }
 }
 
-const config: NextAuthConfig = {
+const config = {
   adapter: PrismaAdapter(db),
   session: { 
-    strategy: "jwt",
+    strategy: "jwt" as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   
@@ -51,7 +50,7 @@ const config: NextAuthConfig = {
   },
 
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }: any) {
       // Initial sign-in
       if (user) {
         token.id = user.id;
@@ -92,7 +91,7 @@ const config: NextAuthConfig = {
       return token;
     },
 
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       if (session.user && token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
@@ -102,7 +101,7 @@ const config: NextAuthConfig = {
     },
 
     // IMPORTANT: This runs in middleware too!
-    async authorized({ request, auth }) {
+    async authorized({ request, auth }: any) {
       const { pathname } = request.nextUrl;
       
       // Allow all auth routes
@@ -115,7 +114,7 @@ const config: NextAuthConfig = {
       
       // Public routes that don't need auth
       const publicRoutes = ["/", "/api/auth"];
-      if (publicRoutes.some(route => pathname.startsWith(route))) {
+      if (publicRoutes.some((route: string) => pathname.startsWith(route))) {
         return true;
       }
       
@@ -130,7 +129,7 @@ const config: NextAuthConfig = {
       return true;
     },
 
-    async signIn({ user, account }) {
+    async signIn({ user, account }: any) {
       // Allow social sign-ins without email verification
       if (account?.provider !== "credentials") return true;
 
@@ -146,7 +145,7 @@ const config: NextAuthConfig = {
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
-      profile(profile) {
+      profile(profile: any) {
         return {
           id: profile.id.toString(),
           name: profile.name || profile.login,
@@ -161,7 +160,7 @@ const config: NextAuthConfig = {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
-      profile(profile) {
+      profile(profile: any) {
         return {
           id: profile.sub,
           name: profile.name,
