@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ExportOptions } from "@/components/reports/ExportOptions";
+import { ExportOptions, ExportFormat } from "@/components/reports/ExportOptions";
 
 export const metadata: Metadata = {
   title: "Generate Report | Dashboard",
@@ -14,6 +14,27 @@ export const metadata: Metadata = {
 };
 
 export default async function GenerateReportPage() {
+  // Export handler functions would be implemented here
+  const handleFinancialExport = async (format: ExportFormat) => {
+    // Implement financial report export logic
+    console.log(`Exporting financial report as ${format}`);
+  };
+
+  const handleServicesExport = async (format: ExportFormat) => {
+    // Implement services report export logic
+    console.log(`Exporting services report as ${format}`);
+  };
+
+  const handleComplaintsExport = async (format: ExportFormat) => {
+    // Implement complaints report export logic
+    console.log(`Exporting complaints report as ${format}`);
+  };
+
+  const handleContractsExport = async (format: ExportFormat) => {
+    // Implement contracts report export logic
+    console.log(`Exporting contracts report as ${format}`);
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2 mb-2">
@@ -53,9 +74,8 @@ export default async function GenerateReportPage() {
               </div>
               
               <ExportOptions 
-                reportType="financial"
-                formats={["excel", "pdf", "csv"]}
-                schedulingEnabled={true}
+                onExport={handleFinancialExport}
+                allowedFormats={["excel", "pdf", "csv"]}
               />
             </div>
           </Card>
@@ -75,9 +95,8 @@ export default async function GenerateReportPage() {
               </div>
               
               <ExportOptions 
-                reportType="services"
-                formats={["excel", "pdf", "csv"]}
-                schedulingEnabled={true}
+                onExport={handleServicesExport}
+                allowedFormats={["excel", "pdf", "csv"]}
               />
             </div>
           </Card>
@@ -97,9 +116,8 @@ export default async function GenerateReportPage() {
               </div>
               
               <ExportOptions 
-                reportType="complaints"
-                formats={["excel", "pdf", "csv"]}
-                schedulingEnabled={true}
+                onExport={handleComplaintsExport}
+                allowedFormats={["excel", "pdf", "csv"]}
               />
             </div>
           </Card>
@@ -119,9 +137,8 @@ export default async function GenerateReportPage() {
               </div>
               
               <ExportOptions 
-                reportType="contracts"
-                formats={["excel", "pdf", "csv"]}
-                schedulingEnabled={true}
+                onExport={handleContractsExport}
+                allowedFormats={["excel", "pdf", "csv"]}
               />
             </div>
           </Card>

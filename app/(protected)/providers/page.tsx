@@ -37,9 +37,10 @@ export default async function ProvidersPage() {
     return <div>Unauthenticated</div>;
   }
 
-  const userRole = session.user?.role as UserRole;
+  const userRole = session.user?.role;
   
-  if (![UserRole.ADMIN, UserRole.MANAGER].includes(userRole)) {
+  // Type guard to check if userRole is ADMIN or MANAGER
+  if (!userRole || (userRole !== UserRole.ADMIN && userRole !== UserRole.MANAGER)) {
     return <div>Unauthorized</div>;
   }
   
@@ -49,15 +50,15 @@ export default async function ProvidersPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-wide text-gray-900 dark:text-gray-100">
-            Providers & Security
+            Providers &amp; Security
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
             Manage providers and sender blacklist for your system
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <a
-            href="/providers/new"
+          
+            <a href="/providers/new"
             className="relative inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out overflow-hidden h-11 px-6 text-white bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:-translate-y-0.5 active:translate-y-0"
           >
             Create Provider
