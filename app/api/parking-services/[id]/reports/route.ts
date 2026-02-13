@@ -7,6 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Properly await the params promise
     const { id } = await params;
     const parkingServiceId = id;
 
@@ -17,7 +18,7 @@ export async function GET(
       );
     }
 
-    // Verify parking service exists
+    // First, verify the parking service exists
     const parkingService = await db.parkingService.findUnique({
       where: { id: parkingServiceId },
     });
@@ -29,34 +30,51 @@ export async function GET(
       );
     }
 
-    // Get aggregated transaction data as "reports"
+    // Get transactions grouped by date or other report-like data
+    const transactions = await db.parkingTransaction.findMany({
+      where: { parkingServiceId },
+      orderBy: { date: "desc" },
+      select: {
+        id: true,
+        date: true,
+        group: true,
+        serviceName: true,
+        amount: true,
+        quantity: true,
+        createdAt: true,
+      },
+      take: 100, // Limit for performance
+    });
+
+    // Or if you want to aggregate by date for a report-like structure
     const reports = await db.parkingTransaction.groupBy({
-      by: ['date'],
+      by: ['date', 'group'],
       where: { parkingServiceId },
       _sum: {
         amount: true,
         quantity: true,
       },
-      _count: {
-        id: true,
-      },
+      _count: true,
       orderBy: {
         date: 'desc',
       },
     });
 
-    // Format as report objects
-    const formattedReports = reports.map((report) => ({
-      id: report.date.toISOString(),
-      title: `Report for ${report.date.toLocaleDateString('sr-RS')}`,
-      createdAt: report.date,
-      status: 'completed',
-      totalAmount: report._sum.amount || 0,
-      totalQuantity: report._sum.quantity || 0,
-      transactionCount: report._count.id,
-    }));
-
-    return NextResponse.json({ reports: formattedReports });
+    return NextResponse.json({ 
+      parkingService: {
+        id: parkingService.id,
+        name: parkingService.name,
+      },
+      reports: reports.map(report => ({
+        id: `${report.date.toISOString()}-${report.group}`,
+        title: `${report.group} - ${report.date.toLocaleDateString()}`,
+        date: report.date,
+        group: report.group,
+        totalAmount: report._sum.amount,
+        totalQuantity: report._sum.quantity,
+        transactionCount: report._count,
+      }))
+    });
   } catch (error) {
     console.error("Failed to fetch reports:", error);
     return NextResponse.json(
