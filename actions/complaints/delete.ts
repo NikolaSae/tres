@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 export async function deleteComplaint(id: string) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return {
         error: "Unauthorized. Please sign in to delete a complaint.",
       };

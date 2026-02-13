@@ -18,7 +18,7 @@ export type ImportResult = {
 export async function importComplaints(formData: FormData): Promise<ImportResult> {
   const session = await auth();
 
-  if (!session?.user || !["ADMIN", "MANAGER"].includes(session.user.role)) {
+  if (!session?.user?.id || !["ADMIN", "MANAGER"].includes(session.user.role)) {
     return {
       success: false,
       message: "Unauthorized access",

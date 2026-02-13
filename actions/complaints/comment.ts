@@ -17,7 +17,7 @@ export type CommentFormData = z.infer<typeof commentSchema>;
 export async function addComment(data: CommentFormData) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return {
         error: "Unauthorized. Please sign in to add a comment.",
       };

@@ -25,7 +25,7 @@ export async function linkServiceToContract(
 ): Promise<LinkServiceToContractResult> {
   try {
     const currentUser = await getCurrentUser();
-    if (!currentUser) {
+    if (!currentUser || !currentUser.id) {
       return { success: false, error: "Unauthorized" };
     }
 

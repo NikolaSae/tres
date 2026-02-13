@@ -15,9 +15,9 @@ export async function updateBulkService(id: string, data: unknown) {
   try {
     const currentUser = await getCurrentUser();
     
-    if (!currentUser) {
-      throw new Error("Unauthorized");
-    }
+    if (!currentUser || !currentUser.id) {
+    throw new Error("Unauthorized");
+  }
 
     // Check if bulk service exists
     const existingBulkService = await db.bulkService.findUnique({

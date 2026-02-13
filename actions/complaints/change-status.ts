@@ -21,7 +21,7 @@ export type StatusChangeFormData = z.infer<typeof statusChangeSchema>;
 export async function changeComplaintStatus(data: StatusChangeFormData) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return { error: "Unauthorized. Please sign in to update status." };
     }
 

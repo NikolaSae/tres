@@ -18,7 +18,7 @@ export const updateHumanitarianOrg = async (id: string, values: HumanitarianOrgF
     const validatedData = validatedFields.data;
 
     const session = await auth();
-    if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
+    if (!session?.user?.id || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
         return { error: "Unauthorized", success: false };
     }
 

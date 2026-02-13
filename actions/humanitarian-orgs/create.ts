@@ -20,7 +20,7 @@ export const createHumanitarianOrg = async (values: HumanitarianOrgFormData) => 
     const validatedData = validatedFields.data;
 
     const session = await auth();
-    if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
+    if (!session?.user?.id || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
         return { error: "Unauthorized", success: false };
     }
 

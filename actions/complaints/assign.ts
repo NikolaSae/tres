@@ -23,7 +23,7 @@ export async function assignComplaint({ complaintId, userId }: AssignComplaintPa
     const session = await auth();
 
     // Check if the user is authenticated and has the necessary role (Admin or Manager)
-    if (!session || !session.user || (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.MANAGER)) {
+    if (!session || !session.user || !session.user.id || (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.MANAGER)) {
       return { error: "Unauthorized" };
     }
 
