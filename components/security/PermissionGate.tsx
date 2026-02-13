@@ -1,51 +1,230 @@
-///components/security/PermissionGate.tsx
-
+// components/security/PerformanceMetrics.tsx
 "use client";
 
-import React from "react";
-import { useSession } from "next-auth/react";
-import { UserRole } from "@prisma/client";
+import React, { useState } from 'react';
+import { usePerformanceMetrics, TimeRange } from "@/hooks/use-performance-metrics";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Loader2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { format } from 'date-fns';
+import { AlertTriangle, Cpu, Activity, Clock, HardDrive } from "lucide-react";
 
-interface PermissionGateProps {
-  children: React.ReactNode;
-  allowedRoles?: UserRole[];
-  fallback?: React.ReactNode;
+// Tip podataka za metrike (prilagodite prema vašem API-ju)
+interface PerformanceDataPoint {
+  timestamp: string | Date;
+  requestCount: number | null;
+  responseTime: number | null;
+  errorRate: number | null;
+  cpuUsage: number | null;
+  memoryUsage: number | null;
 }
 
-/**
- * A component that conditionally renders children based on user role permissions
- * 
- * @param children - Content to show if user has permission
- * @param allowedRoles - Array of roles that are allowed to view the content
- * @param fallback - Optional content to show if user doesn't have permission
- */
-const PermissionGate: React.FC<PermissionGateProps> = ({
-  children,
-  allowedRoles = [],
-  fallback = null,
-}) => {
-  const { data: session, status } = useSession();
-  const userRole = session?.user?.role as UserRole | undefined;
-  
-  // Loading state
-  if (status === "loading") {
-    return <div className="animate-pulse p-4">Loading permissions...</div>;
-  }
-  
-  // Not authenticated
-  if (status !== "authenticated" || !session) {
-    return <>{fallback}</>;
-  }
-  
-  // Always allow ADMIN role
-  if (userRole === UserRole.ADMIN) {
-    return <>{children}</>;
-  }
-  
-  // Check if user role is in allowed roles
-  const hasPermission = allowedRoles.length === 0 || (userRole && allowedRoles.includes(userRole));
-  
-  return hasPermission ? <>{children}</> : <>{fallback}</>;
+// Helper funkcija za formatiranje vrednosti
+const formatValue = (value: number | null, type: string): string => {
+    if (value === null) return "--";
+    switch(type) {
+        case "time": return `${value.toFixed(2)}ms`;
+        case "percentage": return `${value.toFixed(2)}%`;
+        case "count": return value.toLocaleString();
+        case "memory":
+             if (value === 0) return "0 GB";
+             const gb = value / (1024 * 1024 * 1024);
+             if (gb < 1) {
+                 const mb = value / (1024 * 1024);
+                 return `${mb.toFixed(2)} MB`;
+             }
+             return `${gb.toFixed(2)} GB`;
+        default: return value.toString();
+    }
+}
+
+const PerformanceMetrics: React.FC = () => {
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>("24h");
+
+  const { data, isLoading, error, refresh } = usePerformanceMetrics(selectedTimeRange);
+
+  const handleTimeRangeChange = (value: string) => {
+    setSelectedTimeRange(value as TimeRange);
+  };
+
+  // Izračunavanje sumarnih metrika
+  const calculateSummary = (data: PerformanceDataPoint[] | null | undefined): {
+      totalRequests: number;
+      avgResponseTime: number | null;
+      errorRate: number | null;
+      avgCpuUsage: number | null;
+      avgMemoryUsage: number | null;
+  } => {
+      if (!data || data.length === 0) {
+          return {
+              totalRequests: 0,
+              avgResponseTime: null,
+              errorRate: null,
+              avgCpuUsage: null,
+              avgMemoryUsage: null,
+          };
+      }
+
+      const totalRequests = data.reduce((sum: number, point: PerformanceDataPoint) => sum + (point.requestCount ?? 0), 0);
+      const totalResponseTime = data.reduce((sum: number, point: PerformanceDataPoint) => sum + (point.responseTime ?? 0), 0);
+      const totalErrorRate = data.reduce((sum: number, point: PerformanceDataPoint) => sum + (point.errorRate ?? 0), 0);
+      const totalCpuUsage = data.reduce((sum: number, point: PerformanceDataPoint) => sum + (point.cpuUsage ?? 0), 0);
+      const totalMemoryUsage = data.reduce((sum: number, point: PerformanceDataPoint) => sum + (point.memoryUsage ?? 0), 0);
+
+      const count = data.length;
+      const avgResponseTime = count > 0 ? totalResponseTime / count : null;
+      const avgErrorRate = count > 0 ? totalErrorRate / count : null;
+      const avgCpuUsage = count > 0 ? totalCpuUsage / count : null;
+      const avgMemoryUsage = count > 0 ? totalMemoryUsage / count : null;
+
+      return {
+          totalRequests,
+          avgResponseTime,
+          errorRate: avgErrorRate,
+          avgCpuUsage,
+          avgMemoryUsage,
+      };
+  };
+
+  const summary = calculateSummary(data);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div className="space-y-1">
+          <CardTitle>Performance Overview</CardTitle>
+          <CardDescription>
+            Overall system performance metrics over time.
+          </CardDescription>
+        </div>
+        <div className="flex items-center gap-4">
+           <div className="flex items-center gap-2">
+               <Label htmlFor="timeRange">Time Range:</Label>
+               <Select value={selectedTimeRange} onValueChange={handleTimeRangeChange}>
+                   <SelectTrigger id="timeRange" className="w-[180px]">
+                       <SelectValue placeholder="Select time range" />
+                   </SelectTrigger>
+                   <SelectContent>
+                       <SelectItem value="1h">Last 1 Hour</SelectItem>
+                       <SelectItem value="6h">Last 6 Hours</SelectItem>
+                       <SelectItem value="24h">Last 24 Hours</SelectItem>
+                       <SelectItem value="7d">Last 7 Days</SelectItem>
+                       <SelectItem value="30d">Last 30 Days</SelectItem>
+                       <SelectItem value="all">All Time</SelectItem>
+                   </SelectContent>
+               </Select>
+           </div>
+           <Button variant="outline" size="sm" onClick={refresh} disabled={isLoading}>
+               {isLoading ? (
+                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+               ) : (
+                   <RefreshCw className="h-4 w-4 mr-2" />
+               )}
+               Refresh
+           </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+             <Card>
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                 </CardHeader>
+                 <CardContent>
+                      <div className="text-2xl font-bold">
+                           {formatValue(summary.totalRequests, "count")}
+                      </div>
+                      <p className="text-xs text-muted-foreground">in selected range</p>
+                 </CardContent>
+             </Card>
+              <Card>
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                 </CardHeader>
+                 <CardContent>
+                      <div className="text-2xl font-bold">
+                           {formatValue(summary.avgResponseTime, "time")}
+                      </div>
+                      <p className="text-xs text-muted-foreground">in selected range</p>
+                 </CardContent>
+             </Card>
+              <Card>
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Avg Error Rate</CardTitle>
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                 </CardHeader>
+                 <CardContent>
+                      <div className="text-2xl font-bold">
+                           {formatValue(summary.errorRate, "percentage")}
+                      </div>
+                      <p className="text-xs text-muted-foreground">in selected range</p>
+                 </CardContent>
+             </Card>
+              <Card>
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Avg System Resources</CardTitle>
+                      <Cpu className="h-4 w-4 text-muted-foreground" />
+                 </CardHeader>
+                 <CardContent>
+                      <div className="text-lg font-bold">
+                           CPU: {formatValue(summary.avgCpuUsage, "percentage")}
+                      </div>
+                       <div className="text-lg font-bold">
+                           Mem: {formatValue(summary.avgMemoryUsage, "memory")}
+                      </div>
+                      <p className="text-xs text-muted-foreground">in selected range</p>
+                 </CardContent>
+             </Card>
+         </div>
+
+        {isLoading && (
+          <div className="flex justify-center items-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center text-destructive">
+            <p>{error}</p>
+            <Button variant="outline" onClick={refresh} className="mt-4">
+              Try Again
+            </Button>
+          </div>
+        )}
+
+        {data && data.length > 0 && (
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold mt-4">Raw Data Points:</h4>
+            <div className="max-h-96 overflow-y-auto border rounded-md p-4">
+                <ul className="space-y-2 text-sm">
+                    {data.map((point: PerformanceDataPoint, index: number) => (
+                        <li key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
+                           <strong>{format(new Date(point.timestamp), 'yyyy-MM-dd HH:mm:ss')}:</strong>
+                           {' '} Response: {formatValue(point.responseTime, 'time')},
+                           {' '} Requests: {formatValue(point.requestCount, 'count')},
+                           {' '} Errors: {formatValue(point.errorRate, 'percentage')},
+                           {' '} CPU: {formatValue(point.cpuUsage, 'percentage')},
+                           {' '} Memory: {formatValue(point.memoryUsage, 'memory')}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+          </div>
+        )}
+
+         {data && data.length === 0 && !isLoading && !error && (
+             <div className="text-center text-muted-foreground py-8">
+                 No performance data available for the selected time range.
+             </div>
+         )}
+
+      </CardContent>
+    </Card>
+  );
 };
 
-export default PermissionGate;
+export default PerformanceMetrics;

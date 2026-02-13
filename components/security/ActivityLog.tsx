@@ -1,5 +1,3 @@
-// Final ActivityLog.tsx code (with optional initial props, adjusted useEffect, debouncing, split Entity columns, NO console logs)
-
 // Path: components/security/ActivityLog.tsx
 
 "use client";
@@ -37,8 +35,8 @@ import {
   PaginationEllipsis
 } from "@/components/ui/pagination";
 
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -78,10 +76,10 @@ interface PaginationInfo {
 }
 
 interface ActivityLogProps {
-  initialLogs?: ActivityLogEntry[]; // Make prop optional
-  initialPagination?: PaginationInfo; // Make prop optional
+  initialLogs?: ActivityLogEntry[];
+  initialPagination?: PaginationInfo;
   showFilters?: boolean;
-  initialLimit?: number; // Use this if initialPagination.limit is not provided
+  initialLimit?: number;
 }
 
 const possibleEntityTypes = ['User', 'Contract', 'Provider', 'Organization', 'System', 'Report', 'complaint', 'Settings'];
@@ -91,9 +89,8 @@ export default function ActivityLog({
   initialLogs,
   initialPagination,
   showFilters = true,
-  initialLimit = 20 // Default value for limit if not in initialPagination
+  initialLimit = 20
 }: ActivityLogProps) {
-  // Initialize state based on provided initial props or defaults
   const defaultLimit = initialPagination?.limit || initialLimit;
   const [logs, setLogs] = useState<ActivityLogEntry[]>(initialLogs || []);
   const [pagination, setPagination] = useState<PaginationInfo>(initialPagination || { total: 0, page: 1, limit: defaultLimit, totalPages: 0 });
@@ -111,7 +108,6 @@ export default function ActivityLog({
 
   const debouncedUserName = useDebounce(filters.userName, 500);
 
-  // Initialize currentPage and currentLimit based on initialPagination or defaults
   const [currentPage, setCurrentPage] = useState(initialPagination?.page || 1);
   const [currentLimit, setCurrentLimit] = useState(initialPagination?.limit || defaultLimit);
 
@@ -130,7 +126,6 @@ export default function ActivityLog({
     }
 
     if (filters.userId) params.append("userId", filters.userId);
-    // Use the immediate userName state for param building (debounce controls when the effect that calls this runs)
     if (filters.userName) params.append("userName", filters.userName);
 
 
@@ -174,25 +169,13 @@ export default function ActivityLog({
   };
 
    useEffect(() => {
-        // This flag ensures the effect runs only AFTER the very first render.
-        // If initialLogs were provided, the state is initialized, and this first run will be skipped by this flag.
-        // If initialLogs were NOT provided, the state is initialized to defaults, this flag still runs,
-        // and the fetchLogs() call *inside* this useEffect will be the *first* fetch.
-
         if (isInitialMount.current) {
           isInitialMount.current = false;
-          // If initialLogs were PROVIDED, we want to skip the fetch ONCE.
-          // If initialLogs were NOT PROVIDED, we WANT to fetch on the first render.
-          // So, skip if initialLogs was explicitly passed as a prop (even if empty array).
-          // Check for initialLogs !== undefined to distinguish from not passed at all.
           if (initialLogs !== undefined) {
-             return; // Skip fetch on initial mount if initial data was explicitly provided
+             return;
           }
         }
 
-        // This fetchLogs call will run on:
-        // 1. The very first render IF initialLogs was undefined (due to the !isInitialMount check logic)
-        // 2. Subsequent renders when any dependency changes (because !isInitialMount.current is true)
         fetchLogs();
 
    }, [filters.action, filters.entityType, filters.severity, filters.userId, filters.startDate, filters.endDate, debouncedUserName, currentPage, currentLimit]);
@@ -205,7 +188,7 @@ export default function ActivityLog({
 
   const handleFilterChange = (name: string, value: any) => {
     setFilters(prev => ({ ...prev, [name]: value }));
-     setCurrentPage(1); // Reset page for any filter change
+     setCurrentPage(1);
   };
 
     const handlePageChange = (page: number) => {
@@ -532,7 +515,10 @@ export default function ActivityLog({
                <Pagination>
                     <PaginationContent>
                         <PaginationItem>
-                            <PaginationPrevious onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page <= 1 || loading} />
+                            <PaginationPrevious 
+                              onClick={() => handlePageChange(pagination.page - 1)} 
+                              className={pagination.page <= 1 || loading ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                            />
                         </PaginationItem>
 
                          {getPaginationPages().map((page, index) => (
@@ -555,7 +541,10 @@ export default function ActivityLog({
 
 
                         <PaginationItem>
-                            <PaginationNext onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages || loading} />
+                            <PaginationNext 
+                              onClick={() => handlePageChange(pagination.page + 1)} 
+                              className={pagination.page >= pagination.totalPages || loading ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                            />
                         </PaginationItem>
                     </PaginationContent>
                 </Pagination>

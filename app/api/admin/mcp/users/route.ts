@@ -2,6 +2,7 @@
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,8 +31,6 @@ export async function GET(req: NextRequest) {
         isActive: true,
         createdAt: true,
         updatedAt: true,
-        // Uklonjen lastLoginAt jer ne postoji u shemi
-        // Možete dodati emailVerified ako je potrebno
         emailVerified: true
       }
     });
@@ -54,7 +53,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Ako želite da dodajete i ostale CRUD operacije
 export async function PATCH(req: NextRequest) {
   try {
     const session = await auth();
@@ -111,10 +109,13 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error('Error updating user:', error);
     
-    if (error.code === 'P2025') {
-      return Response.json({ 
-        error: 'User not found' 
-      }, { status: 404 });
+    // Type guard za Prisma error
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return Response.json({ 
+          error: 'User not found' 
+        }, { status: 404 });
+      }
     }
     
     return Response.json({ 
