@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ServiceType } from "@prisma/client";
 import { 
   ArrowUpDown, 
   Check, 
@@ -51,7 +52,10 @@ export function ServiceList({ serviceType }: ServiceListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const { services, isLoading, error } = useServices({ type: serviceType });
+  // Cast serviceType to ServiceType if it's defined
+  const typedServiceType = serviceType as ServiceType | undefined;
+  
+  const { services, loading, error } = useServices({ type: typedServiceType });
   const [sortField, setSortField] = useState<string>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
@@ -171,7 +175,7 @@ export function ServiceList({ serviceType }: ServiceListProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {loading ? (
                 Array.from({ length: Math.min(itemsPerPage, 5) }).map((_, index) => (
                   <TableRow key={index}>
                     <TableCell><Skeleton className="h-6 w-[150px]" /></TableCell>
@@ -268,14 +272,20 @@ function getServiceProviders(service: any) {
   const providers: any[] = [];
   
   if (service.vasServices) {
-    service.vasServices.forEach(vas => { if (vas.provider) providers.push(vas.provider); });
+    service.vasServices.forEach((vas: any) => { 
+      if (vas.provider) providers.push(vas.provider); 
+    });
   }
   
   if (service.bulkServices) {
-    service.bulkServices.forEach(bulk => { if (bulk.provider) providers.push(bulk.provider); });
+    service.bulkServices.forEach((bulk: any) => { 
+      if (bulk.provider) providers.push(bulk.provider); 
+    });
   }
   
-  const uniqueProviders = providers.filter((provider, index, self) => index === self.findIndex(p => p.id === provider.id));
+  const uniqueProviders = providers.filter((provider, index, self) => 
+    index === self.findIndex(p => p.id === provider.id)
+  );
   
   return uniqueProviders;
 }

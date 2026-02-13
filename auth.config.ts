@@ -1,4 +1,5 @@
-import type { NextAuthConfig } from "next-auth";
+//auth.config.ts
+
 import Credentials from "next-auth/providers/credentials";
 import { getUserByEmail } from "@/data/user";
 import { LoginSchema } from "@/schemas";
@@ -40,7 +41,7 @@ export default {
   ],
 
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }: any) {
       // Ako je nova prijava, upiši vrednosti
       if (user) {
         token.id = user.id;
@@ -69,7 +70,7 @@ export default {
       return token;
     },
 
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       return {
         ...session,
         user: {
@@ -81,7 +82,7 @@ export default {
       };
     },
 
-    async signIn({ user, account }) {
+    async signIn({ user, account }: any) {
       // Ako nije credentials login, pusti
       if (account?.provider !== "credentials") return true;
 
@@ -94,4 +95,4 @@ export default {
     signIn: "/auth/login",
     error: "/auth/error",
   },
-} satisfies NextAuthConfig;
+};

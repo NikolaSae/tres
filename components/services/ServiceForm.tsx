@@ -82,7 +82,8 @@ export function ServiceForm({ initialData, serviceId }: ServiceFormProps) {
             router.refresh();
         } else if (result?.error) {
             toast.error(result.error);
-            if (result.details) {
+            // Type guard to check if details exists
+            if ('details' in result && result.details) {
                 console.error('Validation details:', result.details);
             }
         } else {
