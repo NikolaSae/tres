@@ -13,9 +13,9 @@ export async function deleteBulkService(id: string) {
   try {
     const currentUser = await getCurrentUser();
     
-    if (!currentUser) {
-      throw new Error("Unauthorized");
-    }
+    if (!currentUser || !currentUser.id) {
+    throw new Error("Unauthorized");
+  }
 
     // Check if bulk service exists and get details for activity log
     const bulkService = await db.bulkService.findUnique({
