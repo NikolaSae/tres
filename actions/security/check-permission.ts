@@ -33,15 +33,25 @@ export async function checkPermission(
     } else {
       const session = await auth();
 
-      if (!session?.user) {
+      if (!session?.user?.id) {
         return false;
       }
 
-      user = {
-        id: session.user.id,
-        role: session.user.role as UserRole,
-        isActive: session.user.isActive ?? true,
-      };
+      // Fetch full user data from DB to get isActive status
+      const dbUser = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          id: true,
+          role: true,
+          isActive: true,
+        },
+      });
+
+      if (!dbUser) {
+        return false;
+      }
+
+      user = dbUser;
     }
 
     if (!user || !user.isActive) {

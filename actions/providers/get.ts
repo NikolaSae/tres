@@ -25,7 +25,8 @@ export async function getProviders(params: ProviderFilterOptions & {
 
     // Provera uloge
     const role = await currentRole();
-    if (![UserRole.ADMIN, UserRole.MANAGER].includes(role!)) {
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER];
+    if (!role || !allowedRoles.includes(role)) {
       return {
         data: [],
         total: 0,

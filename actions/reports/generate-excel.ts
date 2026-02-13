@@ -33,7 +33,7 @@ export async function generateExcelReport({
 }: ReportParams): Promise<ReportResult> {
   const user = await currentUser();
 
-  if (!user) {
+  if (!user || !user.id) {
     throw new Error("Authentication required");
   }
 
