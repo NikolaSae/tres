@@ -8,39 +8,14 @@ import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { loginSchema } from "@/schemas/auth";
+import { UserRole } from "@prisma/client";
 
-// Type extensions
-declare module "next-auth" {
-  interface User {
-    id: string;
-    role: string;
-    isActive: boolean;
-  }
-  
-  interface Session {
-    user: {
-      id: string;
-      name?: string | null;
-      email?: string | null;
-      role: string;
-      isActive: boolean;
-      image?: string | null;
-    };
-  }
-}
+// Note: Type extensions are already in next-auth.d.ts in root
 
-declare module "next-auth/jwt" {
-  interface JWT {
-    id: string;
-    role: string;
-    isActive: boolean;
-  }
-}
-
-const config = {
+export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { 
-    strategy: "jwt" as const,
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   
@@ -94,7 +69,7 @@ const config = {
     async session({ session, token }: any) {
       if (session.user && token) {
         session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.role = token.role;
         session.user.isActive = token.isActive as boolean;
       }
       return session;
@@ -142,8 +117,8 @@ const config = {
 
   providers: [
     GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
       profile(profile: any) {
         return {
@@ -151,14 +126,14 @@ const config = {
           name: profile.name || profile.login,
           email: profile.email,
           image: profile.avatar_url,
-          role: "USER",
+          role: UserRole.USER,
           isActive: true,
         };
       }
     }),
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
       profile(profile: any) {
         return {
@@ -166,7 +141,7 @@ const config = {
           name: profile.name,
           email: profile.email,
           image: profile.picture,
-          role: "USER",
+          role: UserRole.USER,
           isActive: true,
         };
       }
@@ -220,6 +195,4 @@ const config = {
   
   // Use consistent secret name
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-};
-
-export const { handlers, signIn, signOut, auth } = NextAuth(config);
+});
