@@ -78,7 +78,7 @@ export default async function ServicesByTypePage({ params }: ServicesByTypePageP
                 </div>
             </div>
 
-            <ServiceList initialFilters={{ type: serviceType }} />
+            <ServiceList />
 
         </div>
     );

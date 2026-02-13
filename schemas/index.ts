@@ -1,6 +1,5 @@
 //schemas/index.ts
 
-
 import { UserRole } from "@prisma/client";
 import * as z from "zod";
 
@@ -71,12 +70,11 @@ export const ResetSchemaLegacy = _resetPasswordSchema;
 
 // Operator and Security schemas are re-exported via "export *" below
 
-
 export const SettingsSchema = z
   .object({
     name: z.optional(z.string()),
     isTwoFactorEnabled: z.optional(z.boolean()),
-    role: z.enum([UserRole.ADMIN, UserRole.USER]),
+    role: z.enum([UserRole.ADMIN, UserRole.MANAGER, UserRole.AGENT, UserRole.USER]), // Dodati svi UserRole vrednosti
     email: z.optional(z.string().email()),
     password: z.optional(z.string().min(6)),
     newPassword: z.optional(z.string().min(6)),

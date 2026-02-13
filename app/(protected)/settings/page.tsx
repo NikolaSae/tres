@@ -1,3 +1,5 @@
+// app/(protected)/settings/page.tsx
+
 "use client";
 
 import * as z from "zod";
@@ -32,15 +34,23 @@ import { FormSuccess } from "@/components/form-success";
 
 import { settings } from "@/actions/settings";
 import { SettingsSchema } from "@/schemas";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { UserRole } from "@prisma/client";
 
+// Extended User type to match next-auth.d.ts
+interface ExtendedUser {
+  name?: string | null;
+  email?: string | null;
+  role?: UserRole;
+  isTwoFactorEnabled?: boolean;
+  isOAuth?: boolean;
+}
+
 export default function SettingsPage() {
-  const user = useCurrentUser();
+  const { data: session, update } = useSession();
+  const user = session?.user as ExtendedUser | undefined;
+  
   const [error, setError] = useState<string | undefined>("");
   const [success, setSuccess] = useState<string | undefined>("");
-
-  const { update } = useSession();
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<z.infer<typeof SettingsSchema>>({
@@ -71,6 +81,7 @@ export default function SettingsPage() {
         .catch(() => setError("Something went wrong!"));
     });
   };
+
   return (
     <Card className="w-[600px]">
       <CardHeader>
@@ -177,6 +188,8 @@ export default function SettingsPage() {
 
                     <SelectContent>
                       <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
+                      <SelectItem value={UserRole.MANAGER}>Manager</SelectItem>
+                      <SelectItem value={UserRole.AGENT}>Agent</SelectItem>
                       <SelectItem value={UserRole.USER}>User</SelectItem>
                     </SelectContent>
                   </Select>

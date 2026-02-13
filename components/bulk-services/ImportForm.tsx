@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BulkServiceImportResult } from "@/lib/types/bulk-service-types";
 import { Badge } from "@/components/ui/badge";
-import { TableCell, TableRow } from "@/components/ui/table"; // Dodajte ove import-e ako nedostaju
+import { TableCell, TableRow } from "@/components/ui/table";
 
 interface ImportFormProps {
   onSuccess?: (count: number) => void;
@@ -34,7 +34,6 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
     errors: 0, 
     errorDetails: [] as BulkServiceImportResult['invalidRows'],
     createdServices: [] as { id: string; name: string }[],
-    // createdProviders: [] as { id: string; name: string }[] // UKLONJENO: Nema više stanja za provajdere
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,7 +45,7 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
     setError(null);
     setImportSuccess(false);
     setPreviewData([]);
-    setImportStats({ imported: 0, failed: 0, errors: 0, errorDetails: [], createdServices: [] /*, createdProviders: []*/ }); // Resetuj
+    setImportStats({ imported: 0, failed: 0, errors: 0, errorDetails: [], createdServices: [] });
     
     // Check file type
     if (selectedFile.type !== "text/csv" && !selectedFile.name.endsWith('.csv')) {
@@ -117,12 +116,15 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file || !importDate) {
+      setError("File or import date is missing");
+      return;
+    }
     
     setIsUploading(true);
     setProgress(0);
     setError(null);
-    setImportStats({ imported: 0, failed: 0, errors: 0, errorDetails: [], createdServices: [] /*, createdProviders: []*/ }); // Resetuj
+    setImportStats({ imported: 0, failed: 0, errors: 0, errorDetails: [], createdServices: [] });
     
     try {
       const csvContent = await file.text();
@@ -147,7 +149,6 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
           errors: (result.invalidRows.length || 0) + (result.importErrors.length || 0),
           errorDetails: result.invalidRows,
           createdServices: result.createdServices || [],
-          // createdProviders: result.createdProviders || [] // UKLONJENO
         });
       } else {
         setImportSuccess(true);
@@ -157,14 +158,13 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
           errors: (result.invalidRows.length || 0) + (result.importErrors.length || 0),
           errorDetails: result.invalidRows,
           createdServices: result.createdServices || [],
-          // createdProviders: result.createdProviders || [] // UKLONJENO
         });
         
         if (onSuccess) {
           onSuccess(result.createdCount || 0);
         }
         
-        toast.success(`Import completed! Imported: ${result.createdCount}, Failed: ${result.invalidRows.length}, New Services: ${result.createdServices?.length || 0}`); // Prilagođena poruka
+        toast.success(`Import completed! Imported: ${result.createdCount}, Failed: ${result.invalidRows.length}, New Services: ${result.createdServices?.length || 0}`);
       }
     } catch (err) {
       setError(`Error importing data: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -181,7 +181,7 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
     setImportSuccess(false);
     setProgress(0);
     setImportDate(null);
-    setImportStats({ imported: 0, failed: 0, errors: 0, errorDetails: [], createdServices: [] /*, createdProviders: []*/ }); // Resetuj
+    setImportStats({ imported: 0, failed: 0, errors: 0, errorDetails: [], createdServices: [] });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -242,21 +242,6 @@ export function ImportForm({ onSuccess, onCancel }: ImportFormProps) {
                 </CardContent>
               </Card>
             </div>
-
-            {/* UKLONJENO: Nema više prikaza novokreiranih provajdera
-            {importStats.createdProviders && importStats.createdProviders.length > 0 && (
-                <div className="mt-4">
-                    <h4 className="text-lg font-semibold mb-2">New Providers Created:</h4>
-                    <div className="flex flex-wrap gap-2">
-                        {importStats.createdProviders.map((provider) => (
-                            <Badge key={provider.id} variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                                {provider.name}
-                            </Badge>
-                        ))}
-                    </div>
-                </div>
-            )}
-            */}
 
             {importStats.createdServices && importStats.createdServices.length > 0 && (
                 <div className="mt-4">

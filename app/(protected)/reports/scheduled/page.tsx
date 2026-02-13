@@ -1,8 +1,8 @@
 ///app/(protected)/reports/scheduled/page.tsx
 
-
 import { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft, Calendar, Clock, AlertCircle, CheckCircle } from "lucide-react";
@@ -18,6 +18,15 @@ export const metadata: Metadata = {
 export default async function ScheduledReportsPage() {
   // This would typically fetch scheduled reports from your database
   const scheduledReports = await getScheduledReports();
+  
+  const handleScheduleSubmit = async (data: any) => {
+    "use server";
+    // Handle schedule creation
+    console.log("Schedule submitted:", data);
+    // You would typically save this to your database here
+    // Then redirect to the active schedules tab
+    redirect("/reports/scheduled?tab=active");
+  };
   
   return (
     <div className="flex flex-col gap-5">
@@ -122,7 +131,7 @@ export default async function ScheduledReportsPage() {
         <TabsContent value="create" className="space-y-4">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Create Scheduled Report</h2>
-            <ScheduleForm />
+            <ScheduleForm onSubmit={handleScheduleSubmit} />
           </Card>
         </TabsContent>
       </Tabs>
