@@ -1,7 +1,7 @@
 // /app/(protected)/humanitarian-renewals/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react'; // Dodajte useCallback ovde
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarDays, FileText, AlertCircle, CheckCircle, Clock, Plus, Edit, Eye, Filter, Loader2, Trash2 } from 'lucide-react';
 import { useHumanitarianRenewals, useRenewalStatistics } from '@/hooks/use-humanitarian-renewals';
-import { useContracts } from '@/hooks/use-contracts'; // Pretpostavka: ovo je vaš useContracts hook
-import { useHumanitarianOrgs } from '@/hooks/use-humanitarian-orgs'; // Ispravljeno ime, trebalo bi da odgovara imenu hooka iz fajla
+import { useContracts } from '@/hooks/use-contracts';
+import { useHumanitarianOrgs } from '@/hooks/use-humanitarian-orgs';
 import { CreateHumanitarianRenewalInput, UpdateHumanitarianRenewalInput } from '@/schemas/humanitarian-renewal';
 import { HumanitarianRenewalWithRelations } from '@/lib/types/humanitarian-renewal-types';
 import { Pagination } from '@/components/ui/pagination';
@@ -36,7 +36,6 @@ const statusConfig = {
 
 interface RenewalFormProps {
   renewal?: HumanitarianRenewalWithRelations | null;
-  // Bolji tip za onSubmit
   onSubmit: (formData: Partial<CreateHumanitarianRenewalInput & UpdateHumanitarianRenewalInput>) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -57,10 +56,6 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
     notes: renewal?.notes || ''
   });
 
-  // Uskladjeno sa useContracts definicijom
-  // useContracts nema 'actions' objekat sa 'fetchContracts' metodom,
-  // već direktno vraća fetchContracts funkciju.
-  // Takođe, 'autoFetch' je 'fetchOnMount'.
   const {
     contracts,
     loading: contractsLoading,
@@ -68,10 +63,9 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
     fetchContracts
   } = useContracts({
     fetchOnMount: true,
-    limit: 1000 // Dovoljno veliki broj da dobijemo sve ugovore za dropdown
+    limit: 1000
   });
 
-  // ISPRAVKA 2: Pravilno korišćenje useHumanitarianOrgs hook-a 
   const {
     humanitarianOrgs,
     loading: orgsLoading,
@@ -79,9 +73,7 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
     refresh: fetchHumanitarianOrganizations
   } = useHumanitarianOrgs({}, { page: 1, limit: 1000 });
 
-  // ISPRAVKA 3: Dodavanje useEffect za eksplicitno dohvatanje podataka ako autoFetch ne radi
   useEffect(() => {
-    // Ako contracts nije učitano i nema loading-a, pokušaj ponovo
     if (!contracts && !contractsLoading && fetchContracts) {
       console.log('Ručno dohvatanje ugovora...');
       fetchContracts();
@@ -89,14 +81,12 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
   }, [contracts, contractsLoading, fetchContracts]);
 
   useEffect(() => {
-    // Ako humanitarianOrgs nije učitano i nema loading-a, pokušaj ponovo
     if (!humanitarianOrgs && !orgsLoading && fetchHumanitarianOrganizations) {
       console.log('Ručno dohvatanje organizacija...');
       fetchHumanitarianOrganizations();
     }
   }, [humanitarianOrgs, orgsLoading, fetchHumanitarianOrganizations]);
 
-  // ISPRAVKA 4: Debug logging za dijagnostiku
   useEffect(() => {
     console.log('RenewalForm - Contracts state:', {
       contracts: contracts?.length || 0,
@@ -152,7 +142,6 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
 
   return (
     <div className="space-y-4">
-      {/* ISPRAVKA 5: Dodaj error handling i debug informacije - konvertuj Error u string */}
       {contractsError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-md">
           <p className="text-sm text-red-600">Greška pri učitavanju ugovora: {contractsError.message || String(contractsError)}</p>
@@ -193,7 +182,6 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
               ))}
             </SelectContent>
           </Select>
-          {/* Debug info */}
           <p className="text-xs text-gray-500">
             Učitano ugovora: {contracts?.length || 0} | Loading: {contractsLoading ? 'Da' : 'Ne'}
           </p>
@@ -226,14 +214,12 @@ const RenewalForm: React.FC<RenewalFormProps> = ({ renewal = null, onSubmit, onC
               ))}
             </SelectContent>
           </Select>
-          {/* Debug info */}
           <p className="text-xs text-gray-500">
             Učitano organizacija: {humanitarianOrgs?.length || 0} | Loading: {orgsLoading ? 'Da' : 'Ne'}
           </p>
         </div>
       </div>
 
-      {/* Ostatak forme ostaje isti... */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="proposedStartDate">Predloženi početak</Label>
@@ -367,8 +353,8 @@ const HumanitarianRenewalsPage: React.FC = () => {
   const [selectedRenewal, setSelectedRenewal] = useState<HumanitarianRenewalWithRelations | null>(null);
 
   useEffect(() => {
-  fetchStatistics();
-}, []);
+    fetchStatistics();
+  }, [fetchStatistics]);
 
   const getProgressPercentage = (renewal: HumanitarianRenewalWithRelations) => {
     const steps = [
@@ -382,22 +368,20 @@ const HumanitarianRenewalsPage: React.FC = () => {
   };
 
   const handleCreateRenewal = async (formData: Partial<CreateHumanitarianRenewalInput>) => {
-    // Validacija praznih stringova
     const payload = {
       ...formData,
       contractId: formData.contractId === '' ? undefined : formData.contractId,
       humanitarianOrgId: formData.humanitarianOrgId === '' ? undefined : formData.humanitarianOrgId,
     } as CreateHumanitarianRenewalInput;
     const result = await createRenewal(payload);
-  if (result.success) {
-    setIsCreateDialogOpen(false);
-    fetchStatistics();
-  }
-};
+    if (result.success) {
+      setIsCreateDialogOpen(false);
+      fetchStatistics();
+    }
+  };
 
   const handleEditRenewal = async (formData: Partial<UpdateHumanitarianRenewalInput>) => {
     if (!selectedRenewal) return;
-    // Validacija praznih stringova
     const payload = {
       ...formData,
       contractId: formData.contractId === '' ? undefined : formData.contractId,
@@ -406,18 +390,18 @@ const HumanitarianRenewalsPage: React.FC = () => {
     const result = await updateRenewal(selectedRenewal.id, payload);
     if (result.success) {
       setIsEditDialogOpen(false);
-      setSelectedRenewal(null); // Resetujte odabranu obnovu
+      setSelectedRenewal(null);
     }
   };
 
   const handleDeleteRenewal = async (id: string) => {
-  if (window.confirm('Da li ste sigurni da želite da obrišete ovu obnovu?')) {
-    const result = await deleteRenewal(id);
-    if (result.success) {
-      fetchStatistics(); // ✅ Pozovi ovde umesto u useEffect
+    if (window.confirm('Da li ste sigurni da želite da obrišete ovu obnovu?')) {
+      const result = await deleteRenewal(id);
+      if (result.success) {
+        fetchStatistics();
+      }
     }
-  }
-};
+  };
 
   const handleFilterChange = (filterName: string, value: string) => {
     applyFilters({ ...filters, [filterName]: value === 'all' ? undefined : value });
@@ -441,7 +425,7 @@ const HumanitarianRenewalsPage: React.FC = () => {
           </p>
         </div>
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} key="create-dialog"> {/* Dodat key */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} key="create-dialog">
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -539,7 +523,7 @@ const HumanitarianRenewalsPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="statusFilter">Status obnove</Label>
-              <Select value={filters.subStatus || 'all'} onValueChange={(value) => handleFilterChange('subStatus', value)}>
+              <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value)}>
                 <SelectTrigger id="statusFilter">
                   <SelectValue placeholder="Svi statusi" />
                 </SelectTrigger>
@@ -553,12 +537,12 @@ const HumanitarianRenewalsPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="organizationFilter">Organizacija</Label>
+              <Label htmlFor="organizationFilter">ID Organizacije</Label>
               <Input
                 id="organizationFilter"
-                placeholder="Pretraži po organizaciji..."
-                value={filters.humanitarianOrgName || ''}
-                onChange={(e) => handleFilterChange('humanitarianOrgName', e.target.value)}
+                placeholder="Unesite ID organizacije..."
+                value={filters.organizationId || ''}
+                onChange={(e) => handleFilterChange('organizationId', e.target.value)}
               />
             </div>
 

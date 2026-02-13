@@ -1,5 +1,6 @@
 // /lib/types/humanitarian-renewal-types.ts
 import { Prisma } from "@prisma/client";
+import type { RenewalFilters as RenewalFiltersFromSchema } from "@/schemas/humanitarian-renewal";
 
 // Osnovni tip obnove sa uključenim relacijama
 export type HumanitarianRenewalWithRelations = Prisma.HumanitarianContractRenewalGetPayload<{
@@ -36,25 +37,8 @@ export type HumanitarianRenewalsList = {
   totalPages: number;
 };
 
-// Tip za filtriranje obnova
-export type RenewalFilters = {
-  page?: number;
-  limit?: number;
-  search?: string;
-  status?: string;
-  humanitarianOrgId?: string;
-  contractId?: string;
-  startDateFrom?: string;
-  startDateTo?: string;
-  endDateFrom?: string;
-  endDateTo?: string;
-  documentsReceived?: boolean;
-  legalApproved?: boolean;
-  financialApproved?: boolean;
-  signatureReceived?: boolean;
-  sortBy?: 'proposedStartDate' | 'proposedEndDate' | 'renewalStartDate' | 'createdAt' | 'updatedAt';
-  sortDirection?: 'asc' | 'desc';
-};
+// Uvezi RenewalFilters iz schema fajla umesto dupliciranja
+export type RenewalFilters = RenewalFiltersFromSchema;
 
 // Tip za dashboard statistike
 export type RenewalStatistics = {
