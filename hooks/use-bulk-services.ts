@@ -1,18 +1,38 @@
 ///hooks/use-bulk-services.ts
-
 "use client";
 
 import { useState, useEffect, useCallback, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { BulkService } from "@prisma/client";
 import { BulkServiceWithRelations, BulkServiceFilters } from "@/lib/types/bulk-service-types";
 
+// API response type for paginated data
+interface BulkServicesApiResponse {
+  data: BulkServiceWithRelations[];
+  meta: {
+    totalCount: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 // API functions for bulk services
 const API = {
-  getAll: async (filters?: BulkServiceFilters): Promise<BulkServiceWithRelations[]> => {
+  getAll: async (
+    filters?: BulkServiceFilters,
+    pagination?: { page: number; limit: number }
+  ): Promise<BulkServicesApiResponse> => {
     const params = new URLSearchParams();
     
+    // Add pagination params
+    if (pagination) {
+      params.append("page", pagination.page.toString());
+      params.append("limit", pagination.limit.toString());
+    }
+    
+    // Add filter params
     if (filters) {
       if (filters.providerId) params.append("providerId", filters.providerId);
       if (filters.serviceId) params.append("serviceId", filters.serviceId);
@@ -132,10 +152,14 @@ const API = {
   }
 };
 
-// Hook for bulk services list with filtering
-export function useBulkServices(initialFilters?: BulkServiceFilters) {
-  const [bulkServices, setBulkServices] = useState<BulkServiceWithRelations[]>([]);
+// Hook for bulk services list with filtering and pagination
+export function useBulkServices(
+  initialFilters?: BulkServiceFilters,
+  initialPagination: { page: number; limit: number } = { page: 1, limit: 10 }
+) {
+  const [bulkServices, setBulkServices] = useState<BulkServicesApiResponse | null>(null);
   const [filters, setFilters] = useState<BulkServiceFilters>(initialFilters || {});
+  const [pagination, setPaginationState] = useState(initialPagination);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -144,7 +168,7 @@ export function useBulkServices(initialFilters?: BulkServiceFilters) {
     setError(null);
     
     try {
-      const data = await API.getAll(filters);
+      const data = await API.getAll(filters, pagination);
       setBulkServices(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -152,7 +176,7 @@ export function useBulkServices(initialFilters?: BulkServiceFilters) {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, pagination]);
   
   useEffect(() => {
     fetchBulkServices();
@@ -160,10 +184,17 @@ export function useBulkServices(initialFilters?: BulkServiceFilters) {
   
   const updateFilters = useCallback((newFilters: Partial<BulkServiceFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
+    // Reset to page 1 when filters change
+    setPaginationState(prev => ({ ...prev, page: 1 }));
   }, []);
   
   const clearFilters = useCallback(() => {
     setFilters({});
+    setPaginationState(prev => ({ ...prev, page: 1 }));
+  }, []);
+  
+  const setPagination = useCallback((newPagination: { page: number; limit: number }) => {
+    setPaginationState(newPagination);
   }, []);
   
   return {
@@ -171,8 +202,10 @@ export function useBulkServices(initialFilters?: BulkServiceFilters) {
     loading,
     error,
     filters,
+    pagination,
     updateFilters,
     clearFilters,
+    setPagination,
     refresh: fetchBulkServices
   };
 }
@@ -239,7 +272,9 @@ export function useBulkService(id?: string) {
           ...updatedService,
           // Preserve the relations from previous state
           provider: prev.provider,
-          service: prev.service,
+          agreement: prev.agreement,
+          step: prev.step,
+          sender: prev.sender,
         };
       });
       

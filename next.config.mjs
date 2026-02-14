@@ -1,33 +1,11 @@
-// next.config.mjs
+// next.config.mjs - ČIST TURBOPACK PRISTUP
 import bundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
-  // OPTIMIZACIJA: Webpack config samo za production build
-  webpack: (config, { isServer, dev }) => {
-    // U development-u, pusti Next.js da upravlja kešem
-    // U production-u, optimizuj
-    if (!dev && !isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              chunks: 'all',
-            },
-          },
-        },
-      };
-    }
-    
-    return config;
+  // ✅ Turbopack config
+  turbopack: {
+    // Možete dodati Turbopack-specifične optimizacije ovde kasnije
   },
 
   images: {
@@ -76,13 +54,6 @@ const nextConfig = {
   output: 'standalone',
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
-  
-  // NOVO: Isključi webpack warning za velike stringove
-  onDemandEntries: {
-    // Period koliko stranica ostaje u memoriji
-    maxInactiveAge: 60 * 60 * 1000,
-    pagesBufferLength: 5,
-  },
 };
 
 const withBundleAnalyzer = bundleAnalyzer({

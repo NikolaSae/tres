@@ -86,7 +86,8 @@ export function ProviderList() {
     setLogRefreshKey(prev => prev + 1);
   }, []);
 
-  if (loading && providers.length === 0) {
+  // ✅ FIX: Check if providers is null/undefined
+  if (loading && (!providers || providers.length === 0)) {
     return <div className="text-center py-4">Loading providers...</div>;
   }
 
@@ -104,7 +105,8 @@ export function ProviderList() {
         loading={loading || actionLoading}
       />
 
-      {providers.length === 0 ? (
+      {/* ✅ FIX: Add null/undefined check before checking length */}
+      {!providers || providers.length === 0 ? (
         <div className="text-center py-8 bg-white rounded-md border">
           <p className="text-gray-500">No providers found matching your criteria.</p>
         </div>
@@ -117,7 +119,6 @@ export function ProviderList() {
               onStatusChange={handleStatusChange}
               onRenewContract={handleRenewContract}
               triggerLogRefresh={triggerLogRefresh}
-              // ✅ REMOVED: disabled prop - handle loading state inside ProviderCard if needed
             />
           ))}
         </div>
@@ -127,7 +128,6 @@ export function ProviderList() {
         <Pagination className="mt-6">
           <PaginationContent>
             <PaginationItem>
-              {/* ✅ FIX: Use className instead of disabled prop */}
               <PaginationPrevious
                 onClick={() => {
                   if (pagination.page > 1 && !loading && !actionLoading) {
@@ -145,7 +145,6 @@ export function ProviderList() {
               const pageNum = index + 1;
               return (
                 <PaginationItem key={pageNum}>
-                  {/* ✅ FIX: Use className instead of disabled prop */}
                   <PaginationLink
                     onClick={() => {
                       if (!loading && !actionLoading) {
@@ -161,7 +160,6 @@ export function ProviderList() {
               );
             })}
             <PaginationItem>
-              {/* ✅ FIX: Use className instead of disabled prop */}
               <PaginationNext
                 onClick={() => {
                   if (pagination.page < totalPages && !loading && !actionLoading) {

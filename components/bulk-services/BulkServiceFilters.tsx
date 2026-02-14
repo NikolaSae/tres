@@ -1,11 +1,9 @@
 //components/bulk-services/BulkServiceFilters.tsx
-
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { SearchIcon, FilterIcon, X, ChevronDown } from "lucide-react";
+import { SearchIcon, FilterIcon, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Card } from "@/components/ui/card";
 import { Provider, Service } from "@prisma/client";
 
 interface BulkServiceFiltersProps {
@@ -39,33 +37,30 @@ export const BulkServiceFilters = ({
   const searchParams = useSearchParams();
   
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [provider, setProvider] = useState(searchParams.get("provider") || "");
-  const [service, setService] = useState(searchParams.get("service") || "");
+  const [providerId, setProviderId] = useState(searchParams.get("providerId") || "");
+  const [serviceId, setServiceId] = useState(searchParams.get("serviceId") || "");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   
   // Count active filters
-  const activeFiltersCount = [provider, service].filter(Boolean).length;
+  const activeFiltersCount = [providerId, serviceId].filter(Boolean).length;
 
   // Handle filter changes
   const applyFilters = () => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams();
     
-    if (search) {
-      params.set("search", search);
-    } else {
-      params.delete("search");
+    // Always reset to page 1 when applying filters
+    params.set("page", "1");
+    
+    if (search.trim()) {
+      params.set("search", search.trim());
     }
     
-    if (provider) {
-      params.set("provider", provider);
-    } else {
-      params.delete("provider");
+    if (providerId) {
+      params.set("providerId", providerId);
     }
     
-    if (service) {
-      params.set("service", service);
-    } else {
-      params.delete("service");
+    if (serviceId) {
+      params.set("serviceId", serviceId);
     }
     
     router.push(`${pathname}?${params.toString()}`);
@@ -74,8 +69,8 @@ export const BulkServiceFilters = ({
   // Reset filters
   const resetFilters = () => {
     setSearch("");
-    setProvider("");
-    setService("");
+    setProviderId("");
+    setServiceId("");
     router.push(pathname);
   };
 
@@ -86,11 +81,11 @@ export const BulkServiceFilters = ({
     }
   };
 
-  // Apply filters on mount to sync with URL params
+  // Sync with URL params
   useEffect(() => {
     setSearch(searchParams.get("search") || "");
-    setProvider(searchParams.get("provider") || "");
-    setService(searchParams.get("service") || "");
+    setProviderId(searchParams.get("providerId") || "");
+    setServiceId(searchParams.get("serviceId") || "");
   }, [searchParams]);
 
   // Get provider and service names for badges
@@ -104,145 +99,187 @@ export const BulkServiceFilters = ({
     return found ? found.name : id;
   };
 
+  // Remove individual filter
+  const removeFilter = (filterType: 'provider' | 'service') => {
+    const params = new URLSearchParams(searchParams);
+    
+    if (filterType === 'provider') {
+      setProviderId("");
+      params.delete("providerId");
+    } else if (filterType === 'service') {
+      setServiceId("");
+      params.delete("serviceId");
+    }
+    
+    // Reset to page 1
+    params.set("page", "1");
+    
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   return (
-    <div className="mb-6 space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search bulk services..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-          />
-        </div>
-        <div className="flex gap-2">
-          <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <FilterIcon className="h-4 w-4" />
-                Filters
-                {activeFiltersCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 rounded-full px-1.5 py-0.5">
-                    {activeFiltersCount}
-                  </Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 sm:w-80 p-4" align="end">
-              <div className="space-y-4">
-                <h4 className="font-medium text-sm">Filter Bulk Services</h4>
-                
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">Provider</label>
-                  <Select value={provider} onValueChange={setProvider}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Providers</SelectItem>
-                      {providers.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">Service</label>
-                  <Select value={service} onValueChange={setService}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Services</SelectItem>
-                      {services
-                        .filter(s => s.type === 'BULK')
-                        .map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex justify-between pt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={resetFilters}
-                  >
-                    Reset
-                  </Button>
-                  <Button 
-                    size="sm"
-                    onClick={() => {
-                      applyFilters();
-                      setIsFiltersOpen(false);
-                    }}
-                  >
-                    Apply Filters
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+    <Card className="p-4 mb-6">
+      <div className="space-y-4">
+        {/* Search and Filter Controls */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by provider name..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+            />
+          </div>
           
-          <Button onClick={applyFilters}>
-            Search
-          </Button>
+          <div className="flex gap-2">
+            <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 whitespace-nowrap">
+                  <FilterIcon className="h-4 w-4" />
+                  Filters
+                  {activeFiltersCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 rounded-full px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center">
+                      {activeFiltersCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-4" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Filter Options</h4>
+                    {activeFiltersCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setProviderId("");
+                          setServiceId("");
+                        }}
+                      >
+                        Clear all
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Provider</label>
+                      <Select value={providerId} onValueChange={setProviderId}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="All providers" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All providers</SelectItem>
+                          {providers.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Service</label>
+                      <Select value={serviceId} onValueChange={setServiceId}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="All services" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All services</SelectItem>
+                          {services
+                            .filter(s => s.type === 'BULK')
+                            .map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end gap-2 pt-2 border-t">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setProviderId("");
+                        setServiceId("");
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button 
+                      size="sm"
+                      onClick={() => {
+                        applyFilters();
+                        setIsFiltersOpen(false);
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Button onClick={applyFilters}>
+              Search
+            </Button>
+          </div>
         </div>
+        
+        {/* Active Filters Display */}
+        {activeFiltersCount > 0 && (
+          <div className="flex flex-wrap gap-2 items-center pt-1">
+            <span className="text-xs font-medium text-muted-foreground">Active filters:</span>
+            
+            {providerId && (
+              <Badge 
+                variant="secondary" 
+                className="gap-1.5 pr-1 hover:bg-secondary/80 transition-colors"
+              >
+                <span className="text-xs">Provider: {getProviderName(providerId)}</span>
+                <button
+                  onClick={() => removeFilter('provider')}
+                  className="ml-1 rounded-full hover:bg-secondary-foreground/10 p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            
+            {serviceId && (
+              <Badge 
+                variant="secondary" 
+                className="gap-1.5 pr-1 hover:bg-secondary/80 transition-colors"
+              >
+                <span className="text-xs">Service: {getServiceName(serviceId)}</span>
+                <button
+                  onClick={() => removeFilter('service')}
+                  className="ml-1 rounded-full hover:bg-secondary-foreground/10 p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={resetFilters}
+            >
+              Clear all
+            </Button>
+          </div>
+        )}
       </div>
-      
-      {/* Active filters */}
-      {activeFiltersCount > 0 && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-sm text-muted-foreground">Active filters:</span>
-          
-          {provider && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Provider: {getProviderName(provider)}
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => {
-                  setProvider("");
-                  const params = new URLSearchParams(searchParams);
-                  params.delete("provider");
-                  router.push(`${pathname}?${params.toString()}`);
-                }}
-              />
-            </Badge>
-          )}
-          
-          {service && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Service: {getServiceName(service)}
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => {
-                  setService("");
-                  const params = new URLSearchParams(searchParams);
-                  params.delete("service");
-                  router.push(`${pathname}?${params.toString()}`);
-                }}
-              />
-            </Badge>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 text-xs text-muted-foreground"
-            onClick={resetFilters}
-          >
-            Clear all
-          </Button>
-        </div>
-      )}
-    </div>
+    </Card>
   );
 };

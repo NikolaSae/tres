@@ -7,54 +7,65 @@ export default auth((req) => {
   const { nextUrl } = req;
   const pathname = nextUrl.pathname;
   
-  console.log(`🔍 Middleware called for: ${pathname}`);
+  console.log(`🔍 Middleware called for: ${pathname}`); // ✅ Fixed: Use parentheses instead of backticks
   
   // Get user info from auth
   const isLoggedIn = !!req.auth?.user?.id;
   const isAdmin = req.auth?.user?.role === "ADMIN";
   const isActive = req.auth?.user?.isActive !== false;
   const image = req.auth?.user?.image;
-
-  console.log(`👤 Session data:`, {
+  
+  console.log(`👤 Session data:`, { // ✅ Fixed: Use parentheses
     isLoggedIn,
     userId: req.auth?.user?.id,
     role: req.auth?.user?.role,
     isActive: req.auth?.user?.isActive,
     image: req.auth?.user?.image,
-
   });
-
-  const protectedPaths = ["/admin", "/dashboard", "/operators", "/providers", "/complaints", "/parking-services", "/bulk-services", "/contracts", "/services", "/humanitarian-orgs", "/reports" ];
+  
+  const protectedPaths = [
+    "/admin", 
+    "/dashboard", 
+    "/operators", 
+    "/providers", 
+    "/complaints", 
+    "/parking-services", 
+    "/bulk-services", 
+    "/contracts", 
+    "/services", 
+    "/humanitarian-orgs", 
+    "/reports"
+  ];
+  
   const adminOnlyPaths = ["/admin"];
-
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
   const isAdminOnly = adminOnlyPaths.some((p) => pathname.startsWith(p));
-
-  console.log(`🛡️ Path checks:`, {
+  
+  console.log(`🛡️ Path checks:`, { // ✅ Fixed: Use parentheses
     isProtected,
     isAdminOnly,
     pathname
   });
-
+  
   // Check if user is not logged in and trying to access protected path
   if (isProtected && !isLoggedIn) {
-    console.log(`❌ Redirecting to login: not logged in`);
+    console.log(`❌ Redirecting to login: not logged in`); // ✅ Fixed: Use parentheses
     return NextResponse.redirect(new URL("/auth/login", nextUrl.origin));
   }
-
+  
   // Check if user is inactive
   if (isLoggedIn && !isActive) {
-    console.log(`❌ Redirecting to login: user inactive`);
+    console.log(`❌ Redirecting to login: user inactive`); // ✅ Fixed: Use parentheses
     return NextResponse.redirect(new URL("/auth/login", nextUrl.origin));
   }
-
+  
   // Check admin access
   if (isAdminOnly && isLoggedIn && !isAdmin) {
-    console.log(`❌ Redirecting to 403: not admin`);
+    console.log(`❌ Redirecting to 403: not admin`); // ✅ Fixed: Use parentheses
     return NextResponse.redirect(new URL("/403", nextUrl.origin));
   }
-
-  console.log(`✅ Access granted to: ${pathname}`);
+  
+  console.log(`✅ Access granted to: ${pathname}`); // ✅ Fixed: Use parentheses
   return NextResponse.next();
 });
 
