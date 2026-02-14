@@ -1,5 +1,4 @@
 // hooks/use-sender-blacklist.ts
-// hooks/use-sender-blacklist.ts
 import { useState, useEffect, useCallback } from "react";
 import { SenderBlacklistWithProvider } from "@/lib/types/blacklist";
 
@@ -13,12 +12,14 @@ export interface BlacklistPagination {
 export interface BlacklistFilters {
   senderName?: string;
   providerId?: string;
-  isActive?: boolean;
+  isActive?: boolean | null;
   dateFrom?: Date;
   dateTo?: Date;
 }
 
 export function useSenderBlacklist() {
+  console.log("[BLACKLIST_HOOK] Hook initialized"); // DEBUG
+
   const [entries, setEntries] = useState<SenderBlacklistWithProvider[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,24 +32,25 @@ export function useSenderBlacklist() {
   const [filters, setFilters] = useState<BlacklistFilters>({});
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Add refresh function
   const handleRefresh = useCallback(() => {
+    console.log("[BLACKLIST_HOOK] Refresh triggered"); // DEBUG
     setRefreshKey(prev => prev + 1);
   }, []);
 
-  // Handle filter changes
   const handleFilterChange = useCallback((newFilters: BlacklistFilters) => {
+    console.log("[BLACKLIST_HOOK] Filters changed:", newFilters); // DEBUG
     setFilters(newFilters);
-    // Reset to first page when filters change
     setPagination(prev => ({ ...prev, page: 1 }));
   }, []);
 
-  // Handle page changes
   const handlePageChange = useCallback((page: number) => {
+    console.log("[BLACKLIST_HOOK] Page changed:", page); // DEBUG
     setPagination(prev => ({ ...prev, page }));
   }, []);
 
   const fetchBlacklist = useCallback(async (page = 1) => {
+    console.log("[BLACKLIST_HOOK] fetchBlacklist called, page:", page); // DEBUG
+    
     setIsLoading(true);
     setError(null);
     
@@ -58,32 +60,29 @@ export function useSenderBlacklist() {
         pageSize: pagination.pageSize.toString(),
       });
 
-      // Add filters to params
       if (filters.senderName) {
         params.append('senderName', filters.senderName);
       }
-      if (filters.providerId) {
-        params.append('providerId', filters.providerId);
-      }
-      if (filters.isActive !== undefined) {
-        params.append('isActive', filters.isActive.toString());
-      }
-      if (filters.dateFrom) {
-        params.append('dateFrom', filters.dateFrom.toISOString());
-      }
-      if (filters.dateTo) {
-        params.append('dateTo', filters.dateTo.toISOString());
-      }
+      if (filters.isActive !== undefined && filters.isActive !== null) {
+  params.append('isActive', filters.isActive.toString());
+}
 
       params.append('refreshKey', refreshKey.toString());
 
-      const response = await fetch(`/api/sender-blacklist?${params.toString()}`);
+      const url = `/api/sender-blacklist?${params.toString()}`;
+      console.log("[BLACKLIST_HOOK] Fetching URL:", url); // DEBUG
+
+      const response = await fetch(url);
+      console.log("[BLACKLIST_HOOK] Response status:", response.status); // DEBUG
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[BLACKLIST_HOOK] Error response:", errorText); // DEBUG
         throw new Error(`Failed to fetch blacklist: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log("[BLACKLIST_HOOK] Response data:", data); // DEBUG
       
       setEntries(data.entries || []);
       setPagination({
@@ -93,20 +92,26 @@ export function useSenderBlacklist() {
         totalPages: data.pagination.totalPages,
       });
     } catch (err) {
-      console.error("Fetch blacklist error:", err);
+      console.error("[BLACKLIST_HOOK] Fetch error:", err); // DEBUG
       setError(err instanceof Error ? err.message : "Unknown error");
-      setEntries([]); // Set empty array on error
+      setEntries([]);
     } finally {
+      console.log("[BLACKLIST_HOOK] Fetch complete, isLoading set to false"); // DEBUG
       setIsLoading(false);
     }
   }, [pagination.pageSize, filters, refreshKey]);
 
   useEffect(() => {
+    console.log("[BLACKLIST_HOOK] useEffect triggered, pagination.page:", pagination.page); // DEBUG
     fetchBlacklist(pagination.page);
   }, [fetchBlacklist, pagination.page]);
 
-  // Calculate total count for display
-  const totalCount = pagination.total;
+  console.log("[BLACKLIST_HOOK] Returning state:", { 
+    entriesCount: entries.length, 
+    isLoading, 
+    error,
+    pagination 
+  }); // DEBUG
 
   return {
     entries,
@@ -114,7 +119,7 @@ export function useSenderBlacklist() {
     error,
     pagination,
     filters,
-    totalCount,
+    totalCount: pagination.total,
     handleFilterChange,
     handlePageChange,
     handleRefresh,

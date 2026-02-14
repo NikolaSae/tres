@@ -4,6 +4,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { LogOut, User, Settings } from "lucide-react";
+import { useRouter } from "next/navigation"; // ← DODAJ OVO
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 export function UserButton() {
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
+  const router = useRouter(); // ← DODAJ OVO
 
   useEffect(() => {
     setMounted(true);
@@ -81,28 +83,38 @@ export function UserButton() {
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
-            {/* ✅ Dodaj prikaz role */}
             <p className="text-xs leading-none text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-md w-fit mt-1">
               {user.role || "USER"}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        
+        {/* ✅ ISPRAVLJENO: Dodat onClick handler */}
+        <DropdownMenuItem 
+          className="cursor-pointer"
+          onClick={() => router.push("/profile")}
+        >
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        
+        {/* ✅ ISPRAVLJENO: Dodat onClick handler */}
+        <DropdownMenuItem 
+          className="cursor-pointer"
+          onClick={() => router.push("/settings")}
+        >
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>
+        
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          className="cursor-pointer"
           onClick={() => {
             console.log("[USER_BUTTON] Signing out...");
-            // ✅ ISPRAVI: /auth/signin → /auth/login
             signOut({ 
-              callbackUrl: "/auth/login",  // ← PROMENA OVDE
+              callbackUrl: "/auth/login",
               redirect: true 
             });
           }}

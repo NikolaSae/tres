@@ -1,5 +1,4 @@
 // app/api/sender-blacklist/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -16,10 +15,50 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const includeInactive = searchParams.get('includeInactive') === 'true';
+    
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    
+    // ✅ FIX: Bolja obrada isActive parametra
+    const isActiveParam = searchParams.get('isActive');
+    let isActive: boolean | undefined = undefined;
+    
+    if (isActiveParam === 'true') {
+      isActive = true;
+    } else if (isActiveParam === 'false') {
+      isActive = false;
+    }
+    // Ako je undefined, vraćamo sve zapise (i active i inactive)
+
+    const senderName = searchParams.get('senderName');
+
+    console.log("[API_BLACKLIST] Query params:", { page, pageSize, isActive, senderName }); // DEBUG
+
+    // Build where clause
+    const where: any = {};
+    
+    // ✅ FIX: Samo filtriraj po isActive ako je eksplicitno zadat
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+    
+    if (senderName) {
+      where.senderName = {
+        contains: senderName,
+        mode: 'insensitive'
+      };
+    }
+
+    console.log("[API_BLACKLIST] Where clause:", where); // DEBUG
+
+    const total = await prisma.senderBlacklist.count({ where });
+    console.log("[API_BLACKLIST] Total count:", total); // DEBUG
+
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const skip = (page - 1) * pageSize;
 
     const blacklist = await prisma.senderBlacklist.findMany({
-      where: includeInactive ? {} : { isActive: true },
+      where,
       select: {
         id: true,
         senderName: true,
@@ -47,73 +86,24 @@ export async function GET(request: NextRequest) {
       },
       orderBy: {
         createdAt: 'desc'
-      }
-    });
-
-    return NextResponse.json(blacklist);
-  } catch (error) {
-    console.error('Error fetching sender blacklist:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    
-    // ✅ FIX: Added check for session.user and session.user.id
-    if (!session || !session.user || !session.user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user has permission (ADMIN or MANAGER only)
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
-      return NextResponse.json(
-        { error: 'Forbidden - insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-
-    if (!body.senderName || !body.effectiveDate) {
-      return NextResponse.json(
-        { error: 'Sender name and effective date are required' },
-        { status: 400 }
-      );
-    }
-
-    // ✅ Now TypeScript knows session.user.id is string
-    const blacklistEntry = await prisma.senderBlacklist.create({
-      data: {
-        senderName: body.senderName,
-        effectiveDate: new Date(body.effectiveDate),
-        description: body.description,
-        isActive: body.isActive ?? true,
-        createdById: session.user.id,
       },
-      select: {
-        id: true,
-        senderName: true,
-        effectiveDate: true,
-        description: true,
-        isActive: true,
-        matchCount: true,
-        lastMatchDate: true,
-        createdAt: true,
-        updatedAt: true,
-      }
+      skip,
+      take: pageSize,
     });
 
-    return NextResponse.json(blacklistEntry, { status: 201 });
+    console.log("[API_BLACKLIST] Found entries:", blacklist.length); // DEBUG
+
+    return NextResponse.json({
+      entries: blacklist,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      }
+    });
   } catch (error) {
-    console.error('Error creating blacklist entry:', error);
+    console.error('[API_BLACKLIST] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

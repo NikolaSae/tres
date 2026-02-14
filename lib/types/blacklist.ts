@@ -14,10 +14,12 @@ export interface SenderBlacklistEntry {
   createdBy: {
     id: string;
     name?: string | null;
+    email: string;
   };
   modifiedBy?: { // ✅ Added for completeness
     id: string;
     name?: string | null;
+    email: string;
   } | null;
 }
 
