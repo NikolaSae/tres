@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   const session = await auth();
   
-  if (!session?.user?.email) {
+  // FIX: Dodaj proveru za session.user.id takođe
+  if (!session?.user?.id || !session?.user?.email) {
     return NextResponse.json(
       { error: "Authentication required" },
       { status: 401 }
@@ -65,8 +66,8 @@ export async function POST(req: Request) {
     // Kreiranje processor instance
     processor = new ParkingServiceProcessor(user.id);
 
-    // Kreiranje potrebnih direktorijuma
-    await processor.ensureDirectories();
+    // FIX: Uklonjen poziv ensureDirectories() - više ne postoji u klasi
+    // Direktorijumi se automatski kreiraju unutar processFileWithImport
 
     // GLAVNA FUNKCIJA - processFileWithImport umesto processExcelFile
     const result = await processor.processFileWithImport(filePath);

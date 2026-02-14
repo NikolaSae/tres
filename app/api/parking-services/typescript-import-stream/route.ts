@@ -89,21 +89,24 @@ export async function GET(request: Request) {
         }
       });
 
-      sendMessage({ type: 'log', message: 'Creating directories...', logType: 'info' });
-      await processor.ensureDirectories();
+      // ❌ OBRIŠI OVE DVE LINIJE (92-93):
+      // sendMessage({ type: 'log', message: 'Creating directories...', logType: 'info' });
+      // await processor.ensureDirectories();
 
       sendMessage({ type: 'log', message: 'Starting file processing...', logType: 'info' });
       
-      // Main processing function
+      // Main processing function - automatski kreira direktorijume
       const result = await processor.processFileWithImport(filePath);
+      
       if (!result) {
-  sendMessage({
-    type: 'error',
-    error: 'Processing did not return results'
-  });
-  writer.close();
-  return;
-}
+        sendMessage({
+          type: 'error',
+          error: 'Processing did not return results'
+        });
+        writer.close();
+        return;
+      }
+      
       // Send final results
       sendMessage({
         type: 'complete',

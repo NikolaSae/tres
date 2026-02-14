@@ -26,7 +26,8 @@ interface RequestBody {
 export async function POST(req: Request) {
   const session = await auth();
 
-  if (!session?.user?.email) {
+  // FIX: Dodaj proveru za session.user.id
+  if (!session?.user?.id || !session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
 
     console.log("✅ Outlook draft opened successfully!");
 
-    // Log draft creation
+    // Log draft creation - session.user.id is now guaranteed to be string
     const { db } = await import("@/lib/db");
     await db.activityLog.create({
       data: {
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
         entityId: serviceId,
         details: `Opened draft for ${reports.length} ${reportType} report(s) for ${monthName} ${year} to ${recipients.join(', ')}`,
         severity: "INFO",
-        userId: session.user.id,
+        userId: session.user.id, // ✅ Now type-safe
       },
     });
 

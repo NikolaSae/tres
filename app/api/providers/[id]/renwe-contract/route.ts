@@ -1,8 +1,8 @@
 // app/api/providers/[id]/renew-contract/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+import { db } from '@/lib/db'; // FIX: Promenjen import sa prisma na db
 
 export async function POST(
   request: NextRequest,
@@ -11,7 +11,8 @@ export async function POST(
   try {
     const session = await auth();
     
-    if (!session) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -30,7 +31,7 @@ export async function POST(
     const body = await request.json();
 
     // Verify provider exists
-    const provider = await prisma.provider.findUnique({
+    const provider = await db.provider.findUnique({
       where: { id: providerId },
       select: { id: true, name: true }
     });
@@ -43,7 +44,7 @@ export async function POST(
     }
 
     // Find existing active contract
-    const existingContract = await prisma.contract.findFirst({
+    const existingContract = await db.contract.findFirst({
       where: {
         providerId: providerId,
         status: 'ACTIVE',
@@ -64,8 +65,8 @@ export async function POST(
       );
     }
 
-    // Create new contract with renewal data
-    const newContract = await prisma.contract.create({
+    // Create new contract with renewal data - session.user.id is now guaranteed to be string
+    const newContract = await db.contract.create({
       data: {
         name: body.name || `${provider.name} - Renewed Contract`,
         contractNumber: body.contractNumber,
@@ -76,7 +77,7 @@ export async function POST(
         revenuePercentage: body.revenuePercentage || existingContract.revenuePercentage,
         description: body.description,
         providerId: providerId,
-        createdById: session.user.id,
+        createdById: session.user.id, // ✅ Now type-safe
         operatorRevenue: body.operatorRevenue,
         isRevenueSharing: body.isRevenueSharing ?? true,
         operatorId: body.operatorId,
@@ -97,11 +98,11 @@ export async function POST(
     });
 
     // Update old contract status to EXPIRED or TERMINATED
-    await prisma.contract.update({
+    await db.contract.update({
       where: { id: existingContract.id },
       data: {
         status: 'EXPIRED',
-        lastModifiedById: session.user.id,
+        lastModifiedById: session.user.id, // ✅ Now type-safe
       }
     });
 

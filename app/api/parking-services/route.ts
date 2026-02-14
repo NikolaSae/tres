@@ -1,124 +1,147 @@
-//app/api/parking-services/route.ts
+// app/api/parking-services/typescript-import-stream/route.ts
+import { NextResponse } from 'next/server';
+import { ParkingServiceProcessor } from '@/scripts/vas-import/ParkingServiceProcessor';
+import { db } from '@/lib/db';
+import { promises as fs } from 'fs';
 
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/auth";
-import { parkingServiceSchema } from "@/lib/parking-services/validators";
+export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const filePath = searchParams.get('filePath');
+  const userEmail = searchParams.get('userEmail');
+
+  // Validate inputs
+  if (!filePath || !userEmail) {
+    return NextResponse.json(
+      { error: 'Missing filePath or userEmail' },
+      { status: 400 }
+    );
+  }
+
+  // Provera fajla
   try {
-    const { searchParams } = new URL(req.url);
-    const name = searchParams.get("name") || undefined;
-    const isActive = searchParams.has("isActive") 
-      ? searchParams.get("isActive") === "true" 
-      : undefined;
-    const page = Number(searchParams.get("page")) || 1;
-    const limit = Number(searchParams.get("limit")) || 10;
-    const sortBy = searchParams.get("sortBy") || "name";
-    const sortOrder = searchParams.get("sortOrder") || "asc";
+    await fs.access(filePath);
+  } catch {
+    return NextResponse.json(
+      { error: 'File not found' },
+      { status: 404 }
+    );
+  }
+  
+  // Create a transform stream for SSE
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+  const encoder = new TextEncoder();
 
-    // Calculate pagination
-    const skip = (page - 1) * limit;
+  // Helper function to send SSE message
+  const sendMessage = (data: any) => {
+    writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+  };
 
-    // Build filter conditions
-    const where: any = {};
+  // Immediate connection establishment
+  sendMessage({ type: 'status', status: 'connected' });
+
+  // Process in the background
+  (async () => {
+    let processor: ParkingServiceProcessor | null = null;
     
-    if (name) {
-      where.name = {
-        contains: name,
-        mode: "insensitive",
-      };
-    }
-    
-    if (isActive !== undefined) {
-      where.isActive = isActive;
-    }
+    try {
+      // Find user
+      const user = await db.user.findUnique({
+        where: { email: userEmail },
+        select: { id: true }
+      });
 
-    // Execute query with filters and pagination
-    const [parkingServices, totalCount] = await Promise.all([
-      db.parkingService.findMany({
-        where,
-        orderBy: {
-          [sortBy]: sortOrder,
+      if (!user) {
+        sendMessage({ type: 'error', error: 'User not found' });
+        writer.close();
+        return;
+      }
+
+      sendMessage({ type: 'log', message: 'Initializing processor...', logType: 'info' });
+
+      // Create processor with progress callback
+      processor = new ParkingServiceProcessor(user.id, {
+        onProgress: (fileName: string, progress: number) => {
+          sendMessage({ 
+            type: 'progress', 
+            fileName, 
+            progress,
+            message: `Processing ${fileName}: ${progress}%`
+          });
         },
-        skip,
-        take: limit,
-      }),
-      db.parkingService.count({ where }),
-    ]);
+        onLog: (message: string, logType: 'info' | 'error' | 'success', file?: string) => {
+          sendMessage({ 
+            type: 'log', 
+            message, 
+            logType, 
+            file 
+          });
+        },
+        onFileStatus: (fileName: string, status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error') => {
+          sendMessage({ 
+            type: 'fileStatus', 
+            fileName, 
+            status 
+          });
+        }
+      });
 
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalCount / limit);
+      // FIX: Uklonjen poziv ensureDirectories() - više ne postoji
+      // Direktorijumi se automatski kreiraju unutar processFileWithImport
+      sendMessage({ type: 'log', message: 'Starting file processing...', logType: 'info' });
+      
+      // Main processing function - automatski kreira direktorijume
+      const result = await processor.processFileWithImport(filePath);
+      
+      if (!result) {
+        sendMessage({
+          type: 'error',
+          error: 'Processing did not return results'
+        });
+        writer.close();
+        return;
+      }
+      
+      // Send final results
+      sendMessage({
+        type: 'complete',
+        recordsProcessed: result.recordsProcessed,
+        imported: result.imported,
+        updated: result.updated,
+        errors: result.errors,
+        warnings: result.warnings,
+        message: `Processing completed successfully!`
+      });
 
-    return NextResponse.json({
-      data: parkingServices,
-      meta: {
-        page,
-        limit,
-        totalCount,
-        totalPages,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching parking services:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch parking services" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const session = await auth();
-    
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    } catch (error: any) {
+      console.error('Stream processing error:', error);
+      sendMessage({
+        type: 'error',
+        error: 'Processing failed',
+        details: error.message
+      });
+    } finally {
+      // Cleanup
+      if (processor) {
+        try {
+          await processor.disconnect();
+          sendMessage({ type: 'log', message: 'Database connection closed', logType: 'info' });
+        } catch (disconnectError) {
+          console.error('Error disconnecting processor:', disconnectError);
+        }
+      }
+      writer.close();
     }
+  })();
 
-    const body = await req.json();
-    
-    // Validate request body
-    const validationResult = parkingServiceSchema.safeParse(body);
-    
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: "Validation failed", details: validationResult.error.format() },
-        { status: 400 }
-      );
+  return new NextResponse(stream.readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
     }
-
-    // Create new parking service
-    const parkingService = await db.parkingService.create({
-      data: {
-        name: validationResult.data.name,
-        description: validationResult.data.description || null,
-        contactName: validationResult.data.contactName || null,
-        email: validationResult.data.email || null,
-        phone: validationResult.data.phone || null,
-        address: validationResult.data.address || null,
-        isActive: validationResult.data.isActive,
-      },
-    });
-
-    // Log the creation activity
-    await db.activityLog.create({
-      data: {
-        action: "CREATE",
-        entityType: "ParkingService",
-        entityId: parkingService.id,
-        details: `Created parking service: ${parkingService.name}`,
-        userId: session.user.id,
-        severity: "INFO",
-      },
-    });
-
-    return NextResponse.json(parkingService, { status: 201 });
-  } catch (error) {
-    console.error("Error creating parking service:", error);
-    return NextResponse.json(
-      { error: "Failed to create parking service" },
-      { status: 500 }
-    );
-  }
+  });
 }
