@@ -9,6 +9,12 @@ export function getNextRunDate(frequency: ReportFrequency): Date {
   const nextRun = new Date(now);
 
   switch (frequency) {
+    case ReportFrequency.ONCE:
+      // Run immediately (or at a specified time if configured)
+      // For now, we'll set it to run in 1 minute
+      nextRun.setMinutes(nextRun.getMinutes() + 1);
+      break;
+
     case ReportFrequency.DAILY:
       // Next day at midnight
       nextRun.setDate(nextRun.getDate() + 1);
@@ -67,6 +73,7 @@ export function shouldRunNow(nextRun: Date): boolean {
  */
 export function getFrequencyDescription(frequency: ReportFrequency): string {
   const descriptions: Record<ReportFrequency, string> = {
+    [ReportFrequency.ONCE]: "One-time report (runs once)",
     [ReportFrequency.DAILY]: "Every day at midnight",
     [ReportFrequency.WEEKLY]: "Every Monday at midnight",
     [ReportFrequency.MONTHLY]: "First day of every month at midnight",

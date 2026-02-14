@@ -24,12 +24,20 @@ export const validateOperatorWebsite = (website: string | null | undefined) => {
   return websiteSchema.safeParse(website);
 };
 
+type ZodErrorValue = {
+  _errors: string[];
+} & Record<string, any>;
+
 export const getOperatorValidationErrors = (errors: z.ZodFormattedError<any>) => {
   const formattedErrors: Record<string, string> = {};
   
   Object.entries(errors).forEach(([key, value]) => {
-    if (key !== "_errors" && value.hasOwnProperty("_errors") && Array.isArray(value._errors) && value._errors.length > 0) {
-      formattedErrors[key] = value._errors[0];
+    // Preskačemo root _errors i proveravamo nested objekte
+    if (key !== "_errors" && value && typeof value === "object" && !Array.isArray(value)) {
+      const errorValue = value as ZodErrorValue;
+      if (errorValue._errors && Array.isArray(errorValue._errors) && errorValue._errors.length > 0) {
+        formattedErrors[key] = errorValue._errors[0];
+      }
     }
   });
   

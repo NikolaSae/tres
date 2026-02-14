@@ -49,6 +49,25 @@ export async function getRecentQueries(
 }
 
 /**
+ * Dobij query logs za korisnika (sa detaljima)
+ */
+export async function getUserQueryLogs(
+  userId: string,
+  limit: number = 50
+) {
+  try {
+    return await db.queryLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+  } catch (error) {
+    console.warn('Failed to get user query logs:', error);
+    return [];
+  }
+}
+
+/**
  * Dobij statistiku korišćenja alata
  */
 export async function getToolUsageStats(
@@ -81,6 +100,28 @@ export async function getToolUsageStats(
 }
 
 /**
+ * Dobij najkorišćenije alate
+ */
+export async function getMostUsedTools(
+  userId: string,
+  limit: number = 5,
+  days: number = 30
+): Promise<Array<{ toolName: string; count: number }>> {
+  try {
+    const stats = await getToolUsageStats(userId, days);
+    
+    // Sortiranje po broju korišćenja
+    return Object.entries(stats)
+      .map(([toolName, count]) => ({ toolName, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  } catch (error) {
+    console.warn('Failed to get most used tools:', error);
+    return [];
+  }
+}
+
+/**
  * Očisti stare query logs (retention policy)
  */
 export async function cleanOldQueryLogs(daysToKeep: number = 90): Promise<number> {
@@ -102,6 +143,16 @@ export async function cleanOldQueryLogs(daysToKeep: number = 90): Promise<number
   }
 }
 
+/**
+ * Alias za cleanOldQueryLogs (za kompatibilnost)
+ */
+export async function cleanupOldLogs(daysToKeep: number = 90): Promise<number> {
+  return cleanOldQueryLogs(daysToKeep);
+}
+
+/**
+ * Dobij query history sa filterima
+ */
 export async function getQueryHistory(
   userId?: string,
   options: { limit?: number; toolName?: string; fromDate?: Date; toDate?: Date } = {}
@@ -122,10 +173,16 @@ export async function getQueryHistory(
   });
 }
 
+/**
+ * Grupisani export svih funkcija
+ */
 export const queryLogger = {
   logQuery,
   getRecentQueries,
+  getUserQueryLogs,
   getToolUsageStats,
+  getMostUsedTools,
   cleanOldQueryLogs,
+  cleanupOldLogs,
   getQueryHistory,
 };

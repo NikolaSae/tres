@@ -1,11 +1,9 @@
-////lib/notifications/templates.ts
-
+// lib/notifications/templates.ts
 
 import { NotificationType } from "@prisma/client";
 
 /**
- * Interface for notification template parameters
- * Different notification types require different parameters
+ * Base interface for notification template parameters
  */
 export interface NotificationTemplateParams {
   [key: string]: any;
@@ -14,7 +12,7 @@ export interface NotificationTemplateParams {
 /**
  * Contract expiring notification parameters
  */
-export interface ContractExpiringParams {
+export interface ContractExpiringParams extends NotificationTemplateParams {
   contractName: string;
   contractNumber: string;
   daysRemaining: number;
@@ -24,7 +22,7 @@ export interface ContractExpiringParams {
 /**
  * Contract renewal status change parameters
  */
-export interface ContractRenewalStatusChangeParams {
+export interface ContractRenewalStatusChangeParams extends NotificationTemplateParams {
   contractName: string;
   contractNumber: string;
   newStatus: string;
@@ -34,7 +32,7 @@ export interface ContractRenewalStatusChangeParams {
 /**
  * Complaint assigned notification parameters
  */
-export interface ComplaintAssignedParams {
+export interface ComplaintAssignedParams extends NotificationTemplateParams {
   complaintId: string;
   complaintTitle: string;
   assignedAgentName: string;
@@ -43,7 +41,7 @@ export interface ComplaintAssignedParams {
 /**
  * Complaint updated notification parameters
  */
-export interface ComplaintUpdatedParams {
+export interface ComplaintUpdatedParams extends NotificationTemplateParams {
   complaintId: string;
   complaintTitle: string;
   newStatus: string;
@@ -53,7 +51,7 @@ export interface ComplaintUpdatedParams {
 /**
  * Reminder notification parameters
  */
-export interface ReminderParams {
+export interface ReminderParams extends NotificationTemplateParams {
   reminderType: string;
   entityName: string;
   entityId: string;
@@ -63,7 +61,7 @@ export interface ReminderParams {
 /**
  * System notification parameters
  */
-export interface SystemParams {
+export interface SystemParams extends NotificationTemplateParams {
   message: string;
   severity?: "info" | "warning" | "error";
 }
@@ -76,28 +74,40 @@ export interface SystemParams {
 export function getNotificationTitleTemplate(type: NotificationType): (params: NotificationTemplateParams) => string {
   switch (type) {
     case "CONTRACT_EXPIRING":
-      return (params: ContractExpiringParams) => 
-        `Contract ${params.contractName} Expiring in ${params.daysRemaining} Days`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ContractExpiringParams;
+        return `Contract ${p.contractName} Expiring in ${p.daysRemaining} Days`;
+      };
     
     case "CONTRACT_RENEWAL_STATUS_CHANGE":
-      return (params: ContractRenewalStatusChangeParams) => 
-        `Contract ${params.contractName} Renewal Status Updated`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ContractRenewalStatusChangeParams;
+        return `Contract ${p.contractName} Renewal Status Updated`;
+      };
     
     case "COMPLAINT_ASSIGNED":
-      return (params: ComplaintAssignedParams) => 
-        `Complaint #${params.complaintId} Assigned`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ComplaintAssignedParams;
+        return `Complaint #${p.complaintId} Assigned`;
+      };
     
     case "COMPLAINT_UPDATED":
-      return (params: ComplaintUpdatedParams) => 
-        `Complaint #${params.complaintId} Status Update`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ComplaintUpdatedParams;
+        return `Complaint #${p.complaintId} Status Update`;
+      };
     
     case "REMINDER":
-      return (params: ReminderParams) => 
-        `Reminder: ${params.reminderType} for ${params.entityName}`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ReminderParams;
+        return `Reminder: ${p.reminderType} for ${p.entityName}`;
+      };
     
     case "SYSTEM":
-      return (params: SystemParams) => 
-        `System Notification: ${params.severity?.toUpperCase() || "INFO"}`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as SystemParams;
+        return `System Notification: ${p.severity?.toUpperCase() || "INFO"}`;
+      };
     
     default:
       return () => "New Notification";
@@ -112,41 +122,52 @@ export function getNotificationTitleTemplate(type: NotificationType): (params: N
 export function getNotificationMessageTemplate(type: NotificationType): (params: NotificationTemplateParams) => string {
   switch (type) {
     case "CONTRACT_EXPIRING":
-      return (params: ContractExpiringParams) => 
-        `The contract ${params.contractName} (${params.contractNumber}) is expiring in ${params.daysRemaining} days on ${formatDate(params.expiryDate)}. Please take appropriate action.`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ContractExpiringParams;
+        return `The contract ${p.contractName} (${p.contractNumber}) is expiring in ${p.daysRemaining} days on ${formatDate(p.expiryDate)}. Please take appropriate action.`;
+      };
     
     case "CONTRACT_RENEWAL_STATUS_CHANGE":
-      return (params: ContractRenewalStatusChangeParams) => {
-        let baseMessage = `The renewal status for contract ${params.contractName} (${params.contractNumber}) has been updated to "${params.newStatus}".`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ContractRenewalStatusChangeParams;
+        let baseMessage = `The renewal status for contract ${p.contractName} (${p.contractNumber}) has been updated to "${p.newStatus}".`;
         
-        if (params.humanitarianOrgName) {
-          baseMessage += ` This affects the humanitarian organization "${params.humanitarianOrgName}".`;
+        if (p.humanitarianOrgName) {
+          baseMessage += ` This affects the humanitarian organization "${p.humanitarianOrgName}".`;
         }
         
         return baseMessage;
       };
     
     case "COMPLAINT_ASSIGNED":
-      return (params: ComplaintAssignedParams) => 
-        `Complaint "${params.complaintTitle}" (ID: ${params.complaintId}) has been assigned to ${params.assignedAgentName}. Please ensure timely processing.`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ComplaintAssignedParams;
+        return `Complaint "${p.complaintTitle}" (ID: ${p.complaintId}) has been assigned to ${p.assignedAgentName}. Please ensure timely processing.`;
+      };
     
     case "COMPLAINT_UPDATED":
-      return (params: ComplaintUpdatedParams) => 
-        `The status of complaint "${params.complaintTitle}" (ID: ${params.complaintId}) has been updated to "${params.newStatus}" by ${params.updatedBy}.`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ComplaintUpdatedParams;
+        return `The status of complaint "${p.complaintTitle}" (ID: ${p.complaintId}) has been updated to "${p.newStatus}" by ${p.updatedBy}.`;
+      };
     
     case "REMINDER":
-      return (params: ReminderParams) => {
-        let message = `This is a reminder regarding ${params.reminderType} for ${params.entityName}.`;
+      return (params: NotificationTemplateParams) => {
+        const p = params as ReminderParams;
+        let message = `This is a reminder regarding ${p.reminderType} for ${p.entityName}.`;
         
-        if (params.dueDate) {
-          message += ` Due date: ${formatDate(params.dueDate)}.`;
+        if (p.dueDate) {
+          message += ` Due date: ${formatDate(p.dueDate)}.`;
         }
         
         return message;
       };
     
     case "SYSTEM":
-      return (params: SystemParams) => params.message;
+      return (params: NotificationTemplateParams) => {
+        const p = params as SystemParams;
+        return p.message;
+      };
     
     default:
       return () => "You have a new notification.";

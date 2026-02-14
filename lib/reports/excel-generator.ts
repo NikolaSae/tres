@@ -32,17 +32,21 @@ export async function generateExcelReport(data: any[], options?: {
     fgColor: { argb: 'FFE0E0E0' }
   };
 
-  // Auto-fit columns
-  worksheet.columns.forEach(column => {
-    let maxLength = 0;
-    column.eachCell({ includeEmpty: true }, cell => {
-      const columnLength = cell.value ? cell.value.toString().length : 10;
-      if (columnLength > maxLength) {
-        maxLength = columnLength;
-      }
+  // ✅ Auto-fit columns - dodaj proveru
+  if (worksheet.columns) {
+    worksheet.columns.forEach(column => {
+      if (!column) return; // ✅ Skip undefined columns
+      
+      let maxLength = 0;
+      column.eachCell?.({ includeEmpty: true }, cell => {
+        const columnLength = cell.value ? cell.value.toString().length : 10;
+        if (columnLength > maxLength) {
+          maxLength = columnLength;
+        }
+      });
+      column.width = Math.min(maxLength + 2, 50);
     });
-    column.width = Math.min(maxLength + 2, 50);
-  });
+  }
 
   // Generate buffer
   const buffer = await workbook.xlsx.writeBuffer();

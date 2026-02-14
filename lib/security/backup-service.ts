@@ -1,5 +1,6 @@
 // /lib/security/backup-service.ts
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { LogSeverity } from "@prisma/client";
 import fs from "fs/promises";
 import path from "path";
 import { exec } from "child_process";
@@ -69,7 +70,7 @@ export async function generateDatabaseBackup(options: BackupOptions = {
 }
 
 export async function logBackupEvent(success: boolean, details: string) {
-  return prisma.activityLog.create({
+  return db.activityLog.create({
     data: {
       action: "DATABASE_BACKUP",
       entityType: "system",

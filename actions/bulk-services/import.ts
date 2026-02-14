@@ -21,7 +21,7 @@ export async function importBulkServicesFromCsv(
     importErrors: [],
     error: null,
     createdCount: 0,
-    updatedCount: 0,              // ← OK ako dodaš u tip
+    updatedCount: 0,
     createdServices: [],
   };
 
@@ -35,9 +35,9 @@ export async function importBulkServicesFromCsv(
 
     const { data: parsedCsvData, errors: initialParseErrors } = await parseBulkServiceCSV(csvContent);
 
+    // Store only error messages, not the error objects
     initialParseErrors.forEach(e => {
       results.importErrors.push(`Row ${e.rowIndex === -1 ? 'N/A' : e.rowIndex + 2}: ${e.errors.join('; ')}`);
-      results.invalidRows.push(e);
     });
 
     results.totalRows = parsedCsvData.length;
@@ -114,7 +114,11 @@ export async function importBulkServicesFromCsv(
     const processingResult = processBulkServiceCsv(parsedCsvData, providerMap, serviceMap);
 
     results.validRows = processingResult.validRows;
-    results.invalidRows.push(...processingResult.invalidRows);
+    
+    // Only add CsvRowValidationResult items to invalidRows
+    results.invalidRows = processingResult.invalidRows;
+    
+    // Add error messages separately
     results.importErrors.push(...processingResult.importErrors);
 
     if (results.importErrors.length > 0 || results.validRows.length === 0) {

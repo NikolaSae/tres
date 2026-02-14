@@ -24,5 +24,17 @@ export type {
   AIResponse
 } from './types';
 
-// Re-export za lakši import
+// Lazy initialization
+import { InternalMcpServer } from './internal-server';
+
+let _mcpServer: InternalMcpServer | null = null;
+
+export function getMcpServer(): InternalMcpServer {
+  if (!_mcpServer) {
+    _mcpServer = new InternalMcpServer();
+  }
+  return _mcpServer;
+}
+
+// Ili direktno export instance
 export const mcpServer = new InternalMcpServer();

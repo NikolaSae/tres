@@ -43,9 +43,6 @@ export interface BulkServiceStats {
   }[];
 }
 
-// ⭐ DODAJ OVO - Structure for bulk service CSV row (alias za kompatibilnost)
-export interface BulkServiceData extends BulkServiceCSVData {}
-
 // Structure for bulk service CSV row
 export interface BulkServiceCSVData {
   provider_name: string;
@@ -59,7 +56,10 @@ export interface BulkServiceCSVData {
   serviceId: string | null;
 }
 
-// ⭐ DODAJ OVO - Validation error structure
+// Alias for compatibility
+export interface BulkServiceData extends BulkServiceCSVData {}
+
+// Validation error structure (backward compatibility)
 export interface BulkServiceValidationError {
   rowIndex: number;
   errors: string[];
@@ -79,7 +79,8 @@ export interface CsvRowValidationResult<T> {
 export interface BulkServiceImportResult {
   totalRows: number;
   validRows: BulkServiceCSVData[];
-  invalidRows: CsvRowValidationResult<BulkServiceCSVData>[];
+  // ✅ Prihvata oba tipa za maksimalnu fleksibilnost
+  invalidRows: (CsvRowValidationResult<BulkServiceCSVData> | BulkServiceValidationError)[];
   importErrors: string[];
   error?: string | null;
   createdCount?: number;
@@ -115,4 +116,17 @@ export interface BulkServiceLogData {
   entityId: string;
   details?: string;
   userId: string;
+}
+
+// ✅ Helper type guard za proveru tipa
+export function isCsvRowValidationResult(
+  item: CsvRowValidationResult<BulkServiceCSVData> | BulkServiceValidationError
+): item is CsvRowValidationResult<BulkServiceCSVData> {
+  return 'data' in item && 'isValid' in item;
+}
+
+export function isBulkServiceValidationError(
+  item: CsvRowValidationResult<BulkServiceCSVData> | BulkServiceValidationError
+): item is BulkServiceValidationError {
+  return !('data' in item) && !('isValid' in item);
 }
