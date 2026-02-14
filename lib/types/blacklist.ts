@@ -1,5 +1,5 @@
 // lib/types/blacklist.ts
-import { SenderBlacklist, Provider } from '@prisma/client';
+import { SenderBlacklist, Provider, User } from '@prisma/client';
 
 export interface SenderBlacklistEntry {
   id: string;
@@ -15,6 +15,10 @@ export interface SenderBlacklistEntry {
     id: string;
     name?: string | null;
   };
+  modifiedBy?: { // ✅ Added for completeness
+    id: string;
+    name?: string | null;
+  } | null;
 }
 
 export interface CreateBlacklistEntryRequest {
@@ -37,7 +41,24 @@ export interface BlacklistMatch {
   matchingServices: any[];
 }
 
-// Dodaj ovaj tip koji hook očekuje
+// ✅ FIX: Add createdBy and modifiedBy relations
 export type SenderBlacklistWithProvider = SenderBlacklist & {
   provider: Provider | null;
+  createdBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  modifiedBy?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+};
+
+// ✅ ALTERNATIVE: Use Prisma's Payload type for better type safety
+export type SenderBlacklistWithRelations = SenderBlacklist & {
+  createdBy: Pick<User, 'id' | 'name' | 'email'>;
+  modifiedBy?: Pick<User, 'id' | 'name' | 'email'> | null;
+  provider?: Provider | null;
 };

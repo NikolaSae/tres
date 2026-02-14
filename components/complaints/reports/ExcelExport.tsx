@@ -45,13 +45,13 @@ export function ExcelExport({
         dateRange: dateRange === 'all' ? undefined : parseInt(dateRange),
         includeComments: includeOptions.comments,
         includeStatusHistory: includeOptions.statusHistory,
-        includeAttachments: includeOptions.attachments
+        includeAttachments: includeOptions.attachments,
+        format: 'excel',
       });
 
-      if (result.error) {
-        if (onExportError) onExportError(result.error);
+      if (!result.success || result.error) {
+        if (onExportError) onExportError(result.error || 'Export failed');
       } else if (result.fileUrl) {
-        // Handle successful export
         if (onExportComplete) onExportComplete(result.fileUrl);
         
         // Trigger download
