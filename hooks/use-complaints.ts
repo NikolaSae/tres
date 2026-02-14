@@ -5,7 +5,7 @@ import { ComplaintWithRelations } from "@/lib/types/complaint-types";
 
 interface UseComplaintsParams {
   id?: string;
-  status?: ComplaintStatus | string | null;
+  statuses?: ComplaintStatus | string | null;
   priority?: number | null;
   serviceId?: string | null;
   providerId?: string | null;
@@ -40,7 +40,7 @@ export function useComplaints(params: UseComplaintsParams = {}): UseComplaintsRe
   // Raspakujemo parametre da bi ih koristili u dependency array-u useCallback-a
   const {
     id,
-    status,
+    statuses,
     serviceId,
     providerId,
     productId,
@@ -88,7 +88,7 @@ export function useComplaints(params: UseComplaintsParams = {}): UseComplaintsRe
         // --- Izgradnja query parametara za listu pritužbi ---
         const queryParams = new URLSearchParams();
 
-        if (status) queryParams.append("status", status);
+        if (statuses) queryParams.append("status", statuses);
         if (serviceId) queryParams.append("serviceId", serviceId);
         if (providerId) queryParams.append("providerId", providerId);
         if (productId) queryParams.append("productId", productId);
@@ -135,7 +135,7 @@ export function useComplaints(params: UseComplaintsParams = {}): UseComplaintsRe
     }
   }, [
     id, // Zavisnost za single fetch
-    status, // Zavisnosti za list fetch
+    statuses, // Zavisnosti za list fetch
     serviceId,
     providerId,
     productId,

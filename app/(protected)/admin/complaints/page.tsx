@@ -56,7 +56,7 @@ export default function AdminComplaintsPage() {
   });
 
   // Extract filter parameters from URL
-  const status = searchParams.get("status") || "";
+  const statuses = searchParams.getAll("status");
   const priority = searchParams.get("priority") || "";
   const service = searchParams.get("service") || "";
   const provider = searchParams.get("provider") || "";
@@ -69,7 +69,7 @@ export default function AdminComplaintsPage() {
 
   // Fetch data
   const { complaints, isLoading, error, mutate } = useComplaints({
-    status,
+    statuses: statuses.length > 0 ? statuses[0] : undefined,
     priority: priorityValue,
     serviceId: service,
     providerId: provider,
@@ -92,7 +92,7 @@ export default function AdminComplaintsPage() {
     try {
       await exportComplaints({
         format: "csv",
-        statuses: status ? [status as ComplaintStatus] : undefined,
+        status: statuses.length > 0 ? (statuses as ComplaintStatus[]) : undefined,
         serviceId: service || undefined,
         providerId: provider || undefined,
         dateRange: (startDate || endDate) ? {

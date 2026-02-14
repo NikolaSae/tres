@@ -80,8 +80,6 @@ export function generateReportPath(
  * @param paymentType - Payment type
  * @returns The extracted value from the report
  */
-// Dodaj ove console.log-ove u getOriginalReportValue funkciju
-// Popravljena funkcija koja može da čita .xls fajlove
 async function getOriginalReportValue(
   orgData: OrganizationReportData,
   month: number,
@@ -123,15 +121,12 @@ async function getOriginalReportValue(
     const filePath = path.join(originalReportPath, xlsFile);
     console.log(`Found original report: ${filePath}`);
 
-    // Try to read the file
     try {
       let workbook;
       
-      // Check if it's .xls or .xlsx
       if (xlsFile.toLowerCase().endsWith('.xls')) {
         console.log('Reading .xls file with SheetJS...');
         
-        // Use SheetJS for .xls files
         const XLSX = await import('xlsx');
         const fileBuffer = await fs.readFile(filePath);
         workbook = XLSX.read(fileBuffer, { 
@@ -154,7 +149,6 @@ async function getOriginalReportValue(
           if (worksheet) {
             console.log('Processing sheet:', firstSheetName);
             
-            // Convert to JSON to find last value in column C
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
               header: 1, 
               defval: '', 
@@ -163,7 +157,6 @@ async function getOriginalReportValue(
             
             console.log('Total rows:', jsonData.length);
             
-            // Find last non-empty value in column C (index 2)
             for (let i = jsonData.length - 1; i >= 0; i--) {
               const row = jsonData[i] as any[];
               if (row && row[2] !== undefined && row[2] !== null && row[2] !== '') {
@@ -182,7 +175,6 @@ async function getOriginalReportValue(
           if (worksheet) {
             console.log('Processing sheet:', lastSheetName);
             
-            // Convert to JSON to find last value in column N
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
               header: 1, 
               defval: '', 
@@ -191,7 +183,6 @@ async function getOriginalReportValue(
             
             console.log('Total rows:', jsonData.length);
             
-            // Find last non-empty value in column N (index 13)
             for (let i = jsonData.length - 1; i >= 0; i--) {
               const row = jsonData[i] as any[];
               if (row && row[13] !== undefined && row[13] !== null && row[13] !== '') {
@@ -209,7 +200,6 @@ async function getOriginalReportValue(
       } else {
         console.log('Reading .xlsx file with ExcelJS...');
         
-        // Use ExcelJS for .xlsx files
         const ExcelJS = await import('exceljs');
         workbook = new ExcelJS.Workbook();
         await workbook.xlsx.readFile(filePath);
@@ -304,7 +294,7 @@ export async function reportExists(
 export async function getReportFiles(
   orgData: OrganizationReportData,
   year: number,
-  month: month,
+  month: number, // ✅ FIX: Changed from 'month' to 'number'
   paymentType: PaymentType
 ): Promise<string[]> {
   try {
@@ -315,6 +305,7 @@ export async function getReportFiles(
     return [];
   }
 }
+
 export function parseReportPath(fileUrl: string) {
   // primer: /reports/5800 - Fondacija/2025/08/prepaid/Servis__Micropayment...
   const parts = fileUrl.split("/");

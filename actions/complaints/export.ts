@@ -10,13 +10,14 @@ export type ExportFormat = "csv" | "json" | "excel";
 
 export type ExportRequestOptions = {
   type?: 'all' | 'filtered';
-  dateRange?: number;
+  dateRange?: number | { from: Date; to: Date }; // ✅ Accept both types
   includeComments?: boolean;
   includeStatusHistory?: boolean;
   includeAttachments?: boolean;
   format?: ExportFormat;
 };
 
+// ✅ Added missing ExportResult type
 export type ExportResult = {
   success: boolean;
   fileUrl?: string;
@@ -36,16 +37,26 @@ export async function exportComplaints(options: ExportRequestOptions): Promise<E
 
     const where: any = {};
 
+    // ✅ Handle both types of dateRange
     if (options.dateRange) {
-      const daysAgo = new Date();
-      daysAgo.setDate(daysAgo.getDate() - options.dateRange);
-      where.createdAt = {
-        gte: daysAgo,
-        lte: new Date(),
-      };
+      if (typeof options.dateRange === 'number') {
+        // Number of days
+        const daysAgo = new Date();
+        daysAgo.setDate(daysAgo.getDate() - options.dateRange);
+        where.createdAt = {
+          gte: daysAgo,
+          lte: new Date(),
+        };
+      } else {
+        // Date range object
+        where.createdAt = {
+          gte: options.dateRange.from,
+          lte: options.dateRange.to,
+        };
+      }
     }
 
-    // ✅ FIX: Build proper include object with explicit structure
+    // ✅ Build proper include object with explicit structure
     const complaints = await db.complaint.findMany({
       where,
       include: {

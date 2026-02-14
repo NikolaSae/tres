@@ -6,14 +6,14 @@ export const getComplaintById = async (id: string) => {
     const complaint = await db.complaint.findUnique({
       where: { id },
       include: {
-        user: true,
+        submittedBy: true, // ✅ Changed from 'user' to 'submittedBy'
         product: true,
-        assignedTo: {
+        assignedAgent: { // ✅ Changed from 'assignedTo' to 'assignedAgent'
           select: {
             id: true,
-            name: true, // Fetch the name of the assigned user
+            name: true,
           },
-          },
+        },
         comments: {
           include: {
             user: true,
@@ -23,12 +23,9 @@ export const getComplaintById = async (id: string) => {
           },
         },
         attachments: true,
-        history: {
-          include: {
-            user: true,
-          },
+        statusHistory: { // ✅ Changed from 'history' to 'statusHistory'
           orderBy: {
-            createdAt: "desc",
+            changedAt: "desc", // ✅ Changed from 'createdAt' to 'changedAt'
           },
         },
       },
@@ -45,10 +42,10 @@ export const getComplaintById = async (id: string) => {
 export const getComplaintsByUserId = async (userId: string) => {
   try {
     const complaints = await db.complaint.findMany({
-      where: { userId },
+      where: { submittedById: userId }, // ✅ Changed from 'userId' to 'submittedById'
       include: {
         product: true,
-        assignedTo: {
+        assignedAgent: { // ✅ Changed from 'assignedTo' to 'assignedAgent'
           select: {
             id: true,
             name: true,
@@ -71,9 +68,9 @@ export const getAllComplaints = async () => {
   try {
     const complaints = await db.complaint.findMany({
       include: {
-        user: true,
+        submittedBy: true, // ✅ Changed from 'user' to 'submittedBy'
         product: true,
-        assignedTo: {
+        assignedAgent: { // ✅ Changed from 'assignedTo' to 'assignedAgent'
           select: {
             id: true,
             name: true,
@@ -95,11 +92,11 @@ export const getAllComplaints = async () => {
 export const getAssignedComplaints = async (userId: string) => {
   try {
     const complaints = await db.complaint.findMany({
-      where: { assignedTo: userId },
+      where: { assignedAgentId: userId }, // ✅ Changed from 'assignedTo' to 'assignedAgentId'
       include: {
-        user: true,
+        submittedBy: true, // ✅ Changed from 'user' to 'submittedBy'
         product: true,
-        assignedTo: {
+        assignedAgent: { // ✅ Changed from 'assignedTo' to 'assignedAgent'
           select: {
             id: true,
             name: true,
@@ -121,14 +118,14 @@ export const getAssignedComplaints = async (userId: string) => {
 export const assignComplaintToUser = async (complaintId: string, userId: string) => {
   try {
     const updatedComplaint = await db.complaint.update({
-      where: { id: complaintId }, // ID reklamacije koju želite da ažurirate
+      where: { id: complaintId },
       data: {
-        assignedToId: userId, // Novi korisnik kojem je dodeljena reklamacija
-        status: "IN_PROGRESS", // Opcionalno: možete ažurirati i status reklamacije
+        assignedAgentId: userId, // ✅ Changed from 'assignedToId' to 'assignedAgentId'
+        status: "IN_PROGRESS",
       },
     });
 
-    return updatedComplaint; // Vraća ažuriranu reklamaciju
+    return updatedComplaint;
   } catch (error) {
     console.error("[ASSIGN_COMPLAINT_TO_USER]", error);
     throw new Error("Došlo je do greške prilikom ažuriranja reklamacije.");

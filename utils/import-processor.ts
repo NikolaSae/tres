@@ -36,11 +36,18 @@ export async function processComplaintImport(
       };
     }
     
+    // ✅ FIX: Filter out items with missing required fields and add defaults
+    const validData = validationResult.data.map(item => ({
+      ...item,
+      status: item.status || ComplaintStatus.NEW,
+      priority: item.priority || 3,
+    }));
+    
     // Validate relationships against database
-    const serviceValidation = await validateServiceIds(validationResult.data, db);
-    const productValidation = await validateProductIds(validationResult.data, db);
-    const providerValidation = await validateProviderIds(validationResult.data, db);
-    const userValidation = await validateUserIds(validationResult.data, db);
+    const serviceValidation = await validateServiceIds(validData, db);
+    const productValidation = await validateProductIds(validData, db);
+    const providerValidation = await validateProviderIds(validData, db);
+    const userValidation = await validateUserIds(validData, db);
     
     const allErrors = [
       ...serviceValidation.errors,
@@ -65,12 +72,13 @@ export async function processComplaintImport(
     const importedComplaints: Complaint[] = [];
     const importErrors: Array<{ row: number; message: string }> = [];
     
-    for (let i = 0; i < validationResult.data.length; i++) {
-      const complaintData = validationResult.data[i];
+    for (let i = 0; i < validData.length; i++) {
+      const complaintData = validData[i];
       
       try {
-        // For each complaint that requires a status history entry
-        const needsStatusHistory = complaintData.status !== ComplaintStatus.NEW;
+        // ✅ FIX: Ensure status always has a value
+        const status = complaintData.status || ComplaintStatus.NEW;
+        const needsStatusHistory = status !== ComplaintStatus.NEW;
         
         // Create the complaint with a transaction to ensure status history is created
         const complaint = await db.$transaction(async (tx) => {
@@ -79,17 +87,17 @@ export async function processComplaintImport(
             data: {
               title: complaintData.title,
               description: complaintData.description,
-              status: complaintData.status,
-              priority: complaintData.priority,
+              status: status, // ✅ Now guaranteed to be ComplaintStatus
+              priority: complaintData.priority || 3,
               financialImpact: complaintData.financialImpact,
               serviceId: complaintData.serviceId || undefined,
               productId: complaintData.productId || undefined,
               providerId: complaintData.providerId || undefined,
               submittedById: complaintData.submittedById || submittedBy.id,
               // If status is not NEW, set assignedAgent to the submitter and assignedAt to now
-              assignedAgentId: complaintData.status !== ComplaintStatus.NEW ? 
+              assignedAgentId: status !== ComplaintStatus.NEW ? 
                 (complaintData.submittedById || submittedBy.id) : undefined,
-              assignedAt: complaintData.status !== ComplaintStatus.NEW ?
+              assignedAt: status !== ComplaintStatus.NEW ?
                 new Date() : undefined,
             },
           });
@@ -100,7 +108,7 @@ export async function processComplaintImport(
               data: {
                 complaintId: newComplaint.id,
                 previousStatus: ComplaintStatus.NEW,
-                newStatus: complaintData.status,
+                newStatus: status, // ✅ Now guaranteed to be ComplaintStatus
                 changedById: complaintData.submittedById || submittedBy.id,
                 notes: 'Status set during import',
               },
