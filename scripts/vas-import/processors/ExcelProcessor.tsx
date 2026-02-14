@@ -327,13 +327,17 @@ export class ExcelProcessor {
   let inPrepaidSection = false;
 
   try {
-    // Read and filter rows
-    const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, {
+    // Read and filter rows - FIX: Dodaj type assertion
+    const rawRows = XLSX.utils.sheet_to_json(worksheet, {
       header: 1,
       defval: null,
       blankrows: false,
       skipHidden: true
-    }).filter(row => row.some(cell => cell !== null));
+    }) as any[][];
+    
+    const rows: any[][] = rawRows.filter((row: any[]) => 
+      row.some((cell: any) => cell !== null)
+    );
 
     if (!rows.length) {
       warnings.push(`Sheet ${sheetName} is empty`);
@@ -395,7 +399,8 @@ export class ExcelProcessor {
       if (isServiceRow) {
         const serviceName = firstCell;
         const price = this.convertToFloat(row[1]);
-        this.log(`Processing service row: ${serviceName}`, 'debug');
+        // FIX: Promeni 'debug' u 'info'
+        this.log(`Processing service row: ${serviceName}`, 'info');
 
         // 6. GET AMOUNT ROW (NEXT ROW)
         if (i + 1 >= rows.length) {
@@ -453,7 +458,8 @@ export class ExcelProcessor {
                 amount
               });
               
-              this.log(`Added record: ${serviceName} | ${date.toISOString().split('T')[0]} | Qty: ${quantity}`, 'debug');
+              // FIX: Promeni 'debug' u 'info'
+              this.log(`Added record: ${serviceName} | ${date.toISOString().split('T')[0]} | Qty: ${quantity}`, 'info');
             } catch (error) {
               const errorMsg = error instanceof Error ? error.message : String(error);
               warnings.push(`Date error for ${serviceName} on day ${day}: ${errorMsg}`);

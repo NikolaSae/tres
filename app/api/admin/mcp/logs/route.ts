@@ -1,18 +1,18 @@
 // app/api/admin/mcp/logs/route.ts
 import { auth } from '@/auth';
-import { getRecentQueries } from '@/lib/mcp/query-logger';
+import { getQueryHistory } from '@/lib/mcp/query-logger';
 import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role || '')) {
+    if (!session?.user?.id || !['ADMIN', 'MANAGER'].includes(session.user.role || '')) {
       return Response.json({ error: 'Unauthorized', skeleton: true }, { status: 403 });
     }
 
     const url = new URL(request.url);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 500);
-    const userId = url.searchParams.get('userId') || undefined;
+    const userIdParam = url.searchParams.get('userId');
     const toolName = url.searchParams.get('toolName') || undefined;
     const fromDateParam = url.searchParams.get('fromDate');
     const toDateParam = url.searchParams.get('toDate');
@@ -20,10 +20,20 @@ export async function GET(request: NextRequest) {
     const fromDate = fromDateParam ? new Date(fromDateParam) : undefined;
     const toDate = toDateParam ? new Date(toDateParam) : undefined;
 
-    // Admin može da vidi sve logove, Manager samo svoje
-    const targetUserId = session.user.role === 'ADMIN' ? userId : session.user.id;
+    // Admin može da vidi sve logove ili specifičnog usera, Manager samo svoje
+    let targetUserId: string | undefined;
+    if (session.user.role === 'ADMIN') {
+      targetUserId = userIdParam || undefined; // Admin može da ostavi undefined za sve usere
+    } else {
+      targetUserId = session.user.id;
+    }
 
-    const logs = await getRecentQueries(targetUserId || session.user.id, limit);
+    const logs = await getQueryHistory(targetUserId, {
+      limit,
+      toolName,
+      fromDate,
+      toDate
+    });
 
     return Response.json({ 
       logs, 

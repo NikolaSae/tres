@@ -1,3 +1,8 @@
+//scripts/vas-import/getOrCreateContract11.tsx
+import { PrismaClient, Contract } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
 private async getOrCreateContract(
   providerId: string,
   filename: string

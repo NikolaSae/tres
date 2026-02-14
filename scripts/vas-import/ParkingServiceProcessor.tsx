@@ -117,68 +117,239 @@ export class ParkingServiceProcessor {
 }
 
   async processMultipleFiles(inputFiles: string[]): Promise<{
-    totalProcessed: number;
-    totalImported: number;
-    totalUpdated: number;
-    totalErrors: number;
-    results: Array<{
-      file: string;
-      success: boolean;
-      result?: any;
-      error?: string;
-    }>;
-  }> {
-    // Implementation unchanged
-  }
+  totalProcessed: number;
+  totalImported: number;
+  totalUpdated: number;
+  totalErrors: number;
+  results: Array<{
+    file: string;
+    success: boolean;
+    result?: any;
+    error?: string;
+  }>;
+}> {
+  const results = [];
+  let totalProcessed = 0;
+  let totalImported = 0;
+  let totalUpdated = 0;
+  let totalErrors = 0;
 
-  async ensureDirectories(): Promise<void> {
-    const dirs = [FOLDER_PATH, PROCESSED_FOLDER, ERROR_FOLDER];
-    
-    for (const dir of dirs) {
-      try {
-        await fs.mkdir(dir, { recursive: true });
-      } catch (error) {
-        this.log(`Error creating directory ${dir}: ${error}`, 'error');
-      }
+  for (const inputFile of inputFiles) {
+    try {
+      const result = await this.processFileWithImport(inputFile);
+      
+      results.push({
+        file: path.basename(inputFile),
+        success: true,
+        result
+      });
+      
+      totalProcessed += result.recordsProcessed;
+      totalImported += result.imported;
+      totalUpdated += result.updated;
+      totalErrors += result.errors;
+      
+    } catch (error) {
+      results.push({
+        file: path.basename(inputFile),
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      totalErrors++;
     }
   }
 
-  async cleanupOldFiles(daysOld: number = 30): Promise<{
-    processedCleaned: number;
-    errorsCleaned: number;
-  }> {
-    // Implementation unchanged
+  return {
+    totalProcessed,
+    totalImported,
+    totalUpdated,
+    totalErrors,
+    results
+  };
+}
+
+async cleanupOldFiles(daysOld: number = 30): Promise<{
+  processedCleaned: number;
+  errorsCleaned: number;
+}> {
+  let processedCleaned = 0;
+  let errorsCleaned = 0;
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+  try {
+    // Clean processed folder
+    const processedFiles = await fs.readdir(PROCESSED_FOLDER);
+    for (const file of processedFiles) {
+      const filePath = path.join(PROCESSED_FOLDER, file);
+      const stats = await fs.stat(filePath);
+      
+      if (stats.mtime < cutoffDate) {
+        await fs.unlink(filePath);
+        processedCleaned++;
+      }
+    }
+
+    // Clean error folder
+    const errorFiles = await fs.readdir(ERROR_FOLDER);
+    for (const file of errorFiles) {
+      const filePath = path.join(ERROR_FOLDER, file);
+      const stats = await fs.stat(filePath);
+      
+      if (stats.mtime < cutoffDate) {
+        await fs.unlink(filePath);
+        errorsCleaned++;
+      }
+    }
+  } catch (error) {
+    this.log(`Cleanup error: ${error}`, 'error');
   }
 
-  async validateFile(filePath: string): Promise<{
-    valid: boolean;
-    errors: string[];
-    warnings: string[];
-    fileInfo: {
-      size: number;
-      extension: string;
-      basename: string;
+  return { processedCleaned, errorsCleaned };
+}
+
+async validateFile(filePath: string): Promise<{
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  fileInfo: {
+    size: number;
+    extension: string;
+    basename: string;
+  };
+}> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  try {
+    const stats = await fs.stat(filePath);
+    const extension = path.extname(filePath).toLowerCase();
+    const basename = path.basename(filePath);
+
+    // Check file exists
+    if (!stats.isFile()) {
+      errors.push('Path is not a file');
+    }
+
+    // Check file size (max 50MB)
+    if (stats.size > 50 * 1024 * 1024) {
+      errors.push('File size exceeds 50MB');
+    }
+
+    // Check extension
+    if (!['.xlsx', '.xls'].includes(extension)) {
+      errors.push('File must be Excel format (.xlsx or .xls)');
+    }
+
+    // Check filename pattern
+    if (!basename.match(/\d{8}/)) {
+      warnings.push('Filename does not contain date pattern (YYYYMMDD)');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+      fileInfo: {
+        size: stats.size,
+        extension,
+        basename
+      }
     };
-  }> {
-    // Implementation unchanged
+  } catch (error) {
+    return {
+      valid: false,
+      errors: [`File validation error: ${error instanceof Error ? error.message : String(error)}`],
+      warnings: [],
+      fileInfo: {
+        size: 0,
+        extension: '',
+        basename: path.basename(filePath)
+      }
+    };
   }
+}
 
-  async getProcessingStats(): Promise<{
-    totalTransactions: number;
-    totalServices: number;
-    totalParkingServices: number;
-    recentImports: Array<{
-      date: Date;
-      fileName: string;
-      recordsCount: number;
-    }>;
-  }> {
-    // Implementation unchanged
-  }
+async getProcessingStats(): Promise<{
+  totalTransactions: number;
+  totalServices: number;
+  totalParkingServices: number;
+  recentImports: Array<{
+    date: Date;
+    fileName: string;
+    recordsCount: number;
+  }>;
+}> {
+  try {
+    const [totalTransactions, totalServices, totalParkingServices, recentLogs] = await Promise.all([
+      prisma.parkingTransaction.count(),
+      prisma.service.count({ where: { type: 'PARKING' } }),
+      prisma.parkingService.count(),
+      prisma.activityLog.findMany({
+        where: {
+          action: 'IMPORT_PARKING',
+          entityType: 'ParkingTransaction'
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          createdAt: true,
+          details: true
+        }
+      })
+    ]);
 
-  async getOrCreateSystemUser(): Promise<string> {
-    // Implementation unchanged
+    const recentImports = recentLogs.map(log => {
+      // Parse details to extract filename and count
+      const fileMatch = log.details?.match(/file: ([^\s]+)/i);
+      const countMatch = log.details?.match(/(\d+) records/i);
+      
+      return {
+        date: log.createdAt,
+        fileName: fileMatch?.[1] || 'Unknown',
+        recordsCount: countMatch ? parseInt(countMatch[1]) : 0
+      };
+    });
+
+    return {
+      totalTransactions,
+      totalServices,
+      totalParkingServices,
+      recentImports
+    };
+  } catch (error) {
+    this.log(`Failed to get processing stats: ${error}`, 'error');
+    return {
+      totalTransactions: 0,
+      totalServices: 0,
+      totalParkingServices: 0,
+      recentImports: []
+    };
   }
+}
+
+async getOrCreateSystemUser(): Promise<string> {
+  try {
+    let systemUser = await prisma.user.findFirst({
+      where: { email: 'system@parking.local' }
+    });
+
+    if (!systemUser) {
+      systemUser = await prisma.user.create({
+        data: {
+          email: 'system@parking.local',
+          name: 'System User',
+          role: 'ADMIN' // ← Promenjen sa 'SYSTEM' na 'ADMIN'
+        }
+      });
+    }
+
+    return systemUser.id;
+  } catch (error) {
+    this.log(`Failed to get/create system user: ${error}`, 'error');
+    return 'system-fallback-id';
+  }
+}
 
   async getOrCreateParkingService(name: string): Promise<{ id: string; created: boolean }> {
   const normalizedName = normalizeProviderName(name);
