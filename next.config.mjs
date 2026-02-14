@@ -3,60 +3,97 @@ import bundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ✅ Turbopack config
-  turbopack: {
-    // Možete dodati Turbopack-specifične optimizacije ovde kasnije
-  },
+  // ✅ VAŽNO: Standalone build za Hostinger
+  output: 'standalone',
+  
+  // ✅ Turbopack samo za development
+  ...(process.env.NODE_ENV === 'development' && {
+    turbopack: {},
+  }),
+
   typescript: {
-    ignoreBuildErrors: true,  // ← Build prolazi
+    ignoreBuildErrors: false, // ✅ Promenio na false - bolje za production
   },
 
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'localhost' },
-      { protocol: 'https', hostname: '*.app.github.dev' },
+      { protocol: 'https', hostname: 'finappsolutions.com' },
+      { protocol: 'https', hostname: '*.supabase.co' },
     ],
+    // ✅ Optimizacija za Hostinger
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96],
+    minimumCacheTTL: 60,
+    formats: ['image/webp'],
   },
 
   experimental: {
     serverActions: {
       allowedOrigins: [
-        "localhost:3000",
-        "localhost:3001",
-        "*.app.github.dev",
+        "finappsolutions.com",
+        "*.finappsolutions.com",
       ],
       allowedForwardedHosts: [
-        "localhost:3000",
-        "localhost:3001",
-        "*.app.github.dev",
+        "finappsolutions.com",
+        "*.finappsolutions.com",
       ],
     },
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    // ✅ Optimizacija package imports
+    optimizePackageImports: [
+      'lucide-react', 
+      '@radix-ui/react-icons',
+      'recharts',
+      'date-fns',
+    ],
   },
 
   async headers() {
-    const forwardedHost = process.env.NEXTAUTH_URL?.replace("https://", "") || "";
-    
     return [
       {
         source: "/(.*)",
         headers: [
           {
-            key: "x-forwarded-host",
-            value: forwardedHost,
+            key: "X-DNS-Prefetch-Control",
+            value: "on"
           },
           {
-            key: "Access-Control-Allow-Origin",
-            value: process.env.NEXTAUTH_URL || "*",
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload"
+          },
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN"
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff"
+          },
+          {
+            key: "Referrer-Policy",
+            value: "origin-when-cross-origin"
           },
         ],
       },
     ];
   },
 
-  output: 'standalone',
+  // ✅ Production optimizacije
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
+  compress: true,
+  
+  // ✅ Webpack optimizacija (fallback ako Turbopack nije dostupan)
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
+  },
 };
 
 const withBundleAnalyzer = bundleAnalyzer({

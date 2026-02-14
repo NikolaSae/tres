@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -15,6 +13,7 @@
 
 # production
 /build
+.vercel
 
 # misc
 .DS_Store
@@ -29,11 +28,56 @@ yarn-error.log*
 .env*.local
 .env
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# aider
 .aider*
+
+# reports
 /public/reports/*.xlsx
+/public/reports/*.pdf
+/public/reports/*.csv
+
+# ✅ DODAJ OVO ZA PRODUCTION:
+
+# Prisma
+prisma/migrations/migration_lock.toml
+*.db
+*.db-journal
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Email storage (ako koristiš lokalno)
+/data/emails
+
+# Backup files
+*.backup
+*.bak
+
+# Environment variables (KRITIČNO!)
+.env.production
+.env.production.local
