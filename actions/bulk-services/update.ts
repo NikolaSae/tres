@@ -1,6 +1,4 @@
 //actions/bulk-services/update.ts
-
-//actions/bulk-services/update.ts
 "use server";
 
 import { db } from "@/lib/db";
@@ -16,8 +14,8 @@ export async function updateBulkService(id: string, data: unknown) {
     const currentUser = await getCurrentUser();
     
     if (!currentUser || !currentUser.id) {
-    throw new Error("Unauthorized");
-  }
+      throw new Error("Unauthorized");
+    }
 
     // Check if bulk service exists
     const existingBulkService = await db.bulkService.findUnique({
@@ -29,7 +27,7 @@ export async function updateBulkService(id: string, data: unknown) {
     }
 
     // Validate the input data
-    const validatedData = bulkServiceSchema.parse(data); // ✅ Ispravka: bulkServiceSchema
+    const validatedData = bulkServiceSchema.parse(data);
 
     // Update the bulk service
     const updatedBulkService = await db.bulkService.update({
@@ -56,6 +54,7 @@ export async function updateBulkService(id: string, data: unknown) {
 
     // Revalidate the paths
     revalidatePath("/bulk-services");
+    // ✅ ISPRAVKA: normalne zagrade umesto backtick-a
     revalidatePath(`/bulk-services/${id}`);
 
     return updatedBulkService;

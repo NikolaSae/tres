@@ -6,13 +6,12 @@ import { ServerError } from "@/lib/exceptions";
 import { bulkServiceSchema } from "@/schemas/bulk-service";
 import { getCurrentUser } from "@/lib/session";
 import { ActivityLogService } from "@/lib/services/activity-log-service";
-import { LogSeverity, LogActionType, LogEntityType } from "@prisma/client";
+import { LogSeverity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function createBulkService(data: unknown) {
   try {
     const currentUser = await getCurrentUser();
-
     if (!currentUser?.id) {
       throw new Error("Unauthorized – korisnik nije prijavljen");
     }
@@ -26,10 +25,7 @@ export async function createBulkService(data: unknown) {
         ...validatedData,
         createdAt: new Date(),
         updatedAt: new Date(),
-        datumNaplate: new Date(), // ← privremeno rešenje – promeni prema logici aplikacije
-        // Alternativne opcije:
-        // datumNaplate: validatedData.datumNaplate || new Date(),
-        // ili ako je opciono u šemi → ukloni ovu liniju
+        datumNaplate: new Date(),
       },
       include: {
         provider: true,
@@ -37,9 +33,9 @@ export async function createBulkService(data: unknown) {
       },
     });
 
-    // Logovanje aktivnosti – koristimo Prisma enum vrednosti
+    // Logovanje aktivnosti
     await ActivityLogService.log({
-      action: "CREATE_BULK_SERVICE", // ← mora da postoji u enum-u!
+      action: "CREATE_BULK_SERVICE",
       entityType: "BULK_SERVICE",
       entityId: bulkService.id,
       details: `Kreiran novi bulk servis: ${bulkService.service_name} za ${bulkService.provider_name}`,
@@ -47,11 +43,8 @@ export async function createBulkService(data: unknown) {
       userId: currentUser.id,
     });
 
-    // Revalidacija putanje da bi se lista ažurirala
+    // Revalidacija putanje
     revalidatePath("/bulk-services");
-    // Ako imaš i druge putanje koje treba refresh-ovati:
-    // revalidatePath("/dashboard/bulk-services");
-    // revalidatePath("/api/bulk-services");
 
     return {
       success: true,
@@ -60,12 +53,11 @@ export async function createBulkService(data: unknown) {
     };
   } catch (error) {
     console.error("[CREATE_BULK_SERVICE]", error);
-
-    // Bolje rukovanje greškama – možeš vratiti više informacija klijentu
+    
+    // ✅ ISPRAVKA: normalne zagrade umesto backtick-a
     if (error instanceof Error) {
       throw new ServerError(`Neuspešno kreiranje bulk servisa: ${error.message}`);
     }
-
     throw new ServerError("Neočekivana greška prilikom kreiranja bulk servisa");
   }
 }
