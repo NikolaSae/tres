@@ -60,6 +60,6 @@ export async function updateBulkService(id: string, data: unknown) {
     return updatedBulkService;
   } catch (error) {
     console.error("[UPDATE_BULK_SERVICE]", error);
-    throw new ServerError("Failed to update bulk service");
+    throw new ServerError ("Failed to update bulk service");
   }
 }

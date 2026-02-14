@@ -56,7 +56,7 @@ export async function createBulkService(data: unknown) {
     
     // ✅ ISPRAVKA: normalne zagrade umesto backtick-a
     if (error instanceof Error) {
-      throw new ServerError(Neuspešno kreiranje bulk servisa: ${error.message});
+      throw new ServerError `Neuspešno kreiranje bulk servisa:` ${error.message};
     }
     throw new ServerError("Neočekivana greška prilikom kreiranja bulk servisa");
   }
