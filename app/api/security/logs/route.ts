@@ -14,14 +14,12 @@ const createLogSchema = z.object({
   severity: z.enum(["INFO", "WARNING", "ERROR", "CRITICAL"]).default("INFO"),
 });
 
-
-// Ažurirana Zod schema za logs filtering sa userName
 const logsFilterSchema = z.object({
   action: z.string().nullable().optional(),
   entityType: z.string().nullable().optional(),
   entityId: z.string().nullable().optional(),
   userId: z.string().nullable().optional(),
-  userName: z.string().nullable().optional(), // Dodajemo userName u Zod šemu
+  userName: z.string().nullable().optional(),
   severity: z.enum(["INFO", "WARNING", "ERROR", "CRITICAL"]).nullable().optional(),
   startDate: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
@@ -33,7 +31,8 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user) {
+    // ✅ FIX: Added check for session.user.id
+    if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
       entityType: url.searchParams.get("entityType"),
       entityId: url.searchParams.get("entityId"),
       userId: url.searchParams.get("userId"),
-      userName: url.searchParams.get("userName"), // Dohvatamo userName iz query params
+      userName: url.searchParams.get("userName"),
       severity: url.searchParams.get("severity"),
       startDate: url.searchParams.get("startDate"),
       endDate: url.searchParams.get("endDate"),
@@ -61,7 +60,6 @@ export async function GET(request: NextRequest) {
 
     console.log("Validated params after Zod parse:", validatedParams);
 
-
     const whereConditions: any = {};
 
     if (validatedParams.action) {
@@ -69,9 +67,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (validatedParams.entityType) {
-       whereConditions.entityType = validatedParams.entityType;
+      whereConditions.entityType = validatedParams.entityType;
     }
-
 
     if (validatedParams.entityId) {
       if (validatedParams.entityId === "NULL") {
@@ -85,16 +82,14 @@ export async function GET(request: NextRequest) {
       whereConditions.userId = validatedParams.userId;
     }
 
-    // Dodajemo filter po imenu korisnika
     if (validatedParams.userName) {
-      whereConditions.user = { // Filtriramo na povezanom 'user' modelu
+      whereConditions.user = {
         name: {
-          contains: validatedParams.userName, // Koristimo 'contains' za delimično podudaranje
-          mode: 'insensitive', // Dodajemo 'insensitive' za pretragu bez obzira na velika/mala slova (zahteva podršku baze)
+          contains: validatedParams.userName,
+          mode: 'insensitive',
         },
       };
     }
-
 
     if (validatedParams.severity) {
       whereConditions.severity = validatedParams.severity;
@@ -166,12 +161,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Ostavite POST i DELETE funkcije neizmenjene
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user) {
+    // ✅ FIX: Added check for session.user.id
+    if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -179,6 +174,7 @@ export async function POST(request: NextRequest) {
 
     const validatedData = createLogSchema.parse(body);
 
+    // ✅ Now TypeScript knows session.user.id is string
     const log = await db.activityLog.create({
       data: {
         action: validatedData.action,
@@ -212,7 +208,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user || session.user.role !== "ADMIN") {
+    // ✅ FIX: Added check for session.user.id
+    if (!session || !session.user || !session.user.id || session.user.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 403 }
@@ -246,6 +243,7 @@ export async function DELETE(request: NextRequest) {
       },
     });
 
+    // ✅ Now TypeScript knows session.user.id is string
     await db.activityLog.create({
       data: {
         action: "PURGE_LOGS",
@@ -255,7 +253,6 @@ export async function DELETE(request: NextRequest) {
         userId: session.user.id,
       },
     });
-
 
     return NextResponse.json({
       message: `Successfully deleted ${result.count} log entries`,
