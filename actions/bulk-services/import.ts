@@ -223,5 +223,3 @@ export async function importBulkServicesFromCsv(
     return results;
   }
 }
-
-export const importBulkServices = importBulkServicesFromCsv;

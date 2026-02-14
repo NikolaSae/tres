@@ -1,32 +1,15 @@
 // actions/bulk-services/index.ts
-"use server";
 
-import { createBulkService as createBulkServiceAction } from './create';
-import { updateBulkService as updateBulkServiceAction } from './update';
-import { getBulkServiceById } from './getBulkServiceById';
-import { getBulkServices } from './getBulkServices';
-import { getBulkServicesByProviderId } from './getBulkServicesByProviderId';
-import { deleteBulkService } from './delete';
-import { importBulkServicesFromCsv } from './import';
-import { exportBulkServices } from './export';
-import { getAllBulkServices } from './getAllBulkServices';
+// Re-export all actions with clear categorization
+export { createBulkService } from './create';
+export { updateBulkService } from './update';
+export { deleteBulkService } from './delete';
+export { getBulkServiceById } from './getBulkServiceById';
+export { getBulkServices } from './getBulkServices';
+export { getBulkServicesByProviderId } from './getBulkServicesByProviderId';
+export { getAllBulkServices } from './getAllBulkServices';
+export { importBulkServicesFromCsv } from './import';
+export { exportBulkServices } from './export';
 
-// Export sa originalnim imenima
-export {
-  createBulkServiceAction as createBulkService,
-  updateBulkServiceAction as updateBulkService,
-  getBulkServiceById,
-  getBulkServices,
-  getBulkServicesByProviderId,
-  deleteBulkService,
-  importBulkServicesFromCsv,
-  exportBulkServices,
-  getAllBulkServices,
-};
-
-// Export sa alternativnim imenima za kompatibilnost
-export {
-  createBulkServiceAction as create,
-  updateBulkServiceAction as update,
-  importBulkServicesFromCsv as importBulkServices,
-};
+// Type re-exports if needed
+export type { BulkServiceFormData } from '@/schemas/bulk-service';

@@ -90,28 +90,43 @@ export default function AdminComplaintsPage() {
 
   const handleExport = async () => {
     try {
-      await exportComplaints({
+      // ✅ ISPRAVKA: exportComplaints() samo prima dateRange i format
+      // Filtriranje se već radi u useComplaints hook-u
+      const result = await exportComplaints({
         format: "csv",
-        status: statuses.length > 0 ? (statuses as ComplaintStatus[]) : undefined,
-        serviceId: service || undefined,
-        providerId: provider || undefined,
+        type: "filtered",
         dateRange: (startDate || endDate) ? {
           from: startDate ? new Date(startDate) : new Date(0),
           to: endDate ? new Date(endDate) : new Date(),
         } : undefined,
+        includeComments: false,
+        includeStatusHistory: false,
+        includeAttachments: false,
       });
 
-      setNotification({
-        type: "success",
-        title: "Export Successful",
-        message: "Export started. The file will be available for download shortly."
-      });
+      if (result.success && result.fileUrl) {
+        // ✅ Automatski pokreni download
+        const link = document.createElement('a');
+        link.href = result.fileUrl;
+        link.download = result.fileName || 'complaints-export.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setNotification({
+          type: "success",
+          title: "Export Successful",
+          message: `Exported ${complaints?.length || 0} complaints successfully.`
+        });
+      } else {
+        throw new Error(result.error || "Export failed");
+      }
     } catch (err) {
       console.error("Export error:", err);
       setNotification({
         type: "error",
         title: "Export Failed",
-        message: "Failed to export complaints"
+        message: err instanceof Error ? err.message : "Failed to export complaints"
       });
     }
   };

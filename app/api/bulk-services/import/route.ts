@@ -1,8 +1,7 @@
 //app/api/bulk-services/import/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { importBulkServices } from '@/actions/bulk-services/import';
+import { importBulkServicesFromCsv } from '@/actions/bulk-services';  // ← IZMENJENO
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +28,7 @@ export async function POST(req: NextRequest) {
     
     // ✅ ISPRAVKA: Dodat nedostajući importDate parametar
     const importDate = new Date();
-    const result = await importBulkServices(fileContent, importDate);
+    const result = await importBulkServicesFromCsv(fileContent, importDate);  // ← IZMENJENO
     
     return NextResponse.json(result);
   } catch (error) {

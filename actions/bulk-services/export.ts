@@ -1,12 +1,10 @@
 // actions/bulk-services/export.ts
-
 "use server";
-
 import { db } from "@/lib/db";
 import { ServerError } from "@/lib/exceptions";
 import { getCurrentUser } from "@/lib/session";
 import { formatBulkServiceCSV } from "@/lib/bulk-services/csv-processor";
-import { BulkServiceFilters } from "@/lib/types/bulk-service-types";  // ← ispravljeno: BulkServiceFilters
+import { BulkServiceFilters } from "@/lib/types/bulk-service-types";
 
 export async function exportBulkServices(filters?: BulkServiceFilters) {
   try {
@@ -15,9 +13,8 @@ export async function exportBulkServices(filters?: BulkServiceFilters) {
       throw new ServerError("Unauthorized – korisnik nije prijavljen");
     }
 
-    // Građenje Prisma where uslova na osnovu filtera
     const where: any = {};
-
+    
     if (filters?.providerId) {
       where.providerId = filters.providerId;
     }
@@ -52,7 +49,6 @@ export async function exportBulkServices(filters?: BulkServiceFilters) {
       }
     }
 
-    // Dohvatanje podataka iz baze
     const bulkServices = await db.bulkService.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -67,7 +63,6 @@ export async function exportBulkServices(filters?: BulkServiceFilters) {
         message_parts: true,
         createdAt: true,
         datumNaplate: true,
-        // Dodaj još polja ako želiš da se pojave u CSV-u
       },
     });
 
@@ -78,7 +73,6 @@ export async function exportBulkServices(filters?: BulkServiceFilters) {
       };
     }
 
-    // Generisanje CSV sadržaja
     const csvContent = formatBulkServiceCSV(bulkServices);
 
     return {
@@ -89,11 +83,9 @@ export async function exportBulkServices(filters?: BulkServiceFilters) {
     };
   } catch (error) {
     console.error("[EXPORT_BULK_SERVICES]", error);
-
     if (error instanceof Error) {
       throw new ServerError(`Greška pri eksportu: ${error.message}`);
     }
-
     throw new ServerError("Neočekivana greška prilikom eksporta bulk servisa");
   }
 }

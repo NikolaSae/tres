@@ -16,7 +16,6 @@ export async function updateBulkService(id: string, data: unknown) {
       throw new Error("Unauthorized");
     }
 
-    // Check if bulk service exists
     const existingBulkService = await db.bulkService.findUnique({
       where: { id },
     });
@@ -25,10 +24,8 @@ export async function updateBulkService(id: string, data: unknown) {
       throw new Error("Bulk service not found");
     }
 
-    // Validate the input data
     const validatedData = bulkServiceSchema.parse(data);
 
-    // Update the bulk service
     const updatedBulkService = await db.bulkService.update({
       where: { id },
       data: {
@@ -41,7 +38,6 @@ export async function updateBulkService(id: string, data: unknown) {
       },
     });
 
-    // Log activity
     await ActivityLogService.log({
       action: "UPDATE_BULK_SERVICE",
       entityType: "BULK_SERVICE",
@@ -51,7 +47,6 @@ export async function updateBulkService(id: string, data: unknown) {
       userId: currentUser.id,
     });
 
-    // Revalidate the paths
     revalidatePath("/bulk-services");
     revalidatePath(`/bulk-services/${id}`);
 

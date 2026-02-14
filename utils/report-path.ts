@@ -294,7 +294,7 @@ export async function reportExists(
 export async function getReportFiles(
   orgData: OrganizationReportData,
   year: number,
-  month: number, // ✅ FIX: Changed from 'month' to 'number'
+  month: number,
   paymentType: PaymentType
 ): Promise<string[]> {
   try {

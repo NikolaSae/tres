@@ -31,14 +31,14 @@ interface BulkServiceFormProps {
   initialData?: any;
   services?: Service[];
   providers?: Provider[];
-  isEditing?: boolean;
+  isEditing?: boolean;  // ← DODAJ OVO AKO NEDOSTAJE!
 }
 
 export const BulkServiceForm = ({
   initialData,
   services,
   providers,
-  isEditing = false
+  isEditing = false  // ← DODAJ DEFAULT VREDNOST!
 }: BulkServiceFormProps) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -76,10 +76,14 @@ export const BulkServiceForm = ({
     try {
       setLoading(true);
       
+      console.log('🔍 DEBUG:', { isEditing, hasId: !!initialData?.id, initialData });  // ← DODAJ DEBUG LOG
+      
       if (isEditing && initialData?.id) {
+        console.log('✅ Calling UPDATE with id:', initialData.id);
         await updateBulkService(initialData.id, values);
         toast.success("Bulk service updated successfully");
       } else {
+        console.log('✅ Calling CREATE');
         await createBulkService(values);
         toast.success("Bulk service created successfully");
       }

@@ -1,6 +1,4 @@
 //app/(protected)/bulk-services/[id]/edit/page.tsx
-
-
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Heading } from "@/components/ui/heading";
@@ -56,7 +54,8 @@ export default async function EditBulkServicePage({
       <BulkServiceForm 
         services={services} 
         providers={providers} 
-        initialData={bulkService} 
+        initialData={bulkService}
+        isEditing={true}
       />
     </div>
   );

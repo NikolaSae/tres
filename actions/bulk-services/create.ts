@@ -15,10 +15,8 @@ export async function createBulkService(data: unknown) {
       throw new Error("Unauthorized – korisnik nije prijavljen");
     }
 
-    // Validacija ulaznih podataka
     const validatedData = bulkServiceSchema.parse(data);
 
-    // Kreiranje bulk servisa
     const bulkService = await db.bulkService.create({
       data: {
         ...validatedData,
@@ -32,7 +30,6 @@ export async function createBulkService(data: unknown) {
       },
     });
 
-    // Logovanje aktivnosti
     await ActivityLogService.log({
       action: "CREATE_BULK_SERVICE",
       entityType: "BULK_SERVICE",
@@ -42,7 +39,6 @@ export async function createBulkService(data: unknown) {
       userId: currentUser.id,
     });
 
-    // Revalidacija putanje
     revalidatePath("/bulk-services");
 
     return {
