@@ -9,8 +9,8 @@ interface ParkingReportEmailProps {
     type: string;
   }>;
   attachmentCount: number;
-  reportType?: 'PREPAID' | 'POSTPAID'; // Opciono - detektuj automatski ako nije prosleđen
-  customBodyText?: string; // Opcioni custom tekst
+  reportType?: 'PREPAID' | 'POSTPAID';
+  customBodyText?: string;
 }
 
 export function generateParkingReportEmail({
@@ -54,8 +54,11 @@ export function generateParkingReportEmail({
     `
   };
 
-  // Koristi custom tekst ako je prosleđen, inače koristi podrazumevani
-  const bodyText = customBodyText || defaultBodyTexts[reportType];
+  // ✅ Osiguraj da reportType nije undefined
+  const effectiveReportType = reportType || 'PREPAID'; // Default to PREPAID if not specified
+
+  // ✅ Koristi custom tekst ako je prosleđen, inače koristi podrazumevani
+  const bodyText = customBodyText || defaultBodyTexts[effectiveReportType];
 
   return `
     <!DOCTYPE html>
@@ -72,7 +75,7 @@ export function generateParkingReportEmail({
           padding: 20px;
         }
         .header {
-          background: linear-gradient(135deg, ${reportType === 'PREPAID' ? '#667eea 0%, #764ba2 100%' : '#f093fb 0%, #f5576c 100%'});
+          background: linear-gradient(135deg, ${effectiveReportType === 'PREPAID' ? '#667eea 0%, #764ba2 100%' : '#f093fb 0%, #f5576c 100%'});
           color: white;
           padding: 30px;
           border-radius: 10px 10px 0 0;
@@ -113,12 +116,12 @@ export function generateParkingReportEmail({
           margin: 10px 0;
         }
         .info-box strong {
-          color: ${reportType === 'PREPAID' ? '#667eea' : '#f5576c'};
+          color: ${effectiveReportType === 'PREPAID' ? '#667eea' : '#f5576c'};
         }
         .attachments-box {
-          background: ${reportType === 'PREPAID' ? '#e8f4f8' : '#ffe8f0'};
+          background: ${effectiveReportType === 'PREPAID' ? '#e8f4f8' : '#ffe8f0'};
           padding: 15px;
-          border-left: 4px solid ${reportType === 'PREPAID' ? '#0066cc' : '#f5576c'};
+          border-left: 4px solid ${effectiveReportType === 'PREPAID' ? '#0066cc' : '#f5576c'};
           margin: 20px 0;
         }
         .attachments-box ul {
@@ -131,7 +134,7 @@ export function generateParkingReportEmail({
         .badge {
           display: inline-block;
           padding: 3px 8px;
-          background: ${reportType === 'PREPAID' ? '#667eea' : '#f5576c'};
+          background: ${effectiveReportType === 'PREPAID' ? '#667eea' : '#f5576c'};
           color: white;
           border-radius: 4px;
           font-size: 12px;
@@ -152,7 +155,7 @@ export function generateParkingReportEmail({
     <body>
       <div class="header">
         <h1>📊 Mesečni izveštaj</h1>
-        <div class="report-type-badge">${reportType}</div>
+        <div class="report-type-badge">${effectiveReportType}</div>
         <p style="margin: 10px 0 0 0; opacity: 0.9;">Parking Servis - ${serviceName}</p>
       </div>
       
@@ -163,7 +166,7 @@ export function generateParkingReportEmail({
           <p><strong>📍 Parking servis:</strong> ${serviceName}</p>
           <p><strong>📅 Period:</strong> ${monthName} ${year}</p>
           <p><strong>📎 Broj izveštaja:</strong> ${attachmentCount}</p>
-          <p><strong>🏷️ Tip izveštaja:</strong> ${reportType}</p>
+          <p><strong>🏷️ Tip izveštaja:</strong> ${effectiveReportType}</p>
         </div>
         
         <div class="attachments-box">

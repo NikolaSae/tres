@@ -1,24 +1,23 @@
 // /lib/contracts/notification-sender.ts
 
-import { db } from '@/lib/db'; // Pretpostavljena putanja do vašeg Prisma klijenta
-import { NotificationType, Contract, ContractReminder, User } from '@prisma/client'; // Prisma modeli i enumi
-import { format } from 'date-fns'; // Utility za formatiranje datuma
+import { db } from '@/lib/db';
+import { NotificationType, Contract, ContractReminder, Notification } from '@prisma/client'; // ✅ Dodaj Notification
+import { format } from 'date-fns';
 
-// Pretpostavljeni interfejsi za kontekst
+// Interfejsi za kontekst
 interface ContractNotificationContext extends Partial<Contract> {
-     id: string; // ID ugovora je neophodan
+     id: string;
      name?: string;
      contractNumber?: string;
      endDate?: Date;
 }
 
 interface ReminderNotificationContext extends Partial<ContractReminder> {
-    id: string; // ID podsetnika je neophodan
+    id: string;
     reminderDate?: Date;
     reminderType?: string;
     contract?: ContractNotificationContext | null;
 }
-
 
 /**
  * Kreira zapis o in-app notifikaciji u bazi podataka.
@@ -30,9 +29,9 @@ const createNotification = async (params: {
     title: string;
     message: string;
     type: NotificationType;
-    entityType?: string; // Npr. 'contract', 'reminder'
-    entityId?: string;   // ID povezanog entiteta
-}): Promise<typeof db.notification.$create> | null => {
+    entityType?: string;
+    entityId?: string;
+}): Promise<Notification | null> => { // ✅ Ispravi return tip
     try {
         const notification = await db.notification.create({
             data: {
@@ -42,23 +41,22 @@ const createNotification = async (params: {
                 type: params.type,
                 entityType: params.entityType,
                 entityId: params.entityId,
-                // isRead je false po defaultu
             },
         });
         return notification;
     } catch (error) {
         console.error("Error creating in-app notification:", error);
-        return null; // Vraća null u slučaju greške
+        return null;
     }
 };
 
 /**
  * Šalje email notifikaciju (placeholder).
- * Ovu funkciju treba zameniti integracijom sa vašim servisom za slanje emailova (SendGrid, Nodemailer, itd.).
+ * Ovu funkciju treba zameniti integracijom sa servisom za slanje emailova.
  * @param recipientEmail - Email adresa primaoca.
  * @param subject - Naslov emaila.
  * @param body - Telo emaila.
- * @returns Promise<boolean> - True ako je poslato (simulirano), False u slučaju greške.
+ * @returns Promise<boolean> - True ako je poslato, False u slučaju greške.
  */
 const sendEmail = async (recipientEmail: string, subject: string, body: string): Promise<boolean> => {
     console.log(`Simulating sending email to ${recipientEmail}`);
@@ -69,16 +67,15 @@ const sendEmail = async (recipientEmail: string, subject: string, body: string):
     await new Promise(resolve => setTimeout(resolve, 500));
 
     console.log("Simulated email sent.");
-    return true; // Simulacija uspeha
+    return true;
 };
-
 
 /**
  * Šalje notifikaciju o isteku ugovora.
  * Kreira in-app notifikaciju i opcionalno šalje email.
- * @param contract - Podaci o ugovoru (sa ID, name, endDate, itd.).
- * @param recipientUserId - ID korisnika kome se šalje in-app notifikacija.
- * @param recipientEmail - Email adresa primaoca za email notifikaciju (opciono).
+ * @param contract - Podaci o ugovoru.
+ * @param recipientUserId - ID korisnika kome se šalje notifikacija.
+ * @param recipientEmail - Email adresa primaoca (opciono).
  * @param daysLeft - Broj dana pre isteka.
  */
 export const sendContractExpirationNotification = async (
@@ -88,7 +85,7 @@ export const sendContractExpirationNotification = async (
     daysLeft: number
 ) => {
     const title = `Contract "${contract.name || contract.contractNumber}" is expiring soon`;
-    const message = `Contract "${contract.name || contract.contractNumber}" with number ${contract.contractNumber || 'N/A'} is expiring in ${daysLeft} days on ${contract.endDate ? format(contract.endDate, 'PPP') : 'N/A'}.`; // Formatirajte datum po potrebi
+    const message = `Contract "${contract.name || contract.contractNumber}" with number ${contract.contractNumber || 'N/A'} is expiring in ${daysLeft} days on ${contract.endDate ? format(contract.endDate, 'PPP') : 'N/A'}.`;
 
     // Kreiraj in-app notifikaciju
     await createNotification({
@@ -106,13 +103,12 @@ export const sendContractExpirationNotification = async (
     }
 };
 
-
 /**
  * Šalje notifikaciju za opšti podsetnik ugovora.
  * Kreira in-app notifikaciju i opcionalno šalje email.
- * @param reminder - Podaci o podsetniku (sa ID, reminderType, reminderDate, i povezanim ugovorom).
- * @param recipientUserId - ID korisnika kome se šalje in-app notifikacija.
- * @param recipientEmail - Email adresa primaoca za email notifikaciju (opciono).
+ * @param reminder - Podaci o podsetniku.
+ * @param recipientUserId - ID korisnika kome se šalje notifikacija.
+ * @param recipientEmail - Email adresa primaoca (opciono).
  * @param customMessage - Opciona prilagođena poruka.
  */
 export const sendReminderNotification = async (
@@ -123,7 +119,7 @@ export const sendReminderNotification = async (
 ) => {
     const contractNumber = reminder.contract?.contractNumber || 'N/A';
     const contractName = reminder.contract?.name || 'N/A';
-    const reminderDateStr = reminder.reminderDate ? format(reminder.reminderDate, 'PPP') : 'N/A'; // Formatirajte datum
+    const reminderDateStr = reminder.reminderDate ? format(reminder.reminderDate, 'PPP') : 'N/A';
 
     const title = `Contract Reminder: ${reminder.reminderType?.toUpperCase() || 'General'}`;
     const defaultMessage = `Reminder for contract "${contractName}" (Number: ${contractNumber}) for type "${reminder.reminderType}" scheduled for ${reminderDateStr}.`;
@@ -134,7 +130,7 @@ export const sendReminderNotification = async (
         userId: recipientUserId,
         title,
         message,
-        type: NotificationType.REMINDER, // Koristimo REMINDER tip notifikacije
+        type: NotificationType.REMINDER,
         entityType: 'reminder',
         entityId: reminder.id,
     });
@@ -144,7 +140,3 @@ export const sendReminderNotification = async (
         await sendEmail(recipientEmail, title, message);
     }
 };
-
-
-// Možete dodati još funkcija za specifične tipove notifikacija ako je potrebno
-// npr. sendContractRenewalStatusChangeNotification, sendComplaintAssignedNotification, itd.

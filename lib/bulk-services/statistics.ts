@@ -65,8 +65,8 @@ export const calculateBulkServiceStats = (
   // Group by provider for provider-specific stats
   const groupedByProvider = _.groupBy(bulkServices, "providerId");
   
-  // Process each provider group
-  Object.entries(groupedByProvider).forEach(([providerId, services]) => {
+  // ✅ Process each provider group - dodaj tipove
+  Object.entries(groupedByProvider).forEach(([providerId, services]: [string, BulkService[]]) => {
     if (services.length === 0) return;
     
     const providerName = services[0].provider_name;
@@ -85,8 +85,8 @@ export const calculateBulkServiceStats = (
   // Group by service for service-specific stats
   const groupedByService = _.groupBy(bulkServices, "serviceId");
   
-  // Process each service group
-  Object.entries(groupedByService).forEach(([serviceId, services]) => {
+  // ✅ Process each service group - dodaj tipove
+  Object.entries(groupedByService).forEach(([serviceId, services]: [string, BulkService[]]) => {
     if (services.length === 0) return;
     
     const serviceName = services[0].service_name;
@@ -172,8 +172,8 @@ export const calculateProviderDistribution = (bulkServices: BulkService[]) => {
   // Calculate total requests for percentage calculation
   const totalRequests = _.sumBy(bulkServices, "requests");
   
-  // Process each provider group
-  return Object.entries(groupedByProvider).map(([providerName, services]) => {
+  // ✅ Process each provider group - dodaj tipove
+  return Object.entries(groupedByProvider).map(([providerName, services]: [string, BulkService[]]) => {
     const requests = _.sumBy(services, "requests");
     const percentage = totalRequests === 0 ? 0 : (requests / totalRequests) * 100;
     
@@ -193,15 +193,18 @@ export const calculateProviderDistribution = (bulkServices: BulkService[]) => {
  * @returns Array of trend data points
  */
 export const calculateTrends = (
-  bulkServices: (BulkService & { [key: string]: any })[],
-  timeField: string = "createdAt",
+  bulkServices: BulkService[],
+  timeField: keyof BulkService = "createdAt",
   interval: "day" | "week" | "month" = "month"
 ) => {
   // Early return if no data
   if (!bulkServices.length) return [];
   
-  // Ensure all records have the timeField
-  const validServices = bulkServices.filter(service => service[timeField]);
+  // ✅ Ensure all records have the timeField - dodaj tip
+  const validServices = bulkServices.filter((service: BulkService) => {
+    const value = service[timeField];
+    return value !== null && value !== undefined;
+  });
   
   // Get the time grouping function
   const getTimeGroup = (date: Date) => {
@@ -221,15 +224,16 @@ export const calculateTrends = (
     }
   };
   
-  // Group by time interval
-  const groupedByTime = _.groupBy(validServices, service => {
-    const date = new Date(service[timeField]);
+  // ✅ Group by time interval - dodaj tip
+  const groupedByTime = _.groupBy(validServices, (service: BulkService) => {
+    const value = service[timeField];
+    const date = value instanceof Date ? value : new Date(String(value));
     return getTimeGroup(date);
   });
   
-  // Convert grouped data to array and sort by time
+  // ✅ Convert grouped data to array and sort by time - dodaj tipove
   return Object.entries(groupedByTime)
-    .map(([timeKey, services]) => ({
+    .map(([timeKey, services]: [string, BulkService[]]) => ({
       timeKey,
       requests: _.sumBy(services, "requests"),
       messageParts: _.sumBy(services, "message_parts"),

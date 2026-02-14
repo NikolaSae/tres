@@ -537,7 +537,6 @@ export class WriteOperations {
           description: args.description,
           priority: args.priority,
           status: 'NEW',
-          category: args.category,
           financialImpact: args.financialImpact,
           providerId: args.providerId,
           serviceId: args.serviceId,
@@ -789,7 +788,7 @@ export class WriteOperations {
         where: { id: args.contractId },
         data: { 
           status: 'TERMINATED',
-          notes: `Deleted by ${context.userId}. Reason: ${args.reason}`
+          description: `Deleted by ${context.userId}. Reason: ${args.reason}`
         }
       });
 

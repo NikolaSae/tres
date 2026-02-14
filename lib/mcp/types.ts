@@ -6,7 +6,7 @@
 export interface McpContext {
   userId: string;
   userRole: 'ADMIN' | 'MANAGER' | 'AGENT' | 'USER';
-  metadata?: Record<string, any>; // Dodatni kontekst po potrebi
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -16,6 +16,7 @@ export interface McpResult {
   success: boolean;
   data?: any;
   error?: string;
+  message?: string; // User-friendly poruka
   metadata?: {
     executionTime?: number;
     cached?: boolean;
@@ -26,7 +27,7 @@ export interface McpResult {
 /**
  * Kategorije alata
  */
-export type ToolCategory = 'read' | 'write' | 'analytics' | 'system';
+export type ToolCategory = 'read' | 'write' | 'analytics' | 'system' | 'email'; // ✅ Dodato 'email'
 
 /**
  * Definicija MCP alata
@@ -35,10 +36,10 @@ export interface McpTool {
   name: string;
   description: string;
   category: ToolCategory;
-  examples?: string[]; // Primeri korišćenja za AI
+  examples?: string[];
   inputSchema: JsonSchema;
-  requiredRole?: string[]; // Uloge koje mogu koristiti ovaj alat
-  outputSchema?: JsonSchema; // Opciono: format output-a
+  requiredRole?: string[];
+  outputSchema?: JsonSchema;
 }
 
 /**
@@ -98,10 +99,10 @@ export interface QueryLogEntry {
  * Tool execution options
  */
 export interface ToolExecutionOptions {
-  timeout?: number; // Timeout u milisekundama
-  retries?: number; // Broj pokušaja u slučaju greške
-  cache?: boolean; // Da li keširaju rezultat
-  cacheTTL?: number; // TTL za keš u sekundama
+  timeout?: number;
+  retries?: number;
+  cache?: boolean;
+  cacheTTL?: number;
 }
 
 /**

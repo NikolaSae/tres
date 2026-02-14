@@ -10,40 +10,46 @@ export async function parseBulkServiceCSV(csvContent: string) {
   const data: BulkServiceData[] = [];
   const errors: BulkServiceValidationError[] = [];
 
-  const parseResult = Papa.parse(csvContent, {
+  // ✅ Papa.parse vraća ParseResult tip kad se koristi sinhronо
+  const parseResult = Papa.parse<Record<string, string>>(csvContent, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: header => header.trim(),
-    error: (err) => {
-      errors.push({
-        rowIndex: -1,
-        errors: [`CSV parsing error: ${err.message}`],
-        originalRow: {}
-      });
-    }
+    transformHeader: (header: string) => header.trim(),
   });
 
+  // ✅ Proveri parse errors
   if (parseResult.errors && parseResult.errors.length > 0) {
-    parseResult.errors.forEach(err => {
+    parseResult.errors.forEach((err) => {
       errors.push({
-        rowIndex: err.row || -1,
-        errors: [`Parse error at row ${err.row}: ${err.message}`],
-        originalRow: err.row !== undefined ? parseResult.data[err.row] : {}
+        rowIndex: err.row ?? -1,
+        errors: [`Parse error at row ${err.row ?? 'unknown'}: ${err.message}`],
+        originalRow: err.row !== undefined && parseResult.data[err.row] ? parseResult.data[err.row] : {}
       });
     });
   }
 
-  parseResult.data.forEach((row: any, index: number) => {
-    const rowErrors = [];
+  // ✅ Procesiraj svaki red
+  parseResult.data.forEach((row, index) => {
+    const rowErrors: string[] = [];
 
-    const requiredFields = ['provider_name', 'agreement_name', 'service_name', 'step_name', 'sender_name', 'requests', 'message_parts'];
+    const requiredFields = [
+      'provider_name', 
+      'agreement_name', 
+      'service_name', 
+      'step_name', 
+      'sender_name', 
+      'requests', 
+      'message_parts'
+    ];
     
+    // Validacija required fields
     for (const field of requiredFields) {
-      if (!row[field] || row[field].trim() === '') {
+      if (!row[field] || String(row[field]).trim() === '') {
         rowErrors.push(`Missing required field: ${field}`);
       }
     }
 
+    // Validacija numeričkih polja
     if (row.requests && isNaN(parseInt(row.requests))) {
       rowErrors.push('Requests must be a valid number');
     }
@@ -60,11 +66,11 @@ export async function parseBulkServiceCSV(csvContent: string) {
       });
     } else {
       data.push({
-        provider_name: row.provider_name.trim(),
-        agreement_name: row.agreement_name.trim(),
-        service_name: row.service_name.trim(),
-        step_name: row.step_name.trim(),
-        sender_name: row.sender_name.trim(),
+        provider_name: String(row.provider_name).trim(),
+        agreement_name: String(row.agreement_name).trim(),
+        service_name: String(row.service_name).trim(),
+        step_name: String(row.step_name).trim(),
+        sender_name: String(row.sender_name).trim(),
         requests: parseInt(row.requests),
         message_parts: parseInt(row.message_parts),
         providerId: null,
@@ -94,7 +100,7 @@ export function processBulkServiceCsv(
 
   data.forEach((row, index) => {
     processedCount++;
-    const rowErrors = [];
+    const rowErrors: string[] = [];
     const originalRow = { ...row };
     
     const providerNameLower = row.provider_name.toLowerCase();
@@ -102,6 +108,7 @@ export function processBulkServiceCsv(
     const compositeServiceName = `${row.provider_name}-${row.agreement_name}-${row.service_name}-${row.step_name}-${row.sender_name}`;
     const compositeServiceNameLower = compositeServiceName.toLowerCase();
 
+    // Provera providera
     const providerId = providerMap.get(providerNameLower);
     if (!providerId) {
       rowErrors.push(`Provider "${row.provider_name}" not found in system.`);
@@ -110,6 +117,7 @@ export function processBulkServiceCsv(
       row.providerId = providerId;
     }
 
+    // Provera servisa
     const serviceId = serviceMap.get(compositeServiceNameLower);
     if (!serviceId) {
       rowErrors.push(`Service with composite name "${compositeServiceName}" not found in system.`);
@@ -143,7 +151,6 @@ export function processBulkServiceCsv(
 
 /**
  * Formatira niz bulk servisa u CSV string spreman za download/eksport
- * @param bulkServices Niz objekata iz baze
  */
 export function formatBulkServiceCSV(
   bulkServices: Array<{
@@ -157,7 +164,6 @@ export function formatBulkServiceCSV(
     message_parts: number;
     createdAt?: Date | string;
     datumNaplate?: Date | string | null;
-    // Dodaj ostala polja po potrebi
   }>
 ): string {
   const headers = [

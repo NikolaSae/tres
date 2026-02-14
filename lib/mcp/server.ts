@@ -12,6 +12,23 @@ interface McpContext {
   userRole: string;
 }
 
+// ✅ Fleksibilniji tip za tools description
+type ToolsDescription = {
+  [key: string]: {
+    category: string;
+    purpose: string;
+    when_to_use?: string[];
+    natural_queries?: string[];
+    input: any;
+    output_format?: any;
+    included_relations?: string[];
+    validation?: string[];
+    permissions?: any;
+    related_tools?: string[];
+    [key: string]: any; // ✅ Dozvoli dodatna polja
+  };
+};
+
 class DatabaseMcpServer {
   private server: Server;
   private readTools: string[];
@@ -44,18 +61,18 @@ class DatabaseMcpServer {
   }
 
   private async getContext(): Promise<McpContext | null> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    console.log('No session or user ID found');
-    return null;
-  }
+    const session = await auth();
+    if (!session?.user?.id) {
+      console.log('No session or user ID found');
+      return null;
+    }
 
-  console.log('User context:', { userId: session.user.id, userRole: session.user.role });
-  return {
-    userId: session.user.id,
-    userRole: session.user.role || 'USER'
-  };
-}
+    console.log('User context:', { userId: session.user.id, userRole: session.user.role });
+    return {
+      userId: session.user.id,
+      userRole: session.user.role || 'USER'
+    };
+  }
 
   private buildPrompt() {
     return `
@@ -79,25 +96,25 @@ ${JSON.stringify(toolsDescription.tools, null, 2)}
   private setupToolHandlers() {
     // List tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-  console.log('ListToolsRequestSchema handler called');
-  const context = await this.getContext();
-  if (!context) {
-    console.error('Unauthorized access attempt');
-    throw new Error('Unauthorized');
-  }
+      console.log('ListToolsRequestSchema handler called');
+      const context = await this.getContext();
+      if (!context) {
+        console.error('Unauthorized access attempt');
+        throw new Error('Unauthorized');
+      }
 
-  const tools = this.getToolsForRole(context.userRole);
-  console.log('Tools for role', context.userRole, ':', tools);
-  const openRouterTools = tools.map(t => ({
-    type: 'function',
-    function: {
-      name: t.name,
-      description: t.description || 'No description available',
-      parameters: t.inputSchema || {}
-    }
-  }));
-  return { tools: openRouterTools };
-});
+      const tools = this.getToolsForRole(context.userRole);
+      console.log('Tools for role', context.userRole, ':', tools);
+      const openRouterTools = tools.map(t => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description || 'No description available',
+          parameters: t.inputSchema || {}
+        }
+      }));
+      return { tools: openRouterTools };
+    });
 
     // Call tool
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -137,17 +154,20 @@ ${JSON.stringify(toolsDescription.tools, null, 2)}
   }
 
   private getToolsForRole(role: string) {
-    const tools = Object.keys(toolsDescription.tools).map(name => ({
+    // ✅ Jednostavnija type assertion
+    const tools = toolsDescription.tools as Record<string, any>;
+    
+    const toolsList = Object.keys(tools).map(name => ({
       name,
-      description: toolsDescription.tools[name].purpose,
-      inputSchema: toolsDescription.tools[name].input
+      description: tools[name]?.purpose || 'No description',
+      inputSchema: tools[name]?.input || {}
     }));
 
     switch (role) {
-      case 'ADMIN': return tools;
-      case 'MANAGER': return tools.filter(t => !['create_humanitarian_org'].includes(t.name));
-      case 'AGENT': return tools.filter(t => this.readTools.includes(t.name));
-      default: return tools.filter(t => ['get_contracts', 'get_providers'].includes(t.name));
+      case 'ADMIN': return toolsList;
+      case 'MANAGER': return toolsList.filter(t => !['create_humanitarian_org'].includes(t.name));
+      case 'AGENT': return toolsList.filter(t => this.readTools.includes(t.name));
+      default: return toolsList.filter(t => ['get_contracts', 'get_providers'].includes(t.name));
     }
   }
 
@@ -180,7 +200,10 @@ ${JSON.stringify(toolsDescription.tools, null, 2)}
 
     const providers = await db.provider.findMany({
       where,
-      include: { contracts: { select: { id: true, name: true, status: true } }, _count: { select: { complaints: true } } },
+      include: { 
+        contracts: { select: { id: true, name: true, status: true } }, 
+        _count: { select: { complaints: true } } 
+      },
       take: args.limit || 50,
       orderBy: { name: 'asc' }
     });
@@ -189,14 +212,20 @@ ${JSON.stringify(toolsDescription.tools, null, 2)}
   }
 
   private async getComplaints(args: any, context: McpContext) {
-    if (!['ADMIN', 'MANAGER', 'AGENT'].includes(context.userRole)) throw new Error('Insufficient permissions');
+    if (!['ADMIN', 'MANAGER', 'AGENT'].includes(context.userRole)) {
+      throw new Error('Insufficient permissions');
+    }
+    
     const where: any = {};
     if (args.status) where.status = args.status;
     if (args.priority) where.priority = args.priority;
     if (args.assignedAgentId) where.assignedAgentId = args.assignedAgentId;
 
     if (context.userRole === 'AGENT') {
-      where.OR = [{ assignedAgentId: context.userId }, { submittedById: context.userId }];
+      where.OR = [
+        { assignedAgentId: context.userId }, 
+        { submittedById: context.userId }
+      ];
     }
 
     const complaints = await db.complaint.findMany({
@@ -215,15 +244,48 @@ ${JSON.stringify(toolsDescription.tools, null, 2)}
   }
 
   private async searchEntities(args: any, context: McpContext) {
-    if (!['ADMIN', 'MANAGER'].includes(context.userRole)) throw new Error('Insufficient permissions');
+    if (!['ADMIN', 'MANAGER'].includes(context.userRole)) {
+      throw new Error('Insufficient permissions');
+    }
 
     const results = await Promise.all([
-      db.contract.findMany({ where: { OR: [{ name: { contains: args.query, mode: 'insensitive' } }, { contractNumber: { contains: args.query, mode: 'insensitive' } }] }, take: 10, select: { id: true, name: true, contractNumber: true, type: true, status: true } }),
-      db.provider.findMany({ where: { name: { contains: args.query, mode: 'insensitive' } }, take: 10, select: { id: true, name: true, email: true, isActive: true } }),
-      db.complaint.findMany({ where: { OR: [{ title: { contains: args.query, mode: 'insensitive' } }, { description: { contains: args.query, mode: 'insensitive' } }] }, take: 10, select: { id: true, title: true, status: true, priority: true } })
+      db.contract.findMany({ 
+        where: { 
+          OR: [
+            { name: { contains: args.query, mode: 'insensitive' } }, 
+            { contractNumber: { contains: args.query, mode: 'insensitive' } }
+          ] 
+        }, 
+        take: 10, 
+        select: { id: true, name: true, contractNumber: true, type: true, status: true } 
+      }),
+      db.provider.findMany({ 
+        where: { name: { contains: args.query, mode: 'insensitive' } }, 
+        take: 10, 
+        select: { id: true, name: true, email: true, isActive: true } 
+      }),
+      db.complaint.findMany({ 
+        where: { 
+          OR: [
+            { title: { contains: args.query, mode: 'insensitive' } }, 
+            { description: { contains: args.query, mode: 'insensitive' } }
+          ] 
+        }, 
+        take: 10, 
+        select: { id: true, title: true, status: true, priority: true } 
+      })
     ]);
 
-    return { content: [{ type: 'text', text: JSON.stringify({ contracts: results[0], providers: results[1], complaints: results[2] }, null, 2) }] };
+    return { 
+      content: [{ 
+        type: 'text', 
+        text: JSON.stringify({ 
+          contracts: results[0], 
+          providers: results[1], 
+          complaints: results[2] 
+        }, null, 2) 
+      }] 
+    };
   }
 
   /** --- Write Tools Stub --- */

@@ -177,85 +177,92 @@ export const calculateContractRevenue = async (
                         }
                     }
                 } else if (serviceType === "BULK") {
-                    const bulkData = await db.bulkService.findMany({
-                        where: {
-                            serviceId: serviceId,
-                            datumNaplate: {
-                                gte: adjustedStart,
-                                lte: adjustedEnd,
-                            },
-                        },
-                        select: {
-                            id: true,
-                            requests: true,
-                            message_parts: true,
-                            datumNaplate: true,
-                        },
-                    });
+    const bulkData = await db.bulkService.findMany({
+        where: {
+            serviceId: serviceId,
+            datumNaplate: {
+                gte: adjustedStart,
+                lte: adjustedEnd,
+            },
+        },
+        select: {
+            id: true,
+            requests: true,
+            message_parts: true,
+            datumNaplate: true,
+        },
+    });
 
-                    // Group transactions by month
-                    const monthlyTransactions = new Map<string, {
-                        messages: number,
-                        records: number,
-                        messageParts: number
-                    }>();
+    // Group transactions by month
+    const monthlyTransactions = new Map<string, {
+        messages: number,
+        records: number,
+        messageParts: number
+    }>();
 
-                    let totalRequests = 0;
-                    let totalRecords = 0;
-                    let totalMessageParts = 0;
+    let totalRequests = 0;
+    let totalRecords = 0;
+    let totalMessageParts = 0;
 
-                    for (const data of bulkData) {
-                        const monthKey = data.datumNaplate.toISOString().slice(0, 7); // YYYY-MM format
-                        
-                        if (!monthlyTransactions.has(monthKey)) {
-                            monthlyTransactions.set(monthKey, {
-                                messages: 0,
-                                records: 0,
-                                messageParts: 0
-                            });
-                        }
-                        
-                        const monthData = monthlyTransactions.get(monthKey)!;
-                        monthData.messages += data.requests || 0;
-                        monthData.records += 1; // Each record counts as 1
-                        monthData.messageParts += data.message_parts || 0;
-                        
-                        totalRequests += data.requests || 0;
-                        totalRecords += 1;
-                        totalMessageParts += data.message_parts || 0;
-                    }
+    // ✅ ISPRAVLJENO - dodаta provera za null
+    for (const data of bulkData) {
+        // Skip records without datumNaplate
+        if (!data.datumNaplate) {
+            console.warn(`Bulk service record ${data.id} has no datumNaplate, skipping`);
+            continue;
+        }
+        
+        const monthKey = data.datumNaplate.toISOString().slice(0, 7); // YYYY-MM format
+        
+        if (!monthlyTransactions.has(monthKey)) {
+            monthlyTransactions.set(monthKey, {
+                messages: 0,
+                records: 0,
+                messageParts: 0
+            });
+        }
+        
+        const monthData = monthlyTransactions.get(monthKey)!;
+        monthData.messages += data.requests || 0;
+        monthData.records += 1; // Each record counts as 1
+        monthData.messageParts += data.message_parts || 0;
+        
+        totalRequests += data.requests || 0;
+        totalRecords += 1;
+        totalMessageParts += data.message_parts || 0;
+    }
 
-                    // Calculate revenue per month
-                    let messageRevenueTotal = 0;
-                    let recordRevenueTotal = 0;
-                    
-                    for (const [month, monthData] of monthlyTransactions) {
-                        const perMessageRate = monthData.messages >= 1000000 ? 1.20 : 1.50;
-                        const messageRevenue = monthData.messages * perMessageRate;
-                        const recordRevenue = monthData.records * 1000; // 1000 RSD per record
-                        const monthlyRevenue = messageRevenue + recordRevenue;
-                        
-                        serviceGrossRevenue += monthlyRevenue;
-                        messageRevenueTotal += messageRevenue;
-                        recordRevenueTotal += recordRevenue;
-                    }
+    // Calculate revenue per month
+    let messageRevenueTotal = 0;
+    let recordRevenueTotal = 0;
+    
+    for (const [month, monthData] of monthlyTransactions) {
+        const perMessageRate = monthData.messages >= 1000000 ? 1.20 : 1.50;
+        const messageRevenue = monthData.messages * perMessageRate;
+        const recordRevenue = monthData.records * 1000; // 1000 RSD per record
+        const monthlyRevenue = messageRevenue + recordRevenue;
+        
+        serviceGrossRevenue += monthlyRevenue;
+        messageRevenueTotal += messageRevenue;
+        recordRevenueTotal += recordRevenue;
+    }
 
-                    // Add to service breakdown with details
-                    if (serviceGrossRevenue > 0) {
-                        totalGrossRevenue += serviceGrossRevenue;
-                        
-                        serviceRevenueMap.set(serviceId, {
-                            name: serviceName,
-                            amount: serviceGrossRevenue,
-                            details: {
-                                messages: totalRequests,
-                                messageRevenue: messageRevenueTotal,
-                                records: totalRecords,
-                                recordRevenue: recordRevenueTotal,
-                            }
-                        });
-                    }
-                } else {
+    // Add to service breakdown with details
+    if (serviceGrossRevenue > 0) {
+        totalGrossRevenue += serviceGrossRevenue;
+        
+        serviceRevenueMap.set(serviceId, {
+            name: serviceName,
+            amount: serviceGrossRevenue,
+            details: {
+                messages: totalRequests,
+                messageRevenue: messageRevenueTotal,
+                records: totalRecords,
+                recordRevenue: recordRevenueTotal,
+            }
+        });
+    }
+} else {
                     // For other service types, just add the revenue
                     if (serviceGrossRevenue > 0) {
                         totalGrossRevenue += serviceGrossRevenue;

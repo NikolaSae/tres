@@ -2,6 +2,16 @@
 
 import type { McpTool, McpContext } from './types';
 
+// ✅ Dodaj tip za role
+type UserRole = 'ADMIN' | 'MANAGER' | 'AGENT' | 'USER';
+
+// ✅ Dodaj interfejs za role description
+interface RoleDescription {
+  title: string;
+  capabilities: string[];
+  focus: string;
+}
+
 /**
  * Generiše optimizovan kontekst za AI asistenta
  * Fokus: Natural language, use-cases, relacije između podataka
@@ -28,7 +38,8 @@ export class AIContextBuilder {
    * 1. ROLE KONTEKST - Ko je korisnik i šta može
    */
   private static buildRoleContext(role: string): string {
-    const roleDescriptions = {
+    // ✅ Dodaj tipizaciju za roleDescriptions
+    const roleDescriptions: Record<UserRole, RoleDescription> = {
       ADMIN: {
         title: 'Administrator',
         capabilities: [
@@ -70,12 +81,17 @@ export class AIContextBuilder {
       }
     };
 
-    const desc = roleDescriptions[role] || roleDescriptions.USER;
+    // ✅ Type guard za role
+    const isValidRole = (r: string): r is UserRole => {
+      return ['ADMIN', 'MANAGER', 'AGENT', 'USER'].includes(r);
+    };
+
+    const desc = isValidRole(role) ? roleDescriptions[role] : roleDescriptions.USER;
 
     return `# ULOGA KORISNIKA: ${desc.title}
 
 **Mogućnosti:**
-${desc.capabilities.map(c => `- ${c}`).join('\n')}
+${desc.capabilities.map((c: string) => `- ${c}`).join('\n')}
 
 **Fokus asistiranja:** ${desc.focus}`;
   }

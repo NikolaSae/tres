@@ -43,6 +43,9 @@ export interface BulkServiceStats {
   }[];
 }
 
+// ⭐ DODAJ OVO - Structure for bulk service CSV row (alias za kompatibilnost)
+export interface BulkServiceData extends BulkServiceCSVData {}
+
 // Structure for bulk service CSV row
 export interface BulkServiceCSVData {
   provider_name: string;
@@ -52,30 +55,36 @@ export interface BulkServiceCSVData {
   sender_name: string;
   requests: number;
   message_parts: number;
-  providerId: string | null; // providerId can still be null if not found
-  serviceId: string | null; // serviceId can still be null during mapping if not found, but will be filtered out
+  providerId: string | null;
+  serviceId: string | null;
+}
+
+// ⭐ DODAJ OVO - Validation error structure
+export interface BulkServiceValidationError {
+  rowIndex: number;
+  errors: string[];
+  originalRow: Record<string, any>;
 }
 
 // Result for a single CSV row validation
 export interface CsvRowValidationResult<T> {
-  data: T; // Validated data or original data if validation failed
-  errors: string[]; // List of error messages for this row
-  isValid: boolean; // True if the row passed validation
-  rowIndex: number; // Original 0-based index of the row in the CSV
-  originalRow: Record<string, any>; // The original parsed row data
+  data: T;
+  errors: string[];
+  isValid: boolean;
+  rowIndex: number;
+  originalRow: Record<string, any>;
 }
 
 // Data structure for detailed CSV import results
 export interface BulkServiceImportResult {
   totalRows: number;
-  validRows: BulkServiceCSVData[]; // Validated and mapped data ready for DB insertion
-  invalidRows: CsvRowValidationResult<BulkServiceCSVData>[]; // Rows that failed validation or mapping
-  importErrors: string[]; // Errors at the file parsing level (e.g., malformed CSV)
-  error?: string | null; // Overall error message for the import process
-  createdCount?: number; // Number of records actually created in the database
+  validRows: BulkServiceCSVData[];
+  invalidRows: CsvRowValidationResult<BulkServiceCSVData>[];
+  importErrors: string[];
+  error?: string | null;
+  createdCount?: number;
   updatedCount?: number;
-  createdServices?: { id: string; name: string }[]; // Polje za novokreirane servise
-  // createdProviders?: { id: string; name: string }[]; // UKLONJENO: Polje za novokreirane provajdere
+  createdServices?: { id: string; name: string }[];
 }
 
 // Response structure for paginated bulk services
@@ -96,7 +105,7 @@ export interface BulkServiceFormValues {
   sender_name: string;
   requests: number;
   message_parts: number;
-  serviceId: string; // Now mandatory
+  serviceId: string;
   providerId: string;
 }
 

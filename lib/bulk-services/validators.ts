@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { BulkServiceSchema } from "@/schemas/bulk-service";
+import { bulkServiceSchema } from "@/schemas/bulk-service"; // ✅ Promeni iz BulkServiceSchema u bulkServiceSchema
 import type { BulkService } from "@prisma/client";
 
 /**
@@ -16,7 +16,7 @@ import type { BulkService } from "@prisma/client";
  */
 export const validateBulkService = (data: unknown) => {
   try {
-    const validatedData = BulkServiceSchema.parse(data);
+    const validatedData = bulkServiceSchema.parse(data); // ✅ Promeni iz BulkServiceSchema u bulkServiceSchema
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
