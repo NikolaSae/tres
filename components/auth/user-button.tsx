@@ -19,12 +19,10 @@ export function UserButton() {
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
 
-  // Ensure component is mounted to prevent hydration issues
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Debug session information
   useEffect(() => {
     console.log("[USER_BUTTON] ===== SESSION DEBUG =====");
     console.log("[USER_BUTTON] Status:", status);
@@ -35,14 +33,12 @@ export function UserButton() {
     console.log("[USER_BUTTON] ========================");
   }, [session, status, mounted]);
 
-  // Don't render anything until mounted (prevents hydration mismatch)
   if (!mounted) {
     return (
       <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
     );
   }
 
-  // Loading state
   if (status === "loading") {
     return (
       <div className="flex items-center gap-2">
@@ -52,7 +48,6 @@ export function UserButton() {
     );
   }
 
-  // Not authenticated
   if (status === "unauthenticated" || !session?.user) {
     return (
       <div className="flex items-center gap-2 text-red-500 text-sm">
@@ -86,6 +81,10 @@ export function UserButton() {
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
+            {/* ✅ Dodaj prikaz role */}
+            <p className="text-xs leading-none text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-md w-fit mt-1">
+              {user.role || "USER"}
+            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -101,7 +100,11 @@ export function UserButton() {
         <DropdownMenuItem
           onClick={() => {
             console.log("[USER_BUTTON] Signing out...");
-            signOut({ callbackUrl: "/auth/signin" });
+            // ✅ ISPRAVI: /auth/signin → /auth/login
+            signOut({ 
+              callbackUrl: "/auth/login",  // ← PROMENA OVDE
+              redirect: true 
+            });
           }}
         >
           <LogOut className="mr-2 h-4 w-4" />

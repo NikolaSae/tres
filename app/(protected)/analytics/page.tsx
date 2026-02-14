@@ -12,8 +12,6 @@ import { DataFilters } from "@/components/analytics/DataFilters";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { canAccessAnalyticsPage } from "@/lib/security/permission-checker";
-import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
     title: "Analytics Dashboard",
@@ -71,11 +69,8 @@ async function ComplaintAnalyticsWrapper() {
 }
 
 export default async function AnalyticsDashboard({ searchParams }: AnalyticsDashboardProps) {
-    // Provera dozvola - ovo može biti brzo
-    const canAccess = await canAccessAnalyticsPage();
-    if (!canAccess) {
-        redirect('/');
-    }
+    // ✅ Uklonjena server-side provera - middleware sada handluje pristup
+    // Middleware će automatski redirectovati na /403 ako korisnik nema dozvolu
 
     const resolvedSearchParams = await searchParams;
 

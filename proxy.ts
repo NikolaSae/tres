@@ -1,26 +1,24 @@
-// middleware.ts - FIXED VERSION
+// proxy.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
 
+// middleware.ts
 export default auth((req) => {
   const { nextUrl } = req;
   const pathname = nextUrl.pathname;
   
-  console.log(`🔍 Middleware called for: ${pathname}`); // ✅ Fixed: Use parentheses instead of backticks
+  console.log("🔍 Middleware called for:", pathname);
   
-  // Get user info from auth
   const isLoggedIn = !!req.auth?.user?.id;
-  const isAdmin = req.auth?.user?.role === "ADMIN";
+  const userRole = req.auth?.user?.role;
   const isActive = req.auth?.user?.isActive !== false;
-  const image = req.auth?.user?.image;
   
-  console.log(`👤 Session data:`, { // ✅ Fixed: Use parentheses
+  console.log("👤 Session data:", {
     isLoggedIn,
     userId: req.auth?.user?.id,
-    role: req.auth?.user?.role,
-    isActive: req.auth?.user?.isActive,
-    image: req.auth?.user?.image,
+    role: userRole,
+    isActive,
   });
   
   const protectedPaths = [
@@ -34,44 +32,62 @@ export default auth((req) => {
     "/contracts", 
     "/services", 
     "/humanitarian-orgs", 
-    "/reports"
+    "/reports",
+    "/analytics"
   ];
   
-  const adminOnlyPaths = ["/admin"];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
-  const isAdminOnly = adminOnlyPaths.some((p) => pathname.startsWith(p));
   
-  console.log(`🛡️ Path checks:`, { // ✅ Fixed: Use parentheses
-    isProtected,
-    isAdminOnly,
-    pathname
-  });
-  
-  // Check if user is not logged in and trying to access protected path
+  // Redirect to login if not authenticated
   if (isProtected && !isLoggedIn) {
-    console.log(`❌ Redirecting to login: not logged in`); // ✅ Fixed: Use parentheses
+    console.log("❌ Redirecting to login: not logged in");
     return NextResponse.redirect(new URL("/auth/login", nextUrl.origin));
   }
   
   // Check if user is inactive
   if (isLoggedIn && !isActive) {
-    console.log(`❌ Redirecting to login: user inactive`); // ✅ Fixed: Use parentheses
+    console.log("❌ Redirecting to login: user inactive");
     return NextResponse.redirect(new URL("/auth/login", nextUrl.origin));
   }
   
-  // Check admin access
-  if (isAdminOnly && isLoggedIn && !isAdmin) {
-    console.log(`❌ Redirecting to 403: not admin`); // ✅ Fixed: Use parentheses
-    return NextResponse.redirect(new URL("/403", nextUrl.origin));
+  // Role-based access control
+  if (isLoggedIn) {
+    // Admin only paths
+    if (pathname.startsWith("/admin") && userRole !== "ADMIN") {
+      console.log("❌ Redirecting to 403: not admin");
+      return NextResponse.redirect(new URL("/403", nextUrl.origin));
+    }
+    
+    // Analytics - ADMIN and MANAGER only
+    if (pathname.startsWith("/analytics")) {
+      if (userRole !== "ADMIN" && userRole !== "MANAGER") {
+        console.log("❌ Redirecting to 403: insufficient role for analytics");
+        return NextResponse.redirect(new URL("/403", nextUrl.origin));
+      }
+    }
+    // ✅ DODAJ - Providers - ADMIN and MANAGER only
+  if (pathname.startsWith("/providers")) {
+    if (userRole !== "ADMIN" && userRole !== "MANAGER") {
+      console.log("❌ Redirecting to 403: insufficient role for providers");
+      return NextResponse.redirect(new URL("/403", nextUrl.origin));
+    }
+  }
+    
+    // ✅ DODAJ OVO - Reports - ADMIN, MANAGER, and AGENT only
+    if (pathname.startsWith("/reports")) {
+      if (userRole !== "ADMIN" && userRole !== "MANAGER" && userRole !== "AGENT") {
+        console.log("❌ Redirecting to 403: insufficient role for reports");
+        return NextResponse.redirect(new URL("/403", nextUrl.origin));
+      }
+    }
   }
   
-  console.log(`✅ Access granted to: ${pathname}`); // ✅ Fixed: Use parentheses
+  console.log("✅ Access granted to:", pathname);
   return NextResponse.next();
 });
 
 export const config = {
   matcher: [
-    // Match all routes except static files and API routes (except auth)
     '/((?!api(?!/auth)|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { UserRole } from "@prisma/client";
 import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { redirect } from "next/navigation"; // ✅ Dodaj import
 
 export const metadata: Metadata = {
   title: "Providers | Management Dashboard",
@@ -33,15 +34,16 @@ function LoadingFallback() {
 export default async function ProvidersPage() {
   const session = await auth();
   
+  // ✅ Provera autentifikacije
   if (!session) {
-    return <div>Unauthenticated</div>;
+    redirect("/auth/login"); // Umesto <div>Unauthenticated</div>
   }
 
   const userRole = session.user?.role;
   
-  // Type guard to check if userRole is ADMIN or MANAGER
+  // ✅ Provera role - redirect na 403 ako nema dozvolu
   if (!userRole || (userRole !== UserRole.ADMIN && userRole !== UserRole.MANAGER)) {
-    return <div>Unauthorized</div>;
+    redirect("/403"); // Umesto <div>Unauthorized</div>
   }
   
   return (
@@ -57,8 +59,8 @@ export default async function ProvidersPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          
-            <a href="/providers/new"
+          <a 
+            href="/providers/new"
             className="relative inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out overflow-hidden h-11 px-6 text-white bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:-translate-y-0.5 active:translate-y-0"
           >
             Create Provider

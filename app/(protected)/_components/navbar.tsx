@@ -1,13 +1,16 @@
-// Path: /app/(protected)/_components/navbar.tsx
+// app/(protected)/_components/navbar.tsx
 "use client";
 
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Lock } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { ClientSideUserButton } from "@/components/auth/client-side-user-button";
 import { NavLink } from "@/components/ui/nav-link";
+import { RefreshSessionButton } from "@/components/auth/refresh-session-button"; // ✅ Import
 import Link from "next/link";
+import { UserRole } from "@prisma/client";
 
 interface DropdownItem {
   href: string;
@@ -19,13 +22,15 @@ interface CustomDropdownProps {
   trigger: string;
   items: DropdownItem[];
   isActive: boolean;
+  disabled?: boolean;
 }
 
-const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActive }) => {
+const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActive, disabled = false }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const timeoutRef = React.useRef<NodeJS.Timeout>();
 
   const handleMouseEnter = () => {
+    if (disabled) return;
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
@@ -38,7 +43,6 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
     }, 100);
   };
 
-  // Jednostavno zatvaramo dropdown kada korisnik klikne
   const handleItemClick = () => {
     setIsOpen(false);
   };
@@ -50,6 +54,27 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
       }
     };
   }, []);
+
+  if (disabled) {
+    return (
+      <button
+        className={cn(
+          "relative overflow-hidden",
+          "inline-flex items-center justify-center gap-2",
+          "px-4 py-2 rounded-lg h-9",
+          "text-sm font-medium",
+          "cursor-not-allowed opacity-50",
+          "bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-600",
+          "text-gray-500 dark:text-gray-400"
+        )}
+        disabled
+        title="Nemate pristup"
+      >
+        <Lock className="h-3 w-3" />
+        {trigger}
+      </button>
+    );
+  }
 
   return (
     <div 
@@ -119,6 +144,23 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
 
 export const Navbar = () => {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const userRole = session?.user?.role as UserRole;
+  
+  // Definiši pristupna prava za svaki link
+  const permissions = React.useMemo(() => ({
+    humanitarianOrgs: true, // Svi mogu
+    providers: userRole === 'ADMIN' || userRole === 'MANAGER',
+    operators: true, // Svi mogu
+    bulkServices: true, // Svi mogu
+    parking: true, // Svi mogu
+    complaints: true, // Svi mogu
+    adminComplaints: userRole === 'ADMIN', // Samo admin
+    contracts: true, // Svi mogu
+    services: true, // Svi mogu
+    analytics: userRole === 'ADMIN' || userRole === 'MANAGER',
+    reports: userRole === 'ADMIN' || userRole === 'MANAGER' || userRole === 'AGENT',
+  }), [userRole]);
   
   const isActivePath = (href: string) => pathname.startsWith(href);
   const isTriggerActive = (paths: string[]) => paths.some(p => isActivePath(p));
@@ -126,9 +168,12 @@ export const Navbar = () => {
   const reklamacijePaths = ["/complaints", "/admin/complaints"];
   const analyticsPaths = ["/analytics", "/analytics/reports"];
 
+  // Filtriraj items za dropdowns na osnovu pristupa
   const reklamacijeItems = [
     { href: "/complaints", title: "Sve reklamacije", description: "Pregled svih reklamacija u sistemu" },
-    { href: "/admin/complaints", title: "Admin panel", description: "Administrativno upravljanje reklamacijama" }
+    ...(permissions.adminComplaints ? [
+      { href: "/admin/complaints", title: "Admin panel", description: "Administrativno upravljanje reklamacijama" }
+    ] : [])
   ];
 
   const analyticsItems = [
@@ -140,23 +185,40 @@ export const Navbar = () => {
     <nav className="relative w-full flex items-center justify-between p-4 shadow-sm z-50">
       <div className="flex-grow">
         <div className="flex items-center gap-2">
-          <NavLink href="/humanitarian-orgs" isActive={isActivePath("/humanitarian-orgs")}>
+          <NavLink 
+            href="/humanitarian-orgs" 
+            isActive={isActivePath("/humanitarian-orgs")}
+          >
             Humanitarci
           </NavLink>
 
-          <NavLink href="/providers" isActive={isActivePath("/providers")}>
+          <NavLink 
+            href="/providers" 
+            isActive={isActivePath("/providers")}
+            disabled={!permissions.providers}
+          >
+            {!permissions.providers && <Lock className="h-3 w-3 mr-1" />}
             Provajderi
           </NavLink>
 
-          <NavLink href="/operators" isActive={isActivePath("/operators")}>
+          <NavLink 
+            href="/operators" 
+            isActive={isActivePath("/operators")}
+          >
             Operateri
           </NavLink>
 
-          <NavLink href="/bulk-services" isActive={isActivePath("/bulk-services")}>
+          <NavLink 
+            href="/bulk-services" 
+            isActive={isActivePath("/bulk-services")}
+          >
             Bulk Servisi
           </NavLink>
 
-          <NavLink href="/parking-services" isActive={isActivePath("/parking-services")}>
+          <NavLink 
+            href="/parking-services" 
+            isActive={isActivePath("/parking-services")}
+          >
             Parking
           </NavLink>
 
@@ -166,11 +228,17 @@ export const Navbar = () => {
             isActive={isTriggerActive(reklamacijePaths)}
           />
 
-          <NavLink href="/contracts" isActive={isActivePath("/contracts")}>
+          <NavLink 
+            href="/contracts" 
+            isActive={isActivePath("/contracts")}
+          >
             Ugovori
           </NavLink>
 
-          <NavLink href="/services" isActive={isActivePath("/services")}>
+          <NavLink 
+            href="/services" 
+            isActive={isActivePath("/services")}
+          >
             Servisi
           </NavLink>
 
@@ -178,15 +246,22 @@ export const Navbar = () => {
             trigger="Analytics"
             items={analyticsItems}
             isActive={isTriggerActive(analyticsPaths)}
+            disabled={!permissions.analytics}
           />
 
-          <NavLink href="/reports" isActive={isActivePath("/reports")}>
+          <NavLink 
+            href="/reports" 
+            isActive={isActivePath("/reports")}
+            disabled={!permissions.reports}
+          >
+            {!permissions.reports && <Lock className="h-3 w-3 mr-1" />}
             Reports
           </NavLink>
         </div>
       </div>
 
       <div className="ml-auto flex-shrink-0">
+        <RefreshSessionButton />
         <ClientSideUserButton />
       </div>
     </nav>

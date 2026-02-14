@@ -1,6 +1,5 @@
 // components/ui/nav-link.tsx
 "use client";
-
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +10,7 @@ interface NavLinkProps {
   variant?: "mint" | "ocean" | "purple" | "emerald";
   onClick?: () => void;
   className?: string;
+  disabled?: boolean; // ✅ Dodaj disabled prop
 }
 
 const variantStyles = {
@@ -26,13 +26,38 @@ export const NavLink: React.FC<NavLinkProps> = ({
   isActive = false,
   variant = "mint",
   onClick,
-  className
+  className,
+  disabled = false, // ✅ Default je false
 }) => {
   const handleClick = () => {
-    if (onClick) {
+    if (onClick && !disabled) {
       onClick();
     }
   };
+
+  // ✅ Ako je disabled, prikaži kao span umesto Link
+  if (disabled) {
+    return (
+      <div className="relative">
+        <span
+          className={cn(
+            "relative overflow-hidden",
+            "inline-flex items-center justify-center gap-2",
+            "px-4 py-2 rounded-lg h-9",
+            "text-sm font-medium",
+            "cursor-not-allowed opacity-50",
+            "bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-600",
+            "text-gray-500 dark:text-gray-400",
+            "shadow-sm",
+            className
+          )}
+          title="Nemate pristup"
+        >
+          {children}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

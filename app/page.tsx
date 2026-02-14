@@ -1,8 +1,19 @@
 // app/page.tsx
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { LoginButton } from "@/components/auth/login-button";
 import { Button } from "@/components/ui/button";
 
 export default async function Home() {
+  // ✅ Proveri da li je korisnik ulogovan
+  const session = await auth();
+  
+  // ✅ Ako jeste, redirect na glavnu stranicu aplikacije
+  if (session?.user) {
+    redirect("/complaints"); // ili "/dashboard" - gde god želiš
+  }
+  
+  // ✅ Ako nije ulogovan, prikaži landing page sa login dugmetom
   return (
     <main className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
       <div className="space-y-6 text-center">
