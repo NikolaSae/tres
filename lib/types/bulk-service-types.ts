@@ -1,10 +1,12 @@
 //lib/types/bulk-service-types.ts
 import { BulkService, Provider, Service } from "@prisma/client";
 
-// Enhanced types with relations
+// Enhanced types with ONLY relations that actually exist in schema
 export interface BulkServiceWithRelations extends BulkService {
   provider: Provider;
   service: Service;
+  // Note: provider_name, agreement_name, service_name, step_name, sender_name
+  // are already columns in BulkService model, not relations!
 }
 
 // Filters for bulk services
@@ -16,6 +18,17 @@ export interface BulkServiceFilters {
   senderName?: string;
   startDate?: Date;
   endDate?: Date;
+}
+
+// Response structure for paginated bulk services
+export interface PaginatedBulkServices {
+  data: BulkServiceWithRelations[];
+  meta: {
+    totalCount: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 // Statistics for bulk services
@@ -79,22 +92,12 @@ export interface CsvRowValidationResult<T> {
 export interface BulkServiceImportResult {
   totalRows: number;
   validRows: BulkServiceCSVData[];
-  // ✅ Prihvata oba tipa za maksimalnu fleksibilnost
   invalidRows: (CsvRowValidationResult<BulkServiceCSVData> | BulkServiceValidationError)[];
   importErrors: string[];
   error?: string | null;
   createdCount?: number;
   updatedCount?: number;
   createdServices?: { id: string; name: string }[];
-}
-
-// Response structure for paginated bulk services
-export interface PaginatedBulkServices {
-  data: BulkServiceWithRelations[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
 }
 
 // Form submission data structure
@@ -118,7 +121,7 @@ export interface BulkServiceLogData {
   userId: string;
 }
 
-// ✅ Helper type guard za proveru tipa
+// Helper type guards
 export function isCsvRowValidationResult(
   item: CsvRowValidationResult<BulkServiceCSVData> | BulkServiceValidationError
 ): item is CsvRowValidationResult<BulkServiceCSVData> {
