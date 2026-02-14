@@ -15,7 +15,7 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -70,7 +70,8 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -103,13 +104,13 @@ export async function POST(
       }
     }
 
-    // Create the comment
+    // Create the comment - session.user.id is now guaranteed to be string
     const comment = await db.comment.create({
       data: {
         text: validatedData.data.text,
         isInternal: validatedData.data.isInternal,
         complaintId,
-        userId: session.user.id,
+        userId: session.user.id, // ✅ Now type-safe
       },
       include: {
         user: {
@@ -122,14 +123,14 @@ export async function POST(
       },
     });
 
-    // Log the activity
+    // Log the activity - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "COMMENT_ADDED",
         entityType: "complaint",
         entityId: complaintId,
         details: `Comment added to complaint #${complaint.id}`,
-        userId: session.user.id,
+        userId: session.user.id, // ✅ Now type-safe
       },
     });
 
@@ -146,7 +147,8 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -189,14 +191,14 @@ export async function DELETE(
       where: { id: commentId },
     });
 
-    // Log the activity
+    // Log the activity - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "COMMENT_DELETED",
         entityType: "complaint",
         entityId: complaintId,
         details: `Comment deleted from complaint #${complaintId}`,
-        userId: session.user.id,
+        userId: session.user.id, // ✅ Now type-safe
       },
     });
 

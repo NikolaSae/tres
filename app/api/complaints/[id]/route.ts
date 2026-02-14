@@ -14,7 +14,8 @@ export async function GET(
   try {
     const session = await auth();
     
-    if (!session || !session.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
@@ -112,7 +113,8 @@ export async function PUT(
   try {
     const session = await auth();
     
-    if (!session || !session.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
@@ -152,14 +154,13 @@ export async function PUT(
     delete updateData.id;
     
     if (validatedData.status && validatedData.status !== existingComplaint.status) {
-      // ✅ ISPRAVKA: Uklonjeno korišćenje notes polja koje ne postoji
-      // Add to status history without notes field
+      // Add to status history - session.user.id is now guaranteed to be string
       await db.complaintStatusHistory.create({
         data: {
           complaintId: id,
           previousStatus: existingComplaint.status,
           newStatus: validatedData.status,
-          changedById: session.user.id
+          changedById: session.user.id // ✅ Now type-safe
         }
       });
       
@@ -211,7 +212,7 @@ export async function PUT(
       }
     });
     
-    // Record activity log
+    // Record activity log - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "UPDATE_COMPLAINT",
@@ -219,7 +220,7 @@ export async function PUT(
         entityId: id,
         details: `Updated complaint: ${updatedComplaint.title}`,
         severity: "INFO",
-        userId: session.user.id
+        userId: session.user.id // ✅ Now type-safe
       }
     });
     
@@ -248,7 +249,8 @@ export async function DELETE(
   try {
     const session = await auth();
     
-    if (!session || !session.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
@@ -273,7 +275,7 @@ export async function DELETE(
       where: { id }
     });
     
-    // Log activity
+    // Log activity - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "DELETE_COMPLAINT",
@@ -281,7 +283,7 @@ export async function DELETE(
         entityId: id,
         details: `Deleted complaint: ${complaint.title}`,
         severity: "WARNING",
-        userId: session.user.id
+        userId: session.user.id // ✅ Now type-safe
       }
     });
     

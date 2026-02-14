@@ -16,7 +16,8 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -96,25 +97,25 @@ export async function PUT(
       },
     });
 
-    // Record the status change in history
+    // Record the status change in history - session.user.id is now guaranteed to be string
     await db.complaintStatusHistory.create({
       data: {
         complaintId,
         previousStatus,
         newStatus: status,
-        changedById: session.user.id,
+        changedById: session.user.id, // ✅ Now type-safe
         notes: notes || null,
       },
     });
 
-    // Log the activity
+    // Log the activity - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "COMPLAINT_STATUS_CHANGED",
         entityType: "complaint",
         entityId: complaintId,
         details: `Complaint status changed from ${previousStatus} to ${status}`,
-        userId: session.user.id,
+        userId: session.user.id, // ✅ Now type-safe
       },
     });
 
@@ -163,7 +164,8 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id (iako se ovde ne koristi direktno, dobra je praksa)
+    if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 

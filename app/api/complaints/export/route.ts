@@ -7,7 +7,8 @@ import * as XLSX from 'xlsx';
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
     
@@ -92,13 +93,13 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Log the export activity
+    // Log the export activity - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "EXPORT_COMPLAINTS",
         entityType: "complaint",
         details: `Exported ${complaints.length} complaints in ${format} format`,
-        userId: session.user.id,
+        userId: session.user.id, // ✅ Now type-safe
       },
     });
 

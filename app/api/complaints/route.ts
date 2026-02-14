@@ -3,14 +3,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-// ✅ ISPRAVKA: Ispravljeno ime importa
 import { ComplaintSchema } from "@/schemas/complaint";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -139,15 +139,16 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const json = await request.json();
 
-    // ✅ ISPRAVKA: Koristimo ComplaintSchema direktno
     const validatedData = ComplaintSchema.parse(json);
 
+    // session.user.id is now guaranteed to be string
     const complaint = await db.complaint.create({
       data: {
         title: validatedData.title,
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
         serviceId: validatedData.serviceId || null,
         providerId: validatedData.providerId || null,
         financialImpact: validatedData.financialImpact || null,
-        submittedById: session.user.id,
+        submittedById: session.user.id, // ✅ Now type-safe
         status: "NEW",
       },
       include: {
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Log activity
+    // Log activity - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "CREATE_COMPLAINT",
@@ -190,7 +191,7 @@ export async function POST(request: NextRequest) {
         entityId: complaint.id,
         details: `Created complaint: ${complaint.title}`,
         severity: "INFO",
-        userId: session.user.id,
+        userId: session.user.id, // ✅ Now type-safe
       },
     });
 

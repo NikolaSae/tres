@@ -11,7 +11,8 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -58,7 +59,7 @@ export async function POST(
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
-    // Kreiraj database record
+    // Kreiraj database record - session.user.id is now guaranteed to be string
     const attachment = await db.contractRenewalAttachment.create({
       data: {
         renewalId: renewal.id,
@@ -67,7 +68,7 @@ export async function POST(
         fileType: file.type,
         filePath: `/uploads/contract-renewals/${renewal.id}/${fileName}`,
         description,
-        uploadedById: session.user.id
+        uploadedById: session.user.id // ✅ Now type-safe
       },
       include: {
         uploadedBy: {

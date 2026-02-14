@@ -10,7 +10,8 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id (iako se ne koristi u GET-u, dobra je praksa)
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -53,7 +54,8 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -93,6 +95,7 @@ export async function POST(
       return NextResponse.json({ error: 'Renewal already exists for this contract' }, { status: 409 });
     }
 
+    // session.user.id is now guaranteed to be string
     const renewal = await db.contractRenewal.create({
       data: {
         contractId,
@@ -108,7 +111,7 @@ export async function POST(
         technicalApproved,
         managementApproved,
         signatureReceived,
-        createdById: session.user.id
+        createdById: session.user.id // ✅ Now type-safe
       },
       include: {
         attachments: {
@@ -124,12 +127,12 @@ export async function POST(
       }
     });
 
-    // Update contract status
+    // Update contract status - session.user.id is now guaranteed to be string
     await db.contract.update({
       where: { id: contractId },
       data: {
         status: 'RENEWAL_IN_PROGRESS',
-        lastModifiedById: session.user.id
+        lastModifiedById: session.user.id // ✅ Now type-safe
       }
     });
 
@@ -149,7 +152,8 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    // FIX: Dodaj proveru za session.user.id
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -180,9 +184,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Renewal not found' }, { status: 404 });
     }
 
-    // Prepare update data
+    // Prepare update data - session.user.id is now guaranteed to be string
     const updateData: any = {
-      lastModifiedById: session.user.id
+      lastModifiedById: session.user.id // ✅ Now type-safe
     };
 
     if (subStatus !== undefined) updateData.subStatus = subStatus;
