@@ -128,6 +128,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           image: profile.avatar_url,
           role: UserRole.USER,
           isActive: true,
+          isTwoFactorEnabled: false, // ✅ Added
+          isOAuth: true, // ✅ Added - GitHub is OAuth
         };
       }
     }),
@@ -143,6 +145,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           image: profile.picture,
           role: UserRole.USER,
           isActive: true,
+          isTwoFactorEnabled: false, // ✅ Added
+          isOAuth: true, // ✅ Added - Google is OAuth
         };
       }
     }),
@@ -169,6 +173,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               isActive: true,
               name: true,
               image: true,
+              isTwoFactorEnabled: true, // ✅ Added to select
             },
           });
 
@@ -184,6 +189,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             image: user.image,
             isActive: user.isActive,
+            isTwoFactorEnabled: user.isTwoFactorEnabled ?? false, // ✅ Added
+            isOAuth: false, // ✅ Added - Credentials is not OAuth
           };
         } catch (error) {
           console.error("Database error during authentication:", error);

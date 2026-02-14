@@ -116,6 +116,7 @@ model User {
   submittedComplaints     Complaint[]            @relation("ComplaintSubmitter")
   assignedComplaints      Complaint[]            @relation("ComplaintAgent")
   comments                Comment[]
+  complaintStatusChanges  ComplaintStatusHistory[] @relation("ComplaintStatusChangedBy") // ✅ Dodato
   activities              ActivityLog[]
   notifications           Notification[]
   notificationPreferences NotificationPreference?
@@ -780,11 +781,13 @@ model ComplaintStatusHistory {
   previousStatus ComplaintStatus?
   newStatus      ComplaintStatus
   changedById    String
+  changedBy      User            @relation("ComplaintStatusChangedBy", fields: [changedById], references: [id]) // ✅ Dodato
   changedAt      DateTime        @default(now())
   notes          String?         @db.Text
 
   @@index([complaintId])
   @@index([changedAt])
+  @@index([changedById]) // ✅ Dodato
 }
 
 model Comment {

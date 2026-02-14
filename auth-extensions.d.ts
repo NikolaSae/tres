@@ -1,4 +1,4 @@
-//next-auth.d.ts
+//auth-extensions.d.ts
 import { UserRole } from "@prisma/client";
 import NextAuth, { DefaultSession } from "next-auth";
 import { JWT } from "next-auth/jwt";
@@ -7,6 +7,7 @@ export type ExtendedUser = DefaultSession["user"] & {
   role: UserRole;
   isTwoFactorEnabled: boolean;
   isOAuth: boolean;
+  isActive: boolean; // ✅ Added
 };
 
 declare module "next-auth" {
@@ -19,6 +20,7 @@ declare module "next-auth" {
     role: UserRole;
     isTwoFactorEnabled: boolean;
     isOAuth: boolean;
+    isActive: boolean; // ✅ Added
   }
 }
 
@@ -26,5 +28,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     role: UserRole;
     isTwoFactorEnabled: boolean;
+    isActive: boolean; // ✅ Added
   }
 }

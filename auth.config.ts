@@ -29,12 +29,14 @@ export default {
         );
         if (!isPasswordValid) return null;
 
-        // 5. Vrati podatke o useru
+        // 5. Vrati podatke o useru sa svim potrebnim poljima
         return {
           id: user.id,
           email: user.email,
           role: user.role,
           isActive: user.isActive,
+          isTwoFactorEnabled: user.isTwoFactorEnabled ?? false, // ✅ Added
+          isOAuth: false, // ✅ Added - credentials login is not OAuth
         };
       },
     }),
