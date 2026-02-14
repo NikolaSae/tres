@@ -55,7 +55,7 @@ export async function updateBulkService(id: string, data: unknown) {
     // Revalidate the paths
     revalidatePath("/bulk-services");
     // ✅ ISPRAVKA: normalne zagrade umesto backtick-a
-    revalidatePath(`/bulk-services/${id}`);
+    revalidatePath(/bulk-services/${id});
 
     return updatedBulkService;
   } catch (error) {
