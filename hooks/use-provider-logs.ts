@@ -2,36 +2,27 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { LogEntryItem } from "@/components/providers/ProviderLogList";
+import { LogEntryItem, LogFiltersState } from "@/lib/types/log-types";
 import { LogEntityType, LogActionType, LogStatus } from "@prisma/client";
-
 import { getLogEntries, GetLogEntriesInput } from "@/actions/log/getLogEntries";
 
 interface PaginationState {
-    page: number;
-    limit: number;
-}
-
-interface LogFiltersState {
-    action?: LogActionType | 'ALL';
-    status?: LogStatus | 'ALL';
-    subjectKeyword?: string;
-    dateFrom?: Date;
-    dateTo?: Date;
+  page: number;
+  limit: number;
 }
 
 interface UseProviderLogsParams {
-    filters: LogFiltersState;
-    pagination: PaginationState;
-    logRefreshKey: number;
+  filters: LogFiltersState;
+  pagination: PaginationState;
+  logRefreshKey: number;
 }
 
 interface UseProviderLogsResult {
-    logs: LogEntryItem[] | null;
-    total: number;
-    loading: boolean;
-    error: string | null;
-    refreshData: () => void;
+  logs: LogEntryItem[] | null;
+  total: number;
+  loading: boolean;
+  error: string | null;
+  refreshData: () => void;
 }
 
 export function useProviderLogs({ filters, pagination, logRefreshKey }: UseProviderLogsParams): UseProviderLogsResult {
@@ -41,32 +32,32 @@ export function useProviderLogs({ filters, pagination, logRefreshKey }: UseProvi
   const [error, setError] = useState<string | null>(null);
 
   const fetchLogs = useCallback(async () => {
-    console.log(`[useProviderLogs] Fetching logs. Refresh key: ${logRefreshKey}`); // DEBUG LOG
+    console.log(`[useProviderLogs] Fetching logs. Refresh key: ${logRefreshKey}`);
     setLoading(true);
     setError(null);
     try {
+      // ✅ FIX: Handle 'ALL' values by converting them to undefined
       const params: GetLogEntriesInput = {
-          entityType: LogEntityType.PROVIDER,
-          action: filters.action,
-          status: filters.status,
-          subjectKeyword: filters.subjectKeyword,
-          dateFrom: filters.dateFrom,
-          dateTo: filters.dateTo,
-          page: pagination.page,
-          limit: pagination.limit,
+        entityType: LogEntityType.PROVIDER,
+        action: filters.action === 'ALL' ? undefined : filters.action,
+        status: filters.status === 'ALL' ? undefined : filters.status,
+        subjectKeyword: filters.subjectKeyword,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        page: pagination.page,
+        limit: pagination.limit,
       };
 
       const result = await getLogEntries(params);
 
       if (result.success && result.data) {
-             setLogs(result.data.logs as LogEntryItem[]);
-             setTotal(result.data.total);
+        setLogs(result.data.logs as LogEntryItem[]);
+        setTotal(result.data.total);
       } else {
         setError(result.error || "Failed to fetch logs.");
         setLogs(null);
         setTotal(0);
       }
-
     } catch (err) {
       console.error("Error fetching provider logs:", err);
       setError(err instanceof Error ? err.message : "An unexpected error occurred.");
@@ -76,14 +67,14 @@ export function useProviderLogs({ filters, pagination, logRefreshKey }: UseProvi
       setLoading(false);
     }
   }, [
-      filters.action,
-      filters.status,
-      filters.subjectKeyword,
-      filters.dateFrom?.getTime(),
-      filters.dateTo?.getTime(),
-      pagination.page,
-      pagination.limit,
-      logRefreshKey,
+    filters.action,
+    filters.status,
+    filters.subjectKeyword,
+    filters.dateFrom?.getTime(),
+    filters.dateTo?.getTime(),
+    pagination.page,
+    pagination.limit,
+    logRefreshKey,
   ]);
 
   useEffect(() => {
@@ -91,9 +82,8 @@ export function useProviderLogs({ filters, pagination, logRefreshKey }: UseProvi
   }, [fetchLogs]);
 
   const refreshData = useCallback(() => {
-      fetchLogs();
+    fetchLogs();
   }, [fetchLogs]);
-
 
   return {
     logs,

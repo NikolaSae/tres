@@ -1,147 +1,126 @@
-// app/api/parking-services/typescript-import-stream/route.ts
-import { NextResponse } from 'next/server';
-import { ParkingServiceProcessor } from '@/scripts/vas-import/ParkingServiceProcessor';
-import { db } from '@/lib/db';
-import { promises as fs } from 'fs';
+//app/api/parking-services/route.ts
 
-export const maxDuration = 300;
-export const dynamic = 'force-dynamic';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { auth } from "@/auth";
+import { parkingServiceSchema } from "@/lib/parking-services/validators";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const filePath = searchParams.get('filePath');
-  const userEmail = searchParams.get('userEmail');
-
-  // Validate inputs
-  if (!filePath || !userEmail) {
-    return NextResponse.json(
-      { error: 'Missing filePath or userEmail' },
-      { status: 400 }
-    );
-  }
-
-  // Provera fajla
+export async function GET(req: NextRequest) {
   try {
-    await fs.access(filePath);
-  } catch {
+    const { searchParams } = new URL(req.url);
+    const name = searchParams.get("name") || undefined;
+    const isActive = searchParams.has("isActive") 
+      ? searchParams.get("isActive") === "true" 
+      : undefined;
+    const page = Number(searchParams.get("page")) || 1;
+    const limit = Number(searchParams.get("limit")) || 10;
+    const sortBy = searchParams.get("sortBy") || "name";
+    const sortOrder = searchParams.get("sortOrder") || "asc";
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Build filter conditions
+    const where: any = {};
+    
+    if (name) {
+      where.name = {
+        contains: name,
+        mode: "insensitive",
+      };
+    }
+    
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    // Execute query with filters and pagination
+    const [parkingServices, totalCount] = await Promise.all([
+      db.parkingService.findMany({
+        where,
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+        skip,
+        take: limit,
+      }),
+      db.parkingService.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return NextResponse.json({
+      data: parkingServices,
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching parking services:", error);
     return NextResponse.json(
-      { error: 'File not found' },
-      { status: 404 }
+      { error: "Failed to fetch parking services" },
+      { status: 500 }
     );
   }
-  
-  // Create a transform stream for SSE
-  const stream = new TransformStream();
-  const writer = stream.writable.getWriter();
-  const encoder = new TextEncoder();
+}
 
-  // Helper function to send SSE message
-  const sendMessage = (data: any) => {
-    writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-  };
-
-  // Immediate connection establishment
-  sendMessage({ type: 'status', status: 'connected' });
-
-  // Process in the background
-  (async () => {
-    let processor: ParkingServiceProcessor | null = null;
+export async function POST(req: NextRequest) {
+  try {
+    const session = await auth();
     
-    try {
-      // Find user
-      const user = await db.user.findUnique({
-        where: { email: userEmail },
-        select: { id: true }
-      });
-
-      if (!user) {
-        sendMessage({ type: 'error', error: 'User not found' });
-        writer.close();
-        return;
-      }
-
-      sendMessage({ type: 'log', message: 'Initializing processor...', logType: 'info' });
-
-      // Create processor with progress callback
-      processor = new ParkingServiceProcessor(user.id, {
-        onProgress: (fileName: string, progress: number) => {
-          sendMessage({ 
-            type: 'progress', 
-            fileName, 
-            progress,
-            message: `Processing ${fileName}: ${progress}%`
-          });
-        },
-        onLog: (message: string, logType: 'info' | 'error' | 'success', file?: string) => {
-          sendMessage({ 
-            type: 'log', 
-            message, 
-            logType, 
-            file 
-          });
-        },
-        onFileStatus: (fileName: string, status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error') => {
-          sendMessage({ 
-            type: 'fileStatus', 
-            fileName, 
-            status 
-          });
-        }
-      });
-
-      // FIX: Uklonjen poziv ensureDirectories() - više ne postoji
-      // Direktorijumi se automatski kreiraju unutar processFileWithImport
-      sendMessage({ type: 'log', message: 'Starting file processing...', logType: 'info' });
-      
-      // Main processing function - automatski kreira direktorijume
-      const result = await processor.processFileWithImport(filePath);
-      
-      if (!result) {
-        sendMessage({
-          type: 'error',
-          error: 'Processing did not return results'
-        });
-        writer.close();
-        return;
-      }
-      
-      // Send final results
-      sendMessage({
-        type: 'complete',
-        recordsProcessed: result.recordsProcessed,
-        imported: result.imported,
-        updated: result.updated,
-        errors: result.errors,
-        warnings: result.warnings,
-        message: `Processing completed successfully!`
-      });
-
-    } catch (error: any) {
-      console.error('Stream processing error:', error);
-      sendMessage({
-        type: 'error',
-        error: 'Processing failed',
-        details: error.message
-      });
-    } finally {
-      // Cleanup
-      if (processor) {
-        try {
-          await processor.disconnect();
-          sendMessage({ type: 'log', message: 'Database connection closed', logType: 'info' });
-        } catch (disconnectError) {
-          console.error('Error disconnecting processor:', disconnectError);
-        }
-      }
-      writer.close();
+    // ✅ FIX: More specific type guard for session and user.id
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-  })();
 
-  return new NextResponse(stream.readable, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
+    const body = await req.json();
+    
+    // Validate request body
+    const validationResult = parkingServiceSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: validationResult.error.format() },
+        { status: 400 }
+      );
     }
-  });
+
+    // Create new parking service
+    const parkingService = await db.parkingService.create({
+      data: {
+        name: validationResult.data.name,
+        description: validationResult.data.description || null,
+        contactName: validationResult.data.contactName || null,
+        email: validationResult.data.email || null,
+        phone: validationResult.data.phone || null,
+        address: validationResult.data.address || null,
+        isActive: validationResult.data.isActive,
+      },
+    });
+
+    // ✅ FIX: Now TypeScript knows session.user.id is defined
+    // Log the creation activity
+    await db.activityLog.create({
+      data: {
+        action: "CREATE",
+        entityType: "ParkingService",
+        entityId: parkingService.id,
+        details: `Created parking service: ${parkingService.name}`,
+        userId: session.user.id, // ✅ Now this is guaranteed to be string
+        severity: "INFO",
+      },
+    });
+
+    return NextResponse.json(parkingService, { status: 201 });
+  } catch (error) {
+    console.error("Error creating parking service:", error);
+    return NextResponse.json(
+      { error: "Failed to create parking service" },
+      { status: 500 }
+    );
+  }
 }

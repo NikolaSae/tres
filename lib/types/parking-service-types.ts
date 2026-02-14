@@ -15,7 +15,7 @@ export interface ParkingServiceFormData {
   email?: string;
   phone?: string;
   address?: string;
-  additionalEmails?: string[]; // Novo polje za dodatne email adrese
+  additionalEmails?: string[];
   isActive: boolean;
 }
 
@@ -29,7 +29,6 @@ export interface CreateParkingServiceParams {
   address?: string;
   additionalEmails?: string[];
   isActive?: boolean;
-  // New file tracking fields
   originalFileName?: string;
   originalFilePath?: string;
   fileSize?: number;
@@ -50,7 +49,6 @@ export interface UpdateParkingServiceParams {
   address?: string;
   additionalEmails?: string[];
   isActive?: boolean;
-  // New file tracking fields
   originalFileName?: string;
   originalFilePath?: string;
   fileSize?: number;
@@ -60,15 +58,26 @@ export interface UpdateParkingServiceParams {
   importStatus?: 'success' | 'failed' | 'in_progress';
 }
 
-// Type for filtering parking services
+// ✅ FIX: Type for filtering parking services
 export interface ParkingServiceFilters {
   searchTerm?: string;
   isActive?: boolean;
   sortBy?: 'name' | 'createdAt' | 'updatedAt' | 'lastImportDate';
   sortDirection?: 'asc' | 'desc';
-  page?: number;
-  pageSize?: number;
-  hasImportedFiles?: boolean; // Filter by services with imported files
+  page: number;
+  pageSize: number;
+  hasImportedFiles?: boolean;
+}
+
+// ✅ Type for getParkingServices params
+export interface GetParkingServicesParams {
+  searchTerm?: string;
+  isActive?: boolean;
+  sortBy?: 'name' | 'createdAt' | 'updatedAt' | 'lastImportDate';
+  sortDirection?: 'asc' | 'desc';
+  page: number; // Required
+  pageSize: number; // Required
+  hasImportedFiles?: boolean;
 }
 
 // Type for parking service with associated contracts
@@ -83,9 +92,37 @@ export interface ParkingServiceWithContracts extends ParkingServiceType {
   }[];
 }
 
-// Type for paginated parking services response
+// ✅ FIX: Extended parking service for list view with optional import-related fields
+export interface ParkingServiceWithRelations {
+  id: string;
+  name: string;
+  description: string | null;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  additionalEmails: string[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdById?: string | null; // ✅ Made optional
+  fileSize?: number | null; // ✅ Made optional
+  originalFileName?: string | null; // ✅ Made optional
+  originalFilePath?: string | null; // ✅ Made optional
+  mimeType?: string | null; // ✅ Made optional
+  lastImportDate?: Date | null; // ✅ Made optional
+  importedBy?: string | null; // ✅ Made optional
+  importStatus?: string | null; // ✅ Made optional
+  reportSendHistory?: any[]; // ✅ Made optional
+  services?: {
+    id: string;
+    name: string;
+  }[];
+}
+
+// ✅ Type for paginated parking services response
 export interface PaginatedParkingServices {
-  parkingServices: ParkingServiceType[];
+  parkingServices: ParkingServiceWithRelations[];
   totalCount: number;
   page: number;
   pageSize: number;
@@ -93,9 +130,8 @@ export interface PaginatedParkingServices {
 }
 
 // Complete parking service interface with all database fields
-// Extended from Prisma type to include additional fields
 export interface ParkingService extends PrismaParkingService {
-  additionalEmails: string[]; // Dodatno polje koje možda nije u Prisma modelu
+  additionalEmails: string[];
 }
 
 // API response types

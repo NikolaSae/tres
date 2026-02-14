@@ -1,6 +1,5 @@
 // lib/types/operator-types.ts
 
-
 import { Operator } from "@prisma/client";
 
 // Base Operator type from Prisma
@@ -18,6 +17,13 @@ export interface OperatorWithRelations extends Operator {
     operatorRevenue: number | null;
   }[];
   _count?: {
+    contracts: number;
+  };
+}
+
+// ✅ DODATO: Type for operator with contract count
+export interface OperatorWithContractCount extends Operator {
+  _count: {
     contracts: number;
   };
 }
@@ -47,12 +53,23 @@ export interface OperatorPayload {
 
 // Type for operator filters
 export interface OperatorFilters {
+  name?: string;
+  code?: string;
+  active?: boolean;
+  sort?: string;
+  order?: "asc" | "desc";
   search?: string;
-  active?: "all" | "active" | "inactive";
   sortBy?: "name" | "code" | "createdAt";
   sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: number;
+}
+
+// ✅ DODATO: Type for pagination params
+export interface OperatorPaginationParams {
+  page?: number;
+  limit?: number;
+  filters?: OperatorFilters;
 }
 
 // Type for operator list response

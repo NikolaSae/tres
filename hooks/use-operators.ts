@@ -1,7 +1,7 @@
 // hooks/use-operators.ts
 
 import { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast"; // FIX: Promenjen import path
 import { OperatorWithContractCount, OperatorFilters, OperatorPaginationParams } from "@/lib/types/operator-types";
 
 interface UseOperatorsOptions {
@@ -160,6 +160,7 @@ export function useOperators(options: UseOperatorsOptions = {}) {
     if (fetchOnMount) {
       fetchOperators();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchOnMount]);
 
   return {

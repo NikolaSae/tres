@@ -2,17 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { getProductsByService } from '@/actions/products/get-by-service';
-import { Product } from '@/lib/types/interfaces';
+
+// ✅ Define the actual shape of data returned by getProductsByService
+interface ProductBasic {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+}
 
 interface UseProductsByServiceResult {
-  products: Product[];
+  products: ProductBasic[]; // ✅ Use the correct type
   isLoading: boolean;
   error: Error | null;
   mutate: () => Promise<void>;
 }
 
 export function useProductsByService(serviceId?: string): UseProductsByServiceResult {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductBasic[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -25,7 +32,8 @@ export function useProductsByService(serviceId?: string): UseProductsByServiceRe
     try {
       setIsLoading(true);
       setError(null);
-      const data = await getProductsByService({ serviceId });
+      // ✅ FIX: Pass serviceId directly as a string
+      const data = await getProductsByService(serviceId);
       setProducts(data);
     } catch (err) {
       console.error('Error fetching products for service:', err);

@@ -2,17 +2,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ProviderContractItem } from "@/components/providers/ProviderContracts"; // Import the type from the component
+import { Contract } from "@prisma/client"; // ✅ Use Prisma's Contract type
 
 interface UseProviderContractsResult {
-  contracts: ProviderContractItem[] | null;
+  contracts: Contract[] | null; // ✅ Changed to Contract[]
   isLoading: boolean;
   error: string | null;
   refreshContracts: () => Promise<void>;
 }
 
 export function useProviderContracts(providerId: string): UseProviderContractsResult {
-  const [contracts, setContracts] = useState<ProviderContractItem[] | null>(null);
+  const [contracts, setContracts] = useState<Contract[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,8 +21,6 @@ export function useProviderContracts(providerId: string): UseProviderContractsRe
     setIsLoading(true);
     setError(null);
     try {
-      // *** IMPORTANT: You need to create this API route handler ***
-      // This route should fetch contracts for the given providerId
       const response = await fetch(`/api/providers/${providerId}/contracts`);
 
       if (!response.ok) {
@@ -30,7 +28,7 @@ export function useProviderContracts(providerId: string): UseProviderContractsRe
         throw new Error(errorData.error || `Failed to fetch contracts: ${response.statusText}`);
       }
 
-      const data: ProviderContractItem[] = await response.json();
+      const data: Contract[] = await response.json(); // ✅ Changed to Contract[]
       setContracts(data);
     } catch (err) {
       console.error("Error fetching provider contracts:", err);

@@ -1,4 +1,3 @@
-
 //components/providers/ProviderServicesForContracts.tsx
 
 "use client";
@@ -10,9 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, FileText, PlusCircle } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import { ServiceType } from "@prisma/client"; // Uvezite ServiceType
+import { ServiceType } from "@prisma/client";
 
-// Uvezite novu server akciju
 import { getServicesForNewContracts } from "@/actions/providers/getServicesForNewContracts";
 
 interface ServiceForContract {
@@ -24,7 +22,7 @@ interface ServiceForContract {
 
 interface ProviderServicesForContractsProps {
   providerId: string;
-  providerName: string; // Dodajte providerName za pre-popunjavanje forme za ugovor
+  providerName: string;
 }
 
 export default function ProviderServicesForContracts({ providerId, providerName }: ProviderServicesForContractsProps) {
@@ -89,8 +87,11 @@ export default function ProviderServicesForContracts({ providerId, providerName 
       <EmptyState
         title="No Services Found"
         description="This provider does not have any associated services for creating new contracts."
-        actionLabel="Refresh Services"
-        actionOnClick={fetchServices}
+        actionButton={
+          <Button variant="outline" onClick={fetchServices}>
+            Refresh Services
+          </Button>
+        }
       />
     );
   }

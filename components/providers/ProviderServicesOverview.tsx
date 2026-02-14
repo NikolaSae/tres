@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, FileText, PlusCircle, Link as LinkIcon, Eye, EyeOff } from "lucide-react"; // Dodat Eye, EyeOff
+import { Loader2, FileText, PlusCircle, Link as LinkIcon, Eye, EyeOff } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { ServiceType } from "@prisma/client";
 
@@ -29,18 +29,16 @@ export default function ProviderServicesOverview({ providerId, providerName }: P
   const [services, setServices] = useState<ServiceForContract[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAllServices, setShowAllServices] = useState(false); // NOVO STANJE
+  const [showAllServices, setShowAllServices] = useState(false);
 
   // Stanje za modal za povezivanje servisa
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [selectedServiceForLink, setSelectedServiceForLink] = useState<{ id: string; name: string } | null>(null);
 
-
   const fetchServices = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // PROSLEĐUJEMO NOVI PARAMETAR
       const result = await getServicesForNewContracts(providerId, showAllServices);
       if (result.success && result.data) {
         setServices(result.data);
@@ -55,7 +53,7 @@ export default function ProviderServicesOverview({ providerId, providerName }: P
     } finally {
       setIsLoading(false);
     }
-  }, [providerId, showAllServices]); // Dodat showAllServices u dependency array
+  }, [providerId, showAllServices]);
 
   useEffect(() => {
     if (providerId) {
@@ -108,34 +106,40 @@ export default function ProviderServicesOverview({ providerId, providerName }: P
     return (
       <EmptyState
         title={showAllServices ? "No Services Found" : "No Unlinked Services Found"}
-        description={showAllServices ? "This provider does not have any associated services." : "All services for this provider are already linked to a contract."}
-        actionLabel="Refresh Services"
-        actionOnClick={fetchServices}
-      >
-        {/* Dugme za prebacivanje prikaza */}
-        <Button
-          variant="outline"
-          onClick={() => setShowAllServices(prev => !prev)}
-          className="mt-4"
-        >
-          {showAllServices ? (
-            <>
-              <EyeOff className="h-4 w-4 mr-2" /> Show Only Unlinked
-            </>
-          ) : (
-            <>
-              <Eye className="h-4 w-4 mr-2" /> Show All Services
-            </>
-          )}
-        </Button>
-      </EmptyState>
+        description={
+          showAllServices 
+            ? "This provider does not have any associated services." 
+            : "All services for this provider are already linked to a contract."
+        }
+        actionButton={
+          <div className="flex flex-col gap-2">
+            <Button variant="outline" onClick={fetchServices}>
+              Refresh Services
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowAllServices(prev => !prev)}
+            >
+              {showAllServices ? (
+                <>
+                  <EyeOff className="h-4 w-4 mr-2" /> Show Only Unlinked
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4 mr-2" /> Show All Services
+                </>
+              )}
+            </Button>
+          </div>
+        }
+      />
     );
   }
 
   return (
     <div>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between"> {/* Dodat flex za dugme */}
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Provider Services Overview</CardTitle>
           {/* Dugme za prebacivanje prikaza */}
           <Button

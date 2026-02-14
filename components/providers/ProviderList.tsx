@@ -25,12 +25,6 @@ export function ProviderList() {
 
   const [actionLoading, setActionLoading] = useState(false);
   const [logRefreshKey, setLogRefreshKey] = useState(0);
-  
-  // Debounce filter changes
-  
-  
-  // Sync debounced filters with hook
-
 
   const handlePageChange = useCallback((newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
@@ -123,7 +117,7 @@ export function ProviderList() {
               onStatusChange={handleStatusChange}
               onRenewContract={handleRenewContract}
               triggerLogRefresh={triggerLogRefresh}
-              disabled={actionLoading}
+              // ✅ REMOVED: disabled prop - handle loading state inside ProviderCard if needed
             />
           ))}
         </div>
@@ -133,19 +127,33 @@ export function ProviderList() {
         <Pagination className="mt-6">
           <PaginationContent>
             <PaginationItem>
+              {/* ✅ FIX: Use className instead of disabled prop */}
               <PaginationPrevious
-                onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
-                disabled={pagination.page === 1 || loading || actionLoading}
+                onClick={() => {
+                  if (pagination.page > 1 && !loading && !actionLoading) {
+                    handlePageChange(Math.max(1, pagination.page - 1));
+                  }
+                }}
+                className={
+                  pagination.page === 1 || loading || actionLoading
+                    ? 'pointer-events-none opacity-50'
+                    : ''
+                }
               />
             </PaginationItem>
             {Array.from({ length: Math.min(5, totalPages) }).map((_, index) => {
               const pageNum = index + 1;
               return (
                 <PaginationItem key={pageNum}>
+                  {/* ✅ FIX: Use className instead of disabled prop */}
                   <PaginationLink
-                    onClick={() => handlePageChange(pageNum)}
+                    onClick={() => {
+                      if (!loading && !actionLoading) {
+                        handlePageChange(pageNum);
+                      }
+                    }}
                     isActive={pageNum === pagination.page}
-                    disabled={loading || actionLoading}
+                    className={loading || actionLoading ? 'pointer-events-none opacity-50' : ''}
                   >
                     {pageNum}
                   </PaginationLink>
@@ -153,9 +161,18 @@ export function ProviderList() {
               );
             })}
             <PaginationItem>
+              {/* ✅ FIX: Use className instead of disabled prop */}
               <PaginationNext
-                onClick={() => handlePageChange(Math.min(totalPages, pagination.page + 1))}
-                disabled={pagination.page >= totalPages || loading || actionLoading}
+                onClick={() => {
+                  if (pagination.page < totalPages && !loading && !actionLoading) {
+                    handlePageChange(Math.min(totalPages, pagination.page + 1));
+                  }
+                }}
+                className={
+                  pagination.page >= totalPages || loading || actionLoading
+                    ? 'pointer-events-none opacity-50'
+                    : ''
+                }
               />
             </PaginationItem>
           </PaginationContent>

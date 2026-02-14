@@ -40,7 +40,8 @@ export function useProduct(productId: string | null | undefined): UseProductResu
                 throw new Error(result.error);
             }
 
-            setProduct(result.data); // result.data je ProductWithDetails | null
+            // ✅ FIX: Handle undefined by converting to null
+            setProduct(result.data ?? null);
 
         } catch (err) {
             console.error(`Error fetching product with ID ${id}:`, err);

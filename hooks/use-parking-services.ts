@@ -14,7 +14,7 @@ import {
   deleteService
 } from "@/actions/parking-services";
 import { 
-  ParkingServiceFilters, 
+  GetParkingServicesParams, // ✅ Changed import
   CreateParkingServiceParams,
   UpdateParkingServiceParams,
   PaginatedParkingServices
@@ -46,11 +46,18 @@ export function useParkingServices() {
     }
   }, []);
 
-  // Fetch parking services with filtering and pagination
-  const fetch = useCallback(async (filters: ParkingServiceFilters) => {
+  // ✅ FIX: Fetch parking services with filtering and pagination
+  const fetch = useCallback(async (filters: Partial<GetParkingServicesParams>) => {
     setIsLoading(true);
     try {
-      const response = await getParkingServices(filters);
+      // Set default values for required fields
+      const params: GetParkingServicesParams = {
+        page: filters.page ?? 1,
+        pageSize: filters.pageSize ?? 10,
+        ...filters
+      };
+      
+      const response = await getParkingServices(params);
       setIsLoading(false);
       
       if (!response.success) {
