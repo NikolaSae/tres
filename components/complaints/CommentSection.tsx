@@ -1,4 +1,4 @@
-// /components/complaints/CommentSection.tsx
+// components/complaints/CommentSection.tsx
 "use client";
 
 import { useState } from "react";
@@ -25,7 +25,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { addComment } from "@/actions/complaints/comment";
-import { useToast } from "@/components/toast/toast-context";
+import { useToast } from "@/hooks/use-toast";  // ← IZMENJENO: Koristi hooks/use-toast umesto components/toast/toast-context
 
 // Export the type so it can be imported in other components
 export type CommentWithUser = {
@@ -64,7 +64,7 @@ export default function CommentSection({
   userRole
 }: CommentSectionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+  const { toast } = useToast();  // ← SADA RADI! 🎉
   const canAddInternalComments = userRole ? ["ADMIN", "MANAGER", "AGENT"].includes(userRole) : false;
   
   const form = useForm<CommentFormValues>({
