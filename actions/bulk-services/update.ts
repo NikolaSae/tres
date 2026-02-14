@@ -1,6 +1,5 @@
 //actions/bulk-services/update.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { ServerError } from "@/lib/exceptions";
 import { bulkServiceSchema } from "@/schemas/bulk-service";
@@ -54,12 +53,11 @@ export async function updateBulkService(id: string, data: unknown) {
 
     // Revalidate the paths
     revalidatePath("/bulk-services");
-    // ✅ ISPRAVKA: normalne zagrade umesto backtick-a
-    revalidatePath(/bulk-services/${id});
+    revalidatePath(`/bulk-services/${id}`);
 
     return updatedBulkService;
   } catch (error) {
     console.error("[UPDATE_BULK_SERVICE]", error);
-    throw new ServerError ("Failed to update bulk service");
+    throw new ServerError("Failed to update bulk service");
   }
 }

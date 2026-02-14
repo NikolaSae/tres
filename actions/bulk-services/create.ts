@@ -1,6 +1,5 @@
 // actions/bulk-services/create.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { ServerError } from "@/lib/exceptions";
 import { bulkServiceSchema } from "@/schemas/bulk-service";
@@ -54,9 +53,8 @@ export async function createBulkService(data: unknown) {
   } catch (error) {
     console.error("[CREATE_BULK_SERVICE]", error);
     
-    // ✅ ISPRAVKA: normalne zagrade umesto backtick-a
     if (error instanceof Error) {
-      throw new ServerError `Neuspešno kreiranje bulk servisa:` ${error.message};
+      throw new ServerError(`Neuspešno kreiranje bulk servisa: ${error.message}`);
     }
     throw new ServerError("Neočekivana greška prilikom kreiranja bulk servisa");
   }
