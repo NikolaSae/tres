@@ -1,4 +1,5 @@
 //auth.config.ts
+import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { getUserByEmail } from "@/data/user";
@@ -14,38 +15,55 @@ export default {
     }),
     
     Credentials({
-      async authorize(credentials) {
-        const validatedFields = LoginSchema.safeParse(credentials);
-        if (!validatedFields.success) return null;
-        const { email, password } = validatedFields.data;
-        
-        const user = await getUserByEmail(email);
-        if (!user || !user.password) return null;
-        if (!user.isActive) return null;
-        
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) return null;
-        
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
-          isActive: user.isActive,
-        };
-      },
-    }),
+  async authorize(credentials) {
+    const validatedFields = LoginSchema.safeParse(credentials);
+    if (!validatedFields.success) return null;
+    const { email, password } = validatedFields.data;
+    
+    // ✅ Fetchuj sve fieldove direktno
+    const user = await db.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        password: true,
+        role: true,
+        isActive: true,
+        isTwoFactorEnabled: true,
+        isOAuth: true,
+      }
+    });
+    
+    if (!user || !user.password) return null;
+    if (!user.isActive) return null;
+    
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) return null;
+    
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+      role: user.role,
+      isActive: user.isActive,
+      isTwoFactorEnabled: user.isTwoFactorEnabled,
+      isOAuth: user.isOAuth,
+    };
+  },
+}),
   ],
   callbacks: {
-    async signIn({ user, account }: any) {
+    async signIn({ user, account }) {
       console.log("🔐 SignIn callback");
       console.log("Provider:", account?.provider);
       
       // Credentials login
       if (account?.provider === "credentials") {
         console.log("✅ Credentials login");
-        return user.isActive !== false;
+        return (user as any).isActive !== false;
       }
       
       // OAuth login (Google)
@@ -53,7 +71,7 @@ export default {
         console.log("🔍 Checking Google user:", user.email);
         
         const existingUser = await db.user.findUnique({
-          where: { email: user.email }
+          where: { email: user.email! }
         });
         
         // Ako user postoji, proveri da li je aktivan
@@ -67,7 +85,6 @@ export default {
         }
         
         // Novi user - PrismaAdapter će ga kreirati automatski
-        // Ali treba da postavimo default role nakon kreiranja
         console.log("✅ New user - will be created by adapter");
         return true;
       }
@@ -75,13 +92,13 @@ export default {
       return true;
     },
     
-    async jwt({ token, user, trigger }: any) {
+    async jwt({ token, user, trigger }) {
       // Pri prvom loginu
       if (user) {
         console.log("🎫 JWT: Adding user data to token");
         token.id = user.id;
-        token.role = user.role;
-        token.isActive = user.isActive;
+        token.role = (user as any).role;
+        token.isActive = (user as any).isActive;
       }
       
       // Ako fali role ili isActive (npr. novi OAuth user)
@@ -115,10 +132,10 @@ export default {
       return token;
     },
     
-    async session({ session, token }: any) {
+    async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role || "USER";
+        session.user.id = token.id as string;
+        session.user.role = (token.role as any) || "USER";
         session.user.isActive = token.isActive !== false;
       }
       return session;
@@ -130,7 +147,6 @@ export default {
     signOut: "/auth/login",
   },
   events: {
-    // ✅ Kada PrismaAdapter kreira novog usera
     async createUser({ user }) {
       console.log("👤 New user created by adapter:", user.email);
       
@@ -146,4 +162,4 @@ export default {
       console.log("✅ Default role and isActive set for new user");
     },
   },
-};
+} satisfies NextAuthConfig;

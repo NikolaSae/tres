@@ -2,17 +2,16 @@
 import bundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
+
 const nextConfig = {
+  // ✅ Turbopack config (mora biti prisutan za Next.js 16)
+  turbopack: {},
+  
   // ✅ VAŽNO: Standalone build za Hostinger
   output: 'standalone',
   
-  // ✅ Turbopack samo za development
-  ...(process.env.NODE_ENV === 'development' && {
-    turbopack: {},
-  }),
-
   typescript: {
-    ignoreBuildErrors: false, // ✅ Promenio na false - bolje za production
+    ignoreBuildErrors: false,
   },
 
   images: {
@@ -20,7 +19,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'finappsolutions.com' },
       { protocol: 'https', hostname: '*.supabase.co' },
     ],
-    // ✅ Optimizacija za Hostinger
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96],
     minimumCacheTTL: 60,
@@ -38,7 +36,6 @@ const nextConfig = {
         "*.finappsolutions.com",
       ],
     },
-    // ✅ Optimizacija package imports
     optimizePackageImports: [
       'lucide-react', 
       '@radix-ui/react-icons',
@@ -77,27 +74,9 @@ const nextConfig = {
     ];
   },
 
-  // ✅ Production optimizacije
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
   compress: true,
-  
-  // ✅ Webpack optimizacija (fallback ako Turbopack nije dostupan)
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
-  },
 };
 
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-});
-
-export default withBundleAnalyzer(nextConfig);
+export default nextConfig;

@@ -18,6 +18,7 @@ export const getUserByEmail = async (email: string) => {
         createdAt: true,
         updatedAt: true,
         isTwoFactorEnabled: true,
+        isOAuth: true, // ✅ Dodaj ovo
       }
     });
     return user;

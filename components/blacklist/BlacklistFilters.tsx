@@ -22,16 +22,13 @@ export function BlacklistFiltersComponent({
   initialFilters, 
   onFilterChange 
 }: BlacklistFiltersComponentProps) {
-  // Osiguravamo da localFilters nikad nije undefined ili null
   const [localFilters, setLocalFilters] = useState<BlacklistFilters>(initialFilters || {});
   const [dateFromOpen, setDateFromOpen] = useState(false);
   const [dateToOpen, setDateToOpen] = useState(false);
 
-  // Get providers for the dropdown
   const { providers } = useProviders();
 
   useEffect(() => {
-    // Osiguravamo da je initialFilters prazan objekat ako je undefined/null
     setLocalFilters(initialFilters || {});
   }, [initialFilters]);
 
@@ -47,11 +44,18 @@ export function BlacklistFiltersComponent({
     onFilterChange(emptyFilters);
   };
 
-  // Dodajemo sigurnosnu proveru da localFilters nije null/undefined
   const hasActiveFilters = localFilters && Object.keys(localFilters).some(key => {
     const value = localFilters[key as keyof BlacklistFilters];
     return value !== undefined && value !== null && value !== '';
   });
+
+  // ✅ Helper funkcija za status value
+  const getStatusValue = () => {
+    if (localFilters?.isActive === undefined || localFilters?.isActive === null) {
+      return 'all';
+    }
+    return localFilters.isActive.toString();
+  };
 
   return (
     <div className="space-y-4 p-4 rounded-lg">
@@ -103,7 +107,7 @@ export function BlacklistFiltersComponent({
         <div className="space-y-2">
           <Label htmlFor="status">Status</Label>
           <Select
-            value={localFilters?.isActive === undefined ? 'all' : localFilters.isActive.toString()}
+            value={getStatusValue()} // ✅ Koristi helper funkciju
             onValueChange={(value) => handleFilterChange('isActive', value === 'all' ? undefined : value === 'true')}
           >
             <SelectTrigger>
