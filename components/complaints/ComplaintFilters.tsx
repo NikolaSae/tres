@@ -293,8 +293,8 @@ export function ComplaintFilters({
             <div>
               <Label className="mb-2 block text-sm font-medium">Date Range</Label>
               <DateRangeFilter
-                fromDate={tempFilters.dateRange?.from}
-                toDate={tempFilters.dateRange?.to}
+                startDate={tempFilters.dateRange?.from}
+                endDate={tempFilters.dateRange?.to}
                 onChange={handleDateRangeChange}
               />
             </div>

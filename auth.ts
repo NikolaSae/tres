@@ -1,5 +1,4 @@
-// auth.ts - Unified authentication configuration
-
+// auth.ts - Sa custom adapter-om
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
@@ -10,10 +9,28 @@ import bcrypt from "bcryptjs";
 import { loginSchema } from "@/schemas/auth";
 import { UserRole } from "@prisma/client";
 
-// Note: Type extensions are already in next-auth.d.ts in root
+// ✅ Custom adapter koji dodaje naša dodatna polja
+function CustomPrismaAdapter(prisma: typeof db) {
+  const baseAdapter = PrismaAdapter(prisma);
+  
+  return {
+    ...baseAdapter,
+    async createUser(data: any) {
+      return await prisma.user.create({
+        data: {
+          ...data,
+          role: data.role || UserRole.USER,
+          isActive: data.isActive ?? true,
+          isTwoFactorEnabled: data.isTwoFactorEnabled ?? false,
+          isOAuth: data.isOAuth ?? false,
+        },
+      });
+    },
+  };
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(db),
+  adapter: CustomPrismaAdapter(db) as any, // ✅ Type assertion za TypeScript
   session: { 
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -128,8 +145,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           image: profile.avatar_url,
           role: UserRole.USER,
           isActive: true,
-          isTwoFactorEnabled: false, // ✅ Added
-          isOAuth: true, // ✅ Added - GitHub is OAuth
+          isTwoFactorEnabled: false,
+          isOAuth: true,
         };
       }
     }),
@@ -145,8 +162,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           image: profile.picture,
           role: UserRole.USER,
           isActive: true,
-          isTwoFactorEnabled: false, // ✅ Added
-          isOAuth: true, // ✅ Added - Google is OAuth
+          isTwoFactorEnabled: false,
+          isOAuth: true,
         };
       }
     }),
@@ -173,7 +190,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               isActive: true,
               name: true,
               image: true,
-              isTwoFactorEnabled: true, // ✅ Added to select
+              isTwoFactorEnabled: true,
             },
           });
 
@@ -189,8 +206,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             image: user.image,
             isActive: user.isActive,
-            isTwoFactorEnabled: user.isTwoFactorEnabled ?? false, // ✅ Added
-            isOAuth: false, // ✅ Added - Credentials is not OAuth
+            isTwoFactorEnabled: user.isTwoFactorEnabled ?? false,
+            isOAuth: false,
           };
         } catch (error) {
           console.error("Database error during authentication:", error);
@@ -200,6 +217,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   
-  // Use consistent secret name
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
 });

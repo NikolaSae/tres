@@ -1,6 +1,5 @@
 // /actions/complaints/comment.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { z } from "zod";
@@ -107,7 +106,8 @@ export async function addComment(data: CommentFormData) {
     );
 
     await Promise.all(notificationPromises);
-
+    
+    // ✅ ISPRAVKA: Zameni backtick sa zagradama
     revalidatePath(`/complaints/${validatedData.complaintId}`);
     
     return { success: true, comment };

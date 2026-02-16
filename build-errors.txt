@@ -4,3 +4,148 @@
 
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 288ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+⚠ Invalid next.config.mjs options detected: 
+⚠     Unrecognized key(s) in object: 'turbo' at "experimental"
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+- Experiments (use with caution):
+  · optimizePackageImports
+  · serverActions
+  ? turbo (invalid experimental key)
+
+  Creating an optimized production build ...
+Turbopack build encountered 4 warnings:
+./actions/reports/generate-humanitarian-templates.ts:217:28
+The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 14018 files in [project]/
+[0m [90m 215 |[39m     [36mif[39m (targetFile[33m.[39mtoLowerCase()[33m.[39mendsWith([32m'.xls'[39m)) {
+ [90m 216 |[39m       [36mconst[39m [33mXLSX[39m [33m=[39m [36mawait[39m [36mimport[39m([32m'xlsx'[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 217 |[39m       [36mconst[39m buffer [33m=[39m [36mawait[39m fs[33m.[39mreadFile(filePath)[33m;[39m
+ [90m     |[39m                            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 218 |[39m       [36mconst[39m wb [33m=[39m [33mXLSX[39m[33m.[39mread(buffer[33m,[39m { type[33m:[39m [32m'buffer'[39m })[33m;[39m
+ [90m 219 |[39m       [36mconst[39m ws [33m=[39m wb[33m.[39m[33mSheets[39m[wb[33m.[39m[33mSheetNames[39m[paymentType [33m===[39m [32m'prepaid'[39m [33m?[39m [35m0[39m [33m:[39m wb[33m.[39m[33mSheetNames[39m[33m.[39mlength [33m-[39m [35m1[39m]][33m;[39m
+ [90m 220 |[39m       [36mconst[39m json [33m=[39m [33mXLSX[39m[33m.[39mutils[33m.[39msheet_to_json(ws[33m,[39m { header[33m:[39m [35m1[39m[33m,[39m defval[33m:[39m [32m''[39m })[33m;[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+Import trace:
+  App Route:
+    ./actions/reports/generate-humanitarian-templates.ts
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./actions/reports/generate-humanitarian-templates.ts:213:22
+The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 56000 files in [project]/
+[0m [90m 211 |[39m     [36mif[39m ([33m![39mtargetFile) targetFile [33m=[39m excelFiles[[35m0[39m][33m;[39m [90m// fallback[39m
+ [90m 212 |[39m
+[31m[1m>[22m[39m[90m 213 |[39m     [36mconst[39m filePath [33m=[39m path[33m.[39mjoin(dirPath[33m,[39m targetFile)[33m;[39m
+ [90m     |[39m                      [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 214 |[39m
+ [90m 215 |[39m     [36mif[39m (targetFile[33m.[39mtoLowerCase()[33m.[39mendsWith([32m'.xls'[39m)) {
+ [90m 216 |[39m       [36mconst[39m [33mXLSX[39m [33m=[39m [36mawait[39m [36mimport[39m([32m'xlsx'[39m)[33m;[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+Import trace:
+  App Route:
+    ./actions/reports/generate-humanitarian-templates.ts
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./actions/reports/generate-humanitarian-templates.ts:196:21
+The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 28036 files in [project]/
+[0m [90m 194 |[39m   [36mtry[39m {
+ [90m 195 |[39m     [36mconst[39m orgFolder [33m=[39m generateOrganizationFolderName(org[33m.[39mshortNumber [33m||[39m [32m'unknown'[39m[33m,[39m org[33m.[39mname)[33m;[39m
+[31m[1m>[22m[39m[90m 196 |[39m     [36mconst[39m dirPath [33m=[39m path[33m.[39mjoin([33mORIGINAL_REPORTS_PATH[39m[33m,[39m orgFolder[33m,[39m year[33m.[39mtoString()[33m,[39m month[33m.[39mtoString()[33m.[39mpadStart([35m2[39m[33m,[39m [32m'0'[39m)[33m,[39m paymentType)[33m;[39m
+ [90m     |[39m                     [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 197 |[39m
+ [90m 198 |[39m     [36mlet[39m files[33m:[39m string[] [33m=[39m [][33m;[39m
+ [90m 199 |[39m     [36mtry[39m {[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+Import trace:
+  App Route:
+    ./actions/reports/generate-humanitarian-templates.ts
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./actions/reports/humanitarian/generators/base-generator.ts:22:29
+The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 28036 files in [project]/
+[0m [90m 20 |[39m       [36mconst[39m orgFolderName [33m=[39m generateOrganizationFolderName(org[33m.[39mshortNumber[33m,[39m org[33m.[39mname)[33m;[39m
+ [90m 21 |[39m       
+[31m[1m>[22m[39m[90m 22 |[39m       [36mconst[39m orgFolderPath [33m=[39m path[33m.[39mjoin(
+ [90m    |[39m                             [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 23 |[39m         process[33m.[39mcwd()[33m,[39m 
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 24 |[39m         [32m'public'[39m[33m,[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 25 |[39m         [32m'reports'[39m[33m,[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 26 |[39m         orgFolderName[33m,[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 27 |[39m         year[33m.[39mtoString()[33m,[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 28 |[39m         month[33m.[39mtoString()[33m.[39mpadStart([35m2[39m[33m,[39m [32m'0'[39m)[33m,[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 29 |[39m         paymentType
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 30 |[39m       )[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m       
+ [90m 32 |[39m       [36mawait[39m ensureDirectoryExists(orgFolderPath)[33m;[39m
+ [90m 33 |[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+Import traces:
+  App Route:
+    ./actions/reports/humanitarian/generators/base-generator.ts
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+  Server Component:
+    ./actions/reports/humanitarian/generators/base-generator.ts
+    ./actions/reports/humanitarian/generators/postpaid-generator.ts
+    ./actions/reports/humanitarian/index.ts
+    ./actions/reports/generate-all-humanitarian-reports.ts
+
+
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./components/complaints/ComplaintFilters.tsx:296:101
+Parsing ecmascript source code failed
+[0m [90m 294 |[39m               [33m<[39m[33mLabel[39m className[33m=[39m[32m"mb-2 block text-sm font-medium"[39m[33m>[39m[33mDate[39m [33mRange[39m[33m<[39m[33m/[39m[33mLabel[39m[33m>[39m
+ [90m 295 |[39m               [33m<[39m[33mDateRangeFilter[39m
+[31m[1m>[22m[39m[90m 296 |[39m                 startDate[33m=[39m{tempFilters[33m.[39mdateRange[33m?[39m[33m.[39m[36mfrom[39m}  {[90m/* ✅ ISPRAVKA: fromDate → startDate */[39m}
+ [90m     |[39m                                                                                                     [31m[1m^[22m[39m
+ [90m 297 |[39m                 endDate[33m=[39m{tempFilters[33m.[39mdateRange[33m?[39m[33m.[39mto}      {[90m/* ✅ ISPRAVKA: toDate → endDate */[39m}
+ [90m 298 |[39m                 onChange[33m=[39m{handleDateRangeChange}
+ [90m 299 |[39m               [33m/[39m[33m>[39m[0m
+
+Expected '</', got '}'
+
+Import traces:
+  App Route:
+    ./components/complaints/ComplaintFilters.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+  Client Component Browser:
+    ./components/complaints/ComplaintFilters.tsx [Client Component Browser]
+    ./app/(protected)/admin/complaints/page.tsx [Client Component Browser]
+    ./app/(protected)/admin/complaints/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/complaints/ComplaintFilters.tsx [Client Component SSR]
+    ./app/(protected)/admin/complaints/page.tsx [Client Component SSR]
+    ./app/(protected)/admin/complaints/page.tsx [Server Component]
+
+
+    at <unknown> (./components/complaints/ComplaintFilters.tsx:296:101)

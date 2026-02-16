@@ -25,9 +25,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { addComment } from "@/actions/complaints/comment";
-import { useToast } from "@/hooks/use-toast";  // ← IZMENJENO: Koristi hooks/use-toast umesto components/toast/toast-context
+import { useToast } from "@/hooks/use-toast";
 
-// Export the type so it can be imported in other components
 export type CommentWithUser = {
   id: string;
   text: string;
@@ -64,7 +63,7 @@ export default function CommentSection({
   userRole
 }: CommentSectionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();  // ← SADA RADI! 🎉
+  const { toast } = useToast();
   const canAddInternalComments = userRole ? ["ADMIN", "MANAGER", "AGENT"].includes(userRole) : false;
   
   const form = useForm<CommentFormValues>({
@@ -78,7 +77,22 @@ export default function CommentSection({
   const onSubmit = async (values: CommentFormValues) => {
     setIsSubmitting(true);
     try {
-      await addComment(complaintId, values.text, values.isInternal);
+      // ✅ ISPRAVKA: Pošalji objekat sa complaintId
+      const result = await addComment({
+        complaintId,
+        text: values.text,
+        isInternal: values.isInternal,
+      });
+
+      if (result.error) {
+        toast({
+          title: "Error",
+          description: result.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
       form.reset();
       toast({
         title: "Success",
@@ -110,7 +124,6 @@ export default function CommentSection({
       ) : (
         <div className="space-y-4">
           {filteredComments.map((comment) => {
-            // Get first character for avatar - handle null cases
             const avatarInitial = comment.user.name?.charAt(0) || comment.user.email?.charAt(0) || '?';
             const displayName = comment.user.name || comment.user.email || 'Unknown User';
             
