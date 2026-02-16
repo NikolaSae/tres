@@ -32,7 +32,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
+.next/analyze/
 # aider
 .aider*
 
@@ -40,6 +40,7 @@ next-env.d.ts
 /public/reports/*.xlsx
 /public/reports/*.pdf
 /public/reports/*.csv
+!/public/reports/.gitkeep
 
 # ✅ DODAJ OVO ZA PRODUCTION:
 

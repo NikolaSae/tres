@@ -1,9 +1,10 @@
 // /actions/reports/humanitarian/generators/base-generator.ts
-import path from 'path';
+import 'server-only';
 import type { OrganizationReportData, PaymentType, TemplateType, GeneratedFile } from '../types';
 import { generateOrganizationFolderName } from '@/utils/report-path';
 import { ensureDirectoryExists, sanitizeFileName } from '../utils/file-utils';
 import { generateCompleteReportWithExcelJS, generateReportWithFallback } from '../core/excel-writer';
+import { buildReportPath } from '@/lib/server-path-utils';
 
 export abstract class BaseReportGenerator {
   abstract getPaymentType(): PaymentType;
@@ -18,7 +19,8 @@ export abstract class BaseReportGenerator {
       const paymentType = this.getPaymentType();
       const orgFolderName = generateOrganizationFolderName(org.shortNumber, org.name);
       
-      const orgFolderPath = path.join(
+      // ✅ Runtime path construction - sakriveno od Turbopack
+      const orgFolderPath = await buildReportPath(
         process.cwd(), 
         'public',
         'reports',
@@ -29,10 +31,10 @@ export abstract class BaseReportGenerator {
       );
       
       await ensureDirectoryExists(orgFolderPath);
-
+      
       const fileName = `complete_report_${sanitizeFileName(org.name)}_${paymentType}_${month.toString().padStart(2, '0')}_${year}.xlsx`;
-      const filePath = path.join(orgFolderPath, fileName);
-
+      const filePath = await buildReportPath(orgFolderPath, fileName);
+      
       try {
         const result = await generateCompleteReportWithExcelJS(
           org, 
@@ -53,7 +55,7 @@ export abstract class BaseReportGenerator {
       } catch (error) {
         console.log('ExcelJS failed, trying fallback:', error);
       }
-
+      
       await generateReportWithFallback(org, month, year, paymentType, templateType, filePath);
       
       return {

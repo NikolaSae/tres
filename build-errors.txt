@@ -5,130 +5,257 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 287ms
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 277ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
-⚠ Invalid next.config.mjs options detected: 
-⚠     Unrecognized key(s) in object: 'turbo' at "experimental"
-⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
 ▲ Next.js 16.1.6 (Turbopack)
 - Environments: .env
 - Experiments (use with caution):
+  ✓ optimizeCss
   · optimizePackageImports
   · serverActions
-  ? turbo (invalid experimental key)
 
   Creating an optimized production build ...
-Turbopack build encountered 4 warnings:
-./actions/reports/generate-humanitarian-templates.ts:217:28
-The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 14018 files in [project]/
-[0m [90m 215 |[39m     [36mif[39m (targetFile[33m.[39mtoLowerCase()[33m.[39mendsWith([32m'.xls'[39m)) {
- [90m 216 |[39m       [36mconst[39m [33mXLSX[39m [33m=[39m [36mawait[39m [36mimport[39m([32m'xlsx'[39m)[33m;[39m
-[31m[1m>[22m[39m[90m 217 |[39m       [36mconst[39m buffer [33m=[39m [36mawait[39m fs[33m.[39mreadFile(filePath)[33m;[39m
- [90m     |[39m                            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 218 |[39m       [36mconst[39m wb [33m=[39m [33mXLSX[39m[33m.[39mread(buffer[33m,[39m { type[33m:[39m [32m'buffer'[39m })[33m;[39m
- [90m 219 |[39m       [36mconst[39m ws [33m=[39m wb[33m.[39m[33mSheets[39m[wb[33m.[39m[33mSheetNames[39m[paymentType [33m===[39m [32m'prepaid'[39m [33m?[39m [35m0[39m [33m:[39m wb[33m.[39m[33mSheetNames[39m[33m.[39mlength [33m-[39m [35m1[39m]][33m;[39m
- [90m 220 |[39m       [36mconst[39m json [33m=[39m [33mXLSX[39m[33m.[39mutils[33m.[39msheet_to_json(ws[33m,[39m { header[33m:[39m [35m1[39m[33m,[39m defval[33m:[39m [32m''[39m })[33m;[39m[0m
-
-Overly broad patterns can lead to build performance issues and over bundling.
-
-Import trace:
-  App Route:
-    ./actions/reports/generate-humanitarian-templates.ts
-    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
-
-
-./actions/reports/generate-humanitarian-templates.ts:213:22
-The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 56000 files in [project]/
-[0m [90m 211 |[39m     [36mif[39m ([33m![39mtargetFile) targetFile [33m=[39m excelFiles[[35m0[39m][33m;[39m [90m// fallback[39m
- [90m 212 |[39m
-[31m[1m>[22m[39m[90m 213 |[39m     [36mconst[39m filePath [33m=[39m path[33m.[39mjoin(dirPath[33m,[39m targetFile)[33m;[39m
- [90m     |[39m                      [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 214 |[39m
- [90m 215 |[39m     [36mif[39m (targetFile[33m.[39mtoLowerCase()[33m.[39mendsWith([32m'.xls'[39m)) {
- [90m 216 |[39m       [36mconst[39m [33mXLSX[39m [33m=[39m [36mawait[39m [36mimport[39m([32m'xlsx'[39m)[33m;[39m[0m
-
-Overly broad patterns can lead to build performance issues and over bundling.
-
-Import trace:
-  App Route:
-    ./actions/reports/generate-humanitarian-templates.ts
-    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
-
-
-./actions/reports/generate-humanitarian-templates.ts:196:21
-The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 28036 files in [project]/
-[0m [90m 194 |[39m   [36mtry[39m {
- [90m 195 |[39m     [36mconst[39m orgFolder [33m=[39m generateOrganizationFolderName(org[33m.[39mshortNumber [33m||[39m [32m'unknown'[39m[33m,[39m org[33m.[39mname)[33m;[39m
-[31m[1m>[22m[39m[90m 196 |[39m     [36mconst[39m dirPath [33m=[39m path[33m.[39mjoin([33mORIGINAL_REPORTS_PATH[39m[33m,[39m orgFolder[33m,[39m year[33m.[39mtoString()[33m,[39m month[33m.[39mtoString()[33m.[39mpadStart([35m2[39m[33m,[39m [32m'0'[39m)[33m,[39m paymentType)[33m;[39m
- [90m     |[39m                     [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 197 |[39m
- [90m 198 |[39m     [36mlet[39m files[33m:[39m string[] [33m=[39m [][33m;[39m
- [90m 199 |[39m     [36mtry[39m {[0m
-
-Overly broad patterns can lead to build performance issues and over bundling.
-
-Import trace:
-  App Route:
-    ./actions/reports/generate-humanitarian-templates.ts
-    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
-
-
-./actions/reports/humanitarian/generators/base-generator.ts:21:29
-The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 28036 files in [project]/
-[0m [90m 19 |[39m       [36mconst[39m orgFolderName [33m=[39m generateOrganizationFolderName(org[33m.[39mshortNumber[33m,[39m org[33m.[39mname)[33m;[39m
- [90m 20 |[39m       
-[31m[1m>[22m[39m[90m 21 |[39m       [36mconst[39m orgFolderPath [33m=[39m path[33m.[39mjoin(
- [90m    |[39m                             [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 22 |[39m         process[33m.[39mcwd()[33m,[39m 
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 23 |[39m         [32m'public'[39m[33m,[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 24 |[39m         [32m'reports'[39m[33m,[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 25 |[39m         orgFolderName[33m,[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 26 |[39m         year[33m.[39mtoString()[33m,[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 27 |[39m         month[33m.[39mtoString()[33m.[39mpadStart([35m2[39m[33m,[39m [32m'0'[39m)[33m,[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 28 |[39m         paymentType
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 29 |[39m       )[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 30 |[39m       
- [90m 31 |[39m       [36mawait[39m ensureDirectoryExists(orgFolderPath)[33m;[39m
- [90m 32 |[39m[0m
-
-Overly broad patterns can lead to build performance issues and over bundling.
-
-Import traces:
-  App Route:
-    ./actions/reports/humanitarian/generators/base-generator.ts
-    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
-
-  Server Component:
-    ./actions/reports/humanitarian/generators/base-generator.ts
-    ./actions/reports/humanitarian/generators/postpaid-generator.ts
-    ./actions/reports/humanitarian/index.ts
-    ./actions/reports/generate-all-humanitarian-reports.ts
-
-
-✓ Compiled successfully in 22.8s
+✓ Compiled successfully in 20.4s
   Running TypeScript ...
-Failed to compile.
+  Collecting page data using 5 workers ...
+Pusher not configured. Real-time notifications disabled.
+  Generating static pages using 5 workers (0/136) ...
+Successfully loaded: PROJECT_API_STRUCTURE.md (4444 chars)
+Extracted 27 headings from markdown
+Pusher not configured. Real-time notifications disabled.
+  Generating static pages using 5 workers (34/136) 
+Successfully loaded: baza-podataka.md (12874 chars)
+Extracted 29 headings from markdown
+Successfully loaded: arhitektura.md (28999 chars)
+Extracted 56 headings from markdown
+Successfully loaded: PROJECT_DOCUMENTATION.md (7390 chars)
+Extracted 35 headings from markdown
+Successfully loaded: PROJECT_APP_CONTRACTS.md (15724 chars)
+Extracted 50 headings from markdown
+Successfully loaded: PROJECT_STRUCTURE.md (4684 chars)
+Extracted 26 headings from markdown
+Successfully loaded: PROJECT_API_DOCUMENTATION.md (6005 chars)
+Extracted 27 headings from markdown
+Successfully loaded: README.md (14567 chars)
+Extracted 139 headings from markdown
+  Generating static pages using 5 workers (68/136) 
+  Generating static pages using 5 workers (102/136) 
+Successfully fetched providers for form: 13 items
+Loaded providers: 13
+Loaded humanitarian orgs: 32
+Loaded parking services: 5
+✓ Generating static pages using 5 workers (136/136) in 934.8ms
+  Finalizing page optimization ...
 
-./components/parking-services/ParkingServiceForm.tsx:55:5
-Type error: Type 'string' is not assignable to type 'never'.
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ○ /403
+├ ƒ /403-1
+├ ƒ /404
+├ ƒ /admin
+├ ƒ /admin/aidash
+├ ƒ /admin/complaints
+├ ƒ /admin/complaints/reports
+├ ƒ /admin/complaints/statistics
+├ ƒ /admin/notifications
+├ ƒ /admin/security
+├ ƒ /admin/security/activity-logs
+├ ƒ /admin/security/performance
+├ ƒ /admin/security/user-roles
+├ ƒ /analytics
+├ ƒ /analytics/complaints
+├ ƒ /analytics/financials
+├ ƒ /analytics/providers
+├ ƒ /analytics/sales
+├ ƒ /api/admin
+├ ƒ /api/admin/mcp/logs
+├ ƒ /api/admin/mcp/my-logs
+├ ƒ /api/admin/mcp/refresh
+├ ƒ /api/admin/mcp/search-humanitarian-orgs
+├ ƒ /api/admin/mcp/stats
+├ ƒ /api/admin/mcp/system-health
+├ ƒ /api/admin/mcp/tools-usage
+├ ƒ /api/admin/mcp/users
+├ ƒ /api/admin/mcp/users/[userId]/logs
+├ ƒ /api/admin/mcp/users/list
+├ ƒ /api/analytics/financials
+├ ƒ /api/analytics/sales
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/blacklist
+├ ƒ /api/bulk-services
+├ ƒ /api/bulk-services/[id]
+├ ƒ /api/bulk-services/export
+├ ƒ /api/bulk-services/import
+├ ƒ /api/chat
+├ ƒ /api/chat/context
+├ ƒ /api/chat/database
+├ ƒ /api/chat/database-simple
+├ ƒ /api/complaints
+├ ƒ /api/complaints/[id]
+├ ƒ /api/complaints/[id]/attachments
+├ ƒ /api/complaints/[id]/comments
+├ ƒ /api/complaints/[id]/status
+├ ƒ /api/complaints/export
+├ ƒ /api/complaints/statistics
+├ ƒ /api/contracts
+├ ƒ /api/contracts/[id]
+├ ƒ /api/contracts/[id]/attachments
+├ ƒ /api/contracts/[id]/edit
+├ ƒ /api/contracts/[id]/reminders
+├ ƒ /api/contracts/[id]/renewal
+├ ƒ /api/contracts/[id]/renewal/attachments
+├ ƒ /api/contracts/[id]/renewal/attachments/[attachmentId]
+├ ƒ /api/contracts/[id]/renewal/status
+├ ƒ /api/contracts/[id]/services
+├ ƒ /api/contracts/[id]/status
+├ ƒ /api/contracts/expiring
+├ ƒ /api/contracts/export
+├ ƒ /api/contracts/statistics/expiry
+├ ƒ /api/contracts/timeline/expiry
+├ ƒ /api/cron/check-expiring
+├ ƒ /api/emails/upload
+├ ƒ /api/humanitarian-orgs
+├ ƒ /api/humanitarian-orgs/[id]
+├ ƒ /api/humanitarian-orgs/[id]/contracts
+├ ƒ /api/humanitarian-orgs/[id]/services
+├ ƒ /api/humanitarian-renewals
+├ ƒ /api/humanitarian-renewals/[id]
+├ ƒ /api/humanitarian-renewals/statistics
+├ ƒ /api/notifications
+├ ƒ /api/notifications/email
+├ ƒ /api/notifications/push
+├ ƒ /api/operators
+├ ƒ /api/operators/[id]
+├ ƒ /api/operators/[id]/contracts
+├ ƒ /api/operators/contracts
+├ ƒ /api/organizations/by-kratki-broj/[kratkiBroj]
+├ ƒ /api/outlook/open-draft
+├ ƒ /api/parking-services
+├ ƒ /api/parking-services/[id]
+├ ƒ /api/parking-services/[id]/contracts
+├ ƒ /api/parking-services/[id]/reports
+├ ƒ /api/parking-services/[id]/services
+├ ƒ /api/parking-services/activity
+├ ƒ /api/parking-services/parking-import
+├ ƒ /api/parking-services/rename-file
+├ ƒ /api/parking-services/reports/available
+├ ƒ /api/parking-services/reports/send
+├ ƒ /api/parking-services/typescript-import
+├ ƒ /api/parking-services/typescript-import-stream
+├ ƒ /api/parking-services/upload
+├ ƒ /api/products/[id]
+├ ƒ /api/providers
+├ ƒ /api/providers/[id]
+├ ƒ /api/providers/[id]/bulk-services
+├ ƒ /api/providers/[id]/contracts
+├ ƒ /api/providers/[id]/edit
+├ ƒ /api/providers/[id]/renwe-contract
+├ ƒ /api/providers/[id]/status
+├ ƒ /api/providers/[id]/vas-services
+├ ƒ /api/providers/by-name/[name]
+├ ƒ /api/providers/upload
+├ ƒ /api/providers/vas-import
+├ ƒ /api/reports/generate
+├ ƒ /api/reports/scan-unified
+├ ƒ /api/reports/upload-humanitarian
+├ ƒ /api/reports/upload-parking
+├ ƒ /api/reports/upload-provider
+├ ƒ /api/reports/validate-system
+├ ƒ /api/security/logs
+├ ƒ /api/security/performance
+├ ƒ /api/security/performance/summary
+├ ƒ /api/security/permissions
+├ ƒ /api/sender-blacklist
+├ ƒ /api/services
+├ ƒ /api/services/[id]
+├ ƒ /api/services/bulk/[bulkId]
+├ ƒ /api/services/categories
+├ ƒ /api/services/humanitarian/[orgId]
+├ ƒ /api/services/import
+├ ƒ /api/services/parking/[parkingId]
+├ ƒ /api/test
+├ ƒ /api/users
+├ ƒ /api/users/[id]
+├ ƒ /api/vas-services/postpaid-import-stream
+├ ƒ /api/vas-services/upload
+├ ƒ /audit-logs
+├ ○ /auth/error
+├ ○ /auth/login
+├ ○ /auth/new-password
+├ ○ /auth/new-verification
+├ ○ /auth/register
+├ ○ /auth/reset
+├ ƒ /bulk-services
+├ ƒ /bulk-services/[id]
+├ ƒ /bulk-services/[id]/edit
+├ ƒ /bulk-services/import
+├ ƒ /bulk-services/new
+├ ƒ /chat
+├ ƒ /client
+├ ƒ /complaints
+├ ƒ /complaints/[id]
+├ ƒ /complaints/[id]/edit
+├ ƒ /complaints/new
+├ ƒ /contracts
+├ ƒ /contracts/[id]
+├ ƒ /contracts/[id]/edit
+├ ƒ /contracts/expiring
+├ ƒ /contracts/new
+├ ƒ /contracts/providers
+├ ƒ /dashboard
+├ ƒ /help/documentation
+├ ƒ /help/documentation/[slug]
+├ ƒ /humanitarian-orgs
+├ ƒ /humanitarian-orgs/[id]
+├ ƒ /humanitarian-orgs/[id]/edit
+├ ƒ /humanitarian-orgs/new
+├ ƒ /humanitarian-renewals
+├ ○ /icon.png
+├ ƒ /notifications
+├ ƒ /notifications/settings
+├ ƒ /operators
+├ ƒ /operators/[id]
+├ ƒ /operators/[id]/edit
+├ ƒ /operators/new
+├ ƒ /parking-services
+├ ƒ /parking-services/[id]
+├ ƒ /parking-services/[id]/edit
+├ ƒ /parking-services/new
+├ ƒ /products
+├ ƒ /products/[id]
+├ ƒ /profile
+├ ƒ /providers
+├ ƒ /providers/[id]
+├ ƒ /providers/[id]/edit
+├ ƒ /providers/new
+├ ƒ /reports
+├ ƒ /reports/generate
+├ ƒ /reports/scheduled
+├ ƒ /server
+├ ƒ /services
+├ ƒ /services/[serviceType]
+├ ƒ /services/[serviceType]/[id]
+├ ƒ /services/[serviceType]/[id]/edit
+├ ƒ /services/import
+├ ƒ /services/new
+├ ƒ /settings
+├ ƒ /test-boxloader
+├ ƒ /test-buttons
+├ ƒ /test-cube-loader
+├ ƒ /test-CubeLoader
+├ ƒ /test-nested-spinner
+├ ƒ /test-span-loader
+├ ƒ /test-svg-loader
+└ ƒ /test/[testParam]
 
-[0m [90m 53 |[39m   [36mconst[39m { fields[33m,[39m append[33m,[39m remove } [33m=[39m useFieldArray({
- [90m 54 |[39m     control[33m:[39m form[33m.[39mcontrol[33m,[39m
-[31m[1m>[22m[39m[90m 55 |[39m     name[33m:[39m [32m"additionalEmails"[39m[33m,[39m
- [90m    |[39m     [31m[1m^[22m[39m
- [90m 56 |[39m   })[33m;[39m
- [90m 57 |[39m
- [90m 58 |[39m   [36mconst[39m onSubmit [33m=[39m [36masync[39m (data[33m:[39m [33mParkingServiceFormData[39m) [33m=>[39m {[0m
-Next.js build worker exited with code: 1 and signal: null
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

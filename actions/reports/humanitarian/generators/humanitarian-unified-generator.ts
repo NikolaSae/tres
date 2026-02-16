@@ -1,17 +1,34 @@
 // /actions/reports/humanitarian/generators/humanitarian-unified-generator.ts
-import { promises as fs } from 'fs';
-import path from 'path';
+import 'server-only';
 import { getMonthName, getPreviousMonthName } from '../utils/date-utils';
 import { getOrganizationsWithReportData, getPrepaidLastRowValuesForOrg } from '../data/fetch-organizations';
 
+// ✅ Helper functions za runtime path construction
+async function getTemplatesDir() {
+  const path = await import('path');
+  return path.resolve('templates');
+}
+
+async function getReportsDir() {
+  const path = await import('path');
+  return path.resolve('public', 'reports', 'prepaid');
+}
+
+async function buildPath(...segments: string[]) {
+  const path = await import('path');
+  return path.join(...segments);
+}
+
 export class HumanitarianUnifiedGenerator {
   static async generate(month: number, year: number) {
-    const templatesDir = path.resolve('templates');
-    const reportsDir = path.resolve('public', 'reports', 'prepaid'); // ✅ Promenjena putanja
+    const fs = await import('fs').then(m => m.promises);
+    
+    const templatesDir = await getTemplatesDir();
+    const reportsDir = await getReportsDir();
     const prevMonthName = getPreviousMonthName(month, year);
     const currentMonthName = getMonthName(month);
     const templateName = `Humanitarni_SMS_i_VOICE_brojevi_2021-2025-${prevMonthName}_${year}.xlsx`;
-    const templateFile = path.join(templatesDir, templateName);
+    const templateFile = await buildPath(templatesDir, templateName);
 
     console.log(`📄 Loading unified humanitarian template: ${templateFile}`);
 
@@ -197,7 +214,6 @@ export class HumanitarianUnifiedGenerator {
       newSheet.getCell(`E${rowIndex}`).value = null;
 
       // F–I kolone = poslednji redovi iz prepaid fajla (B → F, C → G, D → H, E → I)
-      // Ako vrednost nije broj, upisi 0
       ['F', 'G', 'H', 'I'].forEach((col, idx) => {
         newSheet.getCell(`${col}${rowIndex}`).value = values[idx];
       });
@@ -209,7 +225,7 @@ export class HumanitarianUnifiedGenerator {
 
     // 💾 Upis novog fajla
     const outputName = `Humanitarni_SMS_i_VOICE_brojevi_2021-2025-${currentMonthName}_${year}.xlsx`;
-    const outputPath = path.join(reportsDir, outputName);
+    const outputPath = await buildPath(reportsDir, outputName);
 
     // ✅ Pisanje preko ExcelJS
     await workbook.xlsx.writeFile(outputPath);

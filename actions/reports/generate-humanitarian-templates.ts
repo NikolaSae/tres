@@ -1,11 +1,11 @@
 // actions/reports/generate-humanitarian-templates.ts - FINALNA ISPRAVLJENA VERZIJA © 2025
 'use server';
+import 'server-only';
 
-import { promises as fs } from 'fs';
-import path from 'path';
 import { db } from "@/lib/db";
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { generateOrganizationFolderName } from "@/utils/report-path";
+import { buildReportPath } from '@/lib/server-path-utils';
 
 interface TemplateGenerationResult {
   success: boolean;
@@ -38,9 +38,21 @@ interface OrganizationData {
 type PaymentType = 'prepaid' | 'postpaid';
 type TemplateType = 'telekom' | 'globaltel';
 
-const TEMPLATES_PATH = path.join(process.cwd(), 'templates');
-const REPORTS_BASE_PATH = path.join(process.cwd(), 'reports');
-const ORIGINAL_REPORTS_PATH = path.join(process.cwd(), 'public', 'reports');
+// ✅ Runtime path construction - sakriveno od Turbopack static analysis
+const getTemplatesPath = async () => {
+  const path = await import('path');
+  return path.join(process.cwd(), 'templates');
+};
+
+const getReportsBasePath = async () => {
+  const path = await import('path');
+  return path.join(process.cwd(), 'reports');
+};
+
+const getOriginalReportsPath = async () => {
+  const path = await import('path');
+  return path.join(process.cwd(), 'public', 'reports');
+};
 
 // ============================================
 // PRAVI THREAD-SAFE GLOBALNI COUNTER (file locking)
@@ -95,7 +107,11 @@ class GlobalCounterManager {
     reportValue: number,
     organizationName: string
   ): Promise<number> {
-    const counterFolderPath = path.join(REPORTS_BASE_PATH, 'global-counters', year.toString(), month.toString().padStart(2, '0'));
+    const fs = await import('fs').then(m => m.promises);
+    const path = await import('path');
+    const reportsBasePath = await getReportsBasePath();
+    
+    const counterFolderPath = path.join(reportsBasePath, 'global-counters', year.toString(), month.toString().padStart(2, '0'));
     await fs.mkdir(counterFolderPath, { recursive: true });
 
     const counterFilePath = path.join(counterFolderPath, 'counter.json');
@@ -145,16 +161,22 @@ class GlobalCounterManager {
 // Pomoćne funkcije
 // ============================================
 
-function getMasterTemplatePath(templateType: TemplateType): string {
-  return path.join(TEMPLATES_PATH, `humanitarian-template-${templateType}.xlsx`);
+async function getMasterTemplatePath(templateType: TemplateType): Promise<string> {
+  const path = await import('path');
+  const templatesPath = await getTemplatesPath();
+  return path.join(templatesPath, `humanitarian-template-${templateType}.xlsx`);
 }
 
 async function validateMasterTemplate(templateType: TemplateType) {
   try {
-    const templatePath = getMasterTemplatePath(templateType);
-    await fs.access(templatePath, fs.constants.R_OK);
+    const fs = await import('fs').then(m => m.promises);
+    const templatePath = await getMasterTemplatePath(templateType);
+    await fs.access(templatePath);
+    
+    // ✅ ISPRAVKA: dodaj fs.stat poziv
     const stats = await fs.stat(templatePath);
     if (stats.size === 0) throw new Error('Template je prazan');
+    
     return { isValid: true };
   } catch (error) {
     return { isValid: false, error: error instanceof Error ? error.message : 'Nepoznata greška' };
@@ -192,9 +214,21 @@ async function getOriginalReportValue(
   paymentType: PaymentType
 ): Promise<number> {
   try {
+    const fs = await import('fs').then(m => m.promises);
+    const path = await import('path');
+    
     const orgFolder = generateOrganizationFolderName(org.shortNumber || 'unknown', org.name);
-    const dirPath = path.join(ORIGINAL_REPORTS_PATH, orgFolder, year.toString(), month.toString().padStart(2, '0'), paymentType);
-
+    
+    // ✅ Runtime path construction - sakriveno od Turbopack
+    const basePath = await getOriginalReportsPath();
+    const dirPath = await buildReportPath(
+      basePath,
+      orgFolder, 
+      year.toString(), 
+      month.toString().padStart(2, '0'), 
+      paymentType
+    );
+    
     let files: string[] = [];
     try {
       files = await fs.readdir(dirPath);
@@ -210,7 +244,7 @@ async function getOriginalReportValue(
     let targetFile = excelFiles.find(f => isFileForPeriod(f, month, year));
     if (!targetFile) targetFile = excelFiles[0]; // fallback
 
-    const filePath = path.join(dirPath, targetFile);
+    const filePath = await buildReportPath(dirPath, targetFile);
 
     if (targetFile.toLowerCase().endsWith('.xls')) {
       const XLSX = await import('xlsx');
@@ -301,32 +335,30 @@ export async function generateHumanitarianTemplates(
   }
 
   // Sortiranje po shortNumber (numerički) → konzistentan redosled → tačan counter
-  // ──────────────────────────────────────────────────────────────
-// NAJPOUZDANIJI SORT PO shortNumber (ascending), čak i sa null vrednostima
-// ──────────────────────────────────────────────────────────────
-organizations.sort((a, b) => {
-  const aNum = a.shortNumber && /^\d+$/.test(a.shortNumber.trim()) 
-    ? parseInt(a.shortNumber.trim(), 10) 
-    : Infinity;
+  organizations.sort((a, b) => {
+    const aNum = a.shortNumber && /^\d+$/.test(a.shortNumber.trim()) 
+      ? parseInt(a.shortNumber.trim(), 10) 
+      : Infinity;
 
-  const bNum = b.shortNumber && /^\d+$/.test(b.shortNumber.trim()) 
-    ? parseInt(b.shortNumber.trim(), 10) 
-    : Infinity;
+    const bNum = b.shortNumber && /^\d+$/.test(b.shortNumber.trim()) 
+      ? parseInt(b.shortNumber.trim(), 10) 
+      : Infinity;
 
-  // Organizacije sa validnim brojem uvek idu pre onih bez broja
-  if (aNum !== bNum) {
-    return aNum - bNum; // manji broj → ranije
-  }
+    // Organizacije sa validnim brojem uvek idu pre onih bez broja
+    if (aNum !== bNum) {
+      return aNum - bNum; // manji broj → ranije
+    }
 
-  // Ako obe imaju isti broj (npr. obe Infinity), sortiraj po imenu
-  return a.name.localeCompare(b.name);
-});
-console.log('\nREDOSLED OBRADE ORGANIZACIJA (po shortNumber):');
-organizations.forEach((org, idx) => {
-  const sn = org.shortNumber?.trim() || '(nema)';
-  console.log(`${String(idx + 1).padStart(2)}. ${sn.padEnd(8)} → ${org.name}`);
-});
-console.log('─────────────────────────────────────────────\n');
+    // Ako obe imaju isti broj (npr. obe Infinity), sortiraj po imenu
+    return a.name.localeCompare(b.name);
+  });
+  
+  console.log('\nREDOSLED OBRADE ORGANIZACIJA (po shortNumber):');
+  organizations.forEach((org, idx) => {
+    const sn = org.shortNumber?.trim() || '(nema)';
+    console.log(`${String(idx + 1).padStart(2)}. ${sn.padEnd(8)} → ${org.name}`);
+  });
+  console.log('─────────────────────────────────────────────\n');
 
   // SEKVENCijALNO – ključno za tačnost countera
   for (const [index, org] of organizations.entries()) {
@@ -377,7 +409,11 @@ async function generateTemplateForOrganization(
   paymentType: PaymentType,
   templateType: TemplateType
 ): Promise<{ organizationName: string; fileName: string; status: 'success' | 'error'; message?: string }> {
-  const orgFolderPath = path.join(REPORTS_BASE_PATH, org.id, year.toString(), month.toString().padStart(2, '0'));
+  const fs = await import('fs').then(m => m.promises);
+  const path = await import('path');
+  
+  const reportsBasePath = await getReportsBasePath();
+  const orgFolderPath = path.join(reportsBasePath, org.id, year.toString(), month.toString().padStart(2, '0'));
   await fs.mkdir(orgFolderPath, { recursive: true });
 
   const reportValue = await getOriginalReportValue(org, month, year, paymentType);
@@ -407,7 +443,8 @@ async function generateWithExcelJS(
   try {
     const ExcelJS = await import('exceljs');
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(getMasterTemplatePath(templateType));
+    const templatePath = await getMasterTemplatePath(templateType);
+    await workbook.xlsx.readFile(templatePath);
 
     const ws = workbook.getWorksheet(1);
     if (!ws) throw new Error('Nema worksheet-a u template-u');

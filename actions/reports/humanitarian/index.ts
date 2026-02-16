@@ -1,4 +1,5 @@
 // /actions/reports/humanitarian/index.ts
+import 'server-only';
 import { promises as fs } from 'fs';
 import { PaymentType, TemplateType, ReportGenerationResult, UnifiedHumanitarianReport } from './types';
 import { GlobalCounterManager } from './core/counter-manager';

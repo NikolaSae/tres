@@ -1,0 +1,7 @@
+public/reports/**
+reports/**
+node_modules/**
+.next/**
+prisma/**
+.env*
+*.log
