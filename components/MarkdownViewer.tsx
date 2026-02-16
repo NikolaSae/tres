@@ -59,9 +59,9 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
     return html;
   };
 
-  const parseMarkdown = (md: string): JSX.Element[] => {
+  const parseMarkdown = (md: string): React.ReactElement[] => {
     const lines = md.split('\n');
-    const elements: JSX.Element[] = [];
+    const elements: React.ReactElement[] = [];
     let currentParagraph: string[] = [];
     let inCodeBlock = false;
     let codeLanguage = '';

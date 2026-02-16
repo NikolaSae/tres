@@ -1,7 +1,5 @@
-// Path: components/complaints/ComplaintFormWrapper.tsx
 // components/complaints/ComplaintFormWrapper.tsx
 "use client";
-
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ComplaintForm } from "@/components/complaints/ComplaintForm";
@@ -13,7 +11,6 @@ import { ArrowLeft } from "lucide-react";
 import { type getProviders } from "@/actions/complaints/providers";
 import { signOut } from "next-auth/react";
 
-// Add these types to match the updated props
 interface ComplaintFormWrapperProps {
     providersData: Awaited<ReturnType<typeof getProviders>>;
     humanitarianOrgsData: { id: string; name: string }[];
@@ -33,13 +30,11 @@ export function ComplaintFormWrapper({
     const handleFormSubmit = async (data: ComplaintFormData) => {
         startTransition(async () => {
             const result = await createComplaint(data);
-
             console.log("Result from createComplaint action:", result);
 
             if (result?.error) {
                 toast.error(result.error || "Failed to create complaint");
                 
-                // Handle session-related errors
                 if (result.error.includes("session") || result.error.includes("sign in")) {
                     toast.info("Redirecting to login...");
                     await signOut({ redirect: false });
@@ -47,7 +42,7 @@ export function ComplaintFormWrapper({
                 }
             } else if (result?.complaint?.id) {
                 toast.success("Complaint created successfully");
-                router.push(`/complaints/${result.complaint.id}`);
+                router.push(`/complaints/${result.complaint.id}`); // ✅ Ispravljeno - backtick u zagrade
             } else if (result?.success) {
                 toast.success(result.message || "Complaint created successfully");
                 router.push("/complaints");

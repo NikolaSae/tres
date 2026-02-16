@@ -1,6 +1,4 @@
 // components/complaints/NotificationBanner.tsx
-
-
 import { useState, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { X, CheckCircle, AlertCircle, Info, Bell } from 'lucide-react';
@@ -35,6 +33,7 @@ export function NotificationBanner({
         if (onClose) onClose();
       }, duration);
     }
+
     return () => {
       if (timer) clearTimeout(timer);
     };
@@ -61,7 +60,8 @@ export function NotificationBanner({
     }
   };
 
-  const alertVariant = type === 'info' ? 'default' : type;
+  // Map your types to shadcn Alert variants (only 'default' or 'destructive')
+  const alertVariant = type === 'error' ? 'destructive' : 'default';
 
   return (
     <Alert variant={alertVariant} className="mb-4">

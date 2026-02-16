@@ -25,11 +25,12 @@ const ServiceTypeEnum = {
 
 interface ComplaintFormProps {
   complaint?: Complaint | null;
-  providersData?: { id: string; name: string; type: 'VAS' | 'BULK' }[]; // Dodali smo 'type'
+  providersData?: { id: string; name: string; type: 'VAS' | 'BULK' }[];
   humanitarianOrgsData?: { id: string; name: string }[];
   parkingServicesData?: { id: string; name: string }[];
   isSubmitting?: boolean;
   onSubmit: (data: ComplaintFormData) => Promise<void>;
+  onCancel?: () => void; // ✅ Dodaj onCancel prop
 }
 
 export function ComplaintForm({
@@ -39,6 +40,7 @@ export function ComplaintForm({
   parkingServicesData = [],
   isSubmitting = false,
   onSubmit,
+  onCancel, // ✅ Destrukturiraj onCancel
 }: ComplaintFormProps) {
   // Derive service type from the complaint's foreign keys
   const deriveServiceType = (c?: Complaint | null): string => {
@@ -100,11 +102,6 @@ export function ComplaintForm({
     if (complaint) {
       let serviceType = '';
       if (complaint.providerId) {
-        // Kada se učitava postojeća žalba, serviceType bi trebalo da se odredi na osnovu serviceId prefixa
-        // ili nekog drugog indikatora ako je dostupan u bazi.
-        // Ova logika je i dalje upitna ako serviceId nema prefix "bulk"
-        // a provajder je zapravo BULK tipa, a ne VAS.
-        // Bolje bi bilo da se tip provajdera dobija iz baze direktno.
         serviceType = complaint.serviceId?.startsWith('bulk') 
           ? ServiceTypeEnum.BULK 
           : ServiceTypeEnum.PROVIDER;
@@ -247,7 +244,6 @@ export function ComplaintForm({
     );
   };
 
-  // Pronađi trenutno odabranog provajdera da bi prosledio njegov 'type'
   const selectedProvider = providersData.find(p => p.id === watchedProviderId);
 
   return (
@@ -396,7 +392,7 @@ export function ComplaintForm({
                 <p>Providers data: {providersData.length} items</p>
                 <p>Humanitarian orgs data: {humanitarianOrgsData.length} items</p>
                 <p>Parking services data: {parkingServicesData.length} items</p>
-                {selectedProvider && <p>Selected Provider Type: {selectedProvider.type}</p>} {/* Dodali smo debug za tip provajdera */}
+                {selectedProvider && <p>Selected Provider Type: {selectedProvider.type}</p>}
               </div>
             )}
 
@@ -415,7 +411,6 @@ export function ComplaintForm({
                         entityType={watchedServiceType || ''}
                         selectedServiceId={field.value || ''}
                         onServiceSelect={(id) => handleServiceChange(id)}
-                        // KLJUČNA IZMENA: Prosleđujemo 'type' provajdera
                         providerCategory={selectedProvider?.type} 
                       />
                     </FormControl>
@@ -433,6 +428,11 @@ export function ComplaintForm({
             )}
 
             <CardFooter className="flex justify-end space-x-2 px-0">
+              {onCancel && (
+                <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+              )}
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Submitting...' : complaint ? 'Update Complaint' : 'Submit Complaint'}
               </Button>

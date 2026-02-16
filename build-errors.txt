@@ -5,7 +5,7 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 288ms
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 309ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
@@ -77,31 +77,31 @@ Import trace:
     ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
 
 
-./actions/reports/humanitarian/generators/base-generator.ts:22:29
+./actions/reports/humanitarian/generators/base-generator.ts:21:29
 The file pattern ('/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> '/' <dynamic> | '/ROOT/public/reports' <dynamic> '/' <dynamic> | '/ROOT/public/reports/' <dynamic> | '/ROOT/public/reports' <dynamic>) matches 28036 files in [project]/
-[0m [90m 20 |[39m       [36mconst[39m orgFolderName [33m=[39m generateOrganizationFolderName(org[33m.[39mshortNumber[33m,[39m org[33m.[39mname)[33m;[39m
- [90m 21 |[39m       
-[31m[1m>[22m[39m[90m 22 |[39m       [36mconst[39m orgFolderPath [33m=[39m path[33m.[39mjoin(
+[0m [90m 19 |[39m       [36mconst[39m orgFolderName [33m=[39m generateOrganizationFolderName(org[33m.[39mshortNumber[33m,[39m org[33m.[39mname)[33m;[39m
+ [90m 20 |[39m       
+[31m[1m>[22m[39m[90m 21 |[39m       [36mconst[39m orgFolderPath [33m=[39m path[33m.[39mjoin(
  [90m    |[39m                             [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 23 |[39m         process[33m.[39mcwd()[33m,[39m 
+[31m[1m>[22m[39m[90m 22 |[39m         process[33m.[39mcwd()[33m,[39m 
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 24 |[39m         [32m'public'[39m[33m,[39m
+[31m[1m>[22m[39m[90m 23 |[39m         [32m'public'[39m[33m,[39m
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 25 |[39m         [32m'reports'[39m[33m,[39m
+[31m[1m>[22m[39m[90m 24 |[39m         [32m'reports'[39m[33m,[39m
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 26 |[39m         orgFolderName[33m,[39m
+[31m[1m>[22m[39m[90m 25 |[39m         orgFolderName[33m,[39m
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 27 |[39m         year[33m.[39mtoString()[33m,[39m
+[31m[1m>[22m[39m[90m 26 |[39m         year[33m.[39mtoString()[33m,[39m
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 28 |[39m         month[33m.[39mtoString()[33m.[39mpadStart([35m2[39m[33m,[39m [32m'0'[39m)[33m,[39m
+[31m[1m>[22m[39m[90m 27 |[39m         month[33m.[39mtoString()[33m.[39mpadStart([35m2[39m[33m,[39m [32m'0'[39m)[33m,[39m
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 29 |[39m         paymentType
+[31m[1m>[22m[39m[90m 28 |[39m         paymentType
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
-[31m[1m>[22m[39m[90m 30 |[39m       )[33m;[39m
+[31m[1m>[22m[39m[90m 29 |[39m       )[33m;[39m
  [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 31 |[39m       
- [90m 32 |[39m       [36mawait[39m ensureDirectoryExists(orgFolderPath)[33m;[39m
- [90m 33 |[39m[0m
+ [90m 30 |[39m       
+ [90m 31 |[39m       [36mawait[39m ensureDirectoryExists(orgFolderPath)[33m;[39m
+ [90m 32 |[39m[0m
 
 Overly broad patterns can lead to build performance issues and over bundling.
 
@@ -117,35 +117,19 @@ Import traces:
     ./actions/reports/generate-all-humanitarian-reports.ts
 
 
+✓ Compiled successfully in 24.5s
+  Running TypeScript ...
+Failed to compile.
 
-> Build error occurred
-Error: Turbopack build failed with 1 errors:
-./components/complaints/ComplaintFilters.tsx:296:101
-Parsing ecmascript source code failed
-[0m [90m 294 |[39m               [33m<[39m[33mLabel[39m className[33m=[39m[32m"mb-2 block text-sm font-medium"[39m[33m>[39m[33mDate[39m [33mRange[39m[33m<[39m[33m/[39m[33mLabel[39m[33m>[39m
- [90m 295 |[39m               [33m<[39m[33mDateRangeFilter[39m
-[31m[1m>[22m[39m[90m 296 |[39m                 startDate[33m=[39m{tempFilters[33m.[39mdateRange[33m?[39m[33m.[39m[36mfrom[39m}  {[90m/* ✅ ISPRAVKA: fromDate → startDate */[39m}
- [90m     |[39m                                                                                                     [31m[1m^[22m[39m
- [90m 297 |[39m                 endDate[33m=[39m{tempFilters[33m.[39mdateRange[33m?[39m[33m.[39mto}      {[90m/* ✅ ISPRAVKA: toDate → endDate */[39m}
- [90m 298 |[39m                 onChange[33m=[39m{handleDateRangeChange}
- [90m 299 |[39m               [33m/[39m[33m>[39m[0m
+./components/complaints/NotificationBanner.tsx:67:12
+Type error: Type '"error" | "default" | "success" | "warning"' is not assignable to type '"default" | "destructive" | null | undefined'.
+  Type '"error"' is not assignable to type '"default" | "destructive" | null | undefined'.
 
-Expected '</', got '}'
-
-Import traces:
-  App Route:
-    ./components/complaints/ComplaintFilters.tsx
-    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
-
-  Client Component Browser:
-    ./components/complaints/ComplaintFilters.tsx [Client Component Browser]
-    ./app/(protected)/admin/complaints/page.tsx [Client Component Browser]
-    ./app/(protected)/admin/complaints/page.tsx [Server Component]
-
-  Client Component SSR:
-    ./components/complaints/ComplaintFilters.tsx [Client Component SSR]
-    ./app/(protected)/admin/complaints/page.tsx [Client Component SSR]
-    ./app/(protected)/admin/complaints/page.tsx [Server Component]
-
-
-    at <unknown> (./components/complaints/ComplaintFilters.tsx:296:101)
+[0m [90m 65 |[39m
+ [90m 66 |[39m   [36mreturn[39m (
+[31m[1m>[22m[39m[90m 67 |[39m     [33m<[39m[33mAlert[39m variant[33m=[39m{alertVariant} className[33m=[39m[32m"mb-4"[39m[33m>[39m
+ [90m    |[39m            [31m[1m^[22m[39m
+ [90m 68 |[39m       [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex items-start justify-between w-full"[39m[33m>[39m
+ [90m 69 |[39m         [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex items-start"[39m[33m>[39m
+ [90m 70 |[39m           {getIcon()}[0m
+Next.js build worker exited with code: 1 and signal: null

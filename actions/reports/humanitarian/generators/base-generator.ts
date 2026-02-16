@@ -1,7 +1,6 @@
-//  /actions/reports/humanitarian/generators/base-generator.ts
-
+// /actions/reports/humanitarian/generators/base-generator.ts
 import path from 'path';
-import { OrganizationReportData, PaymentType, TemplateType, GeneratedFile } from '../types';
+import type { OrganizationReportData, PaymentType, TemplateType, GeneratedFile } from '../types';
 import { generateOrganizationFolderName } from '@/utils/report-path';
 import { ensureDirectoryExists, sanitizeFileName } from '../utils/file-utils';
 import { generateCompleteReportWithExcelJS, generateReportWithFallback } from '../core/excel-writer';
@@ -56,7 +55,7 @@ export abstract class BaseReportGenerator {
       }
 
       await generateReportWithFallback(org, month, year, paymentType, templateType, filePath);
-
+      
       return {
         organizationName: org.name,
         fileName,
