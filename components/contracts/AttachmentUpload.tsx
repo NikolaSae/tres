@@ -1,7 +1,5 @@
 ///components/contracts/AttachmentUpload.tsx
-
 "use client";
-
 import { useState } from "react";
 import { Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +16,6 @@ interface AttachmentUploadProps {
 export function AttachmentUpload({ contractId, onUploadComplete }: AttachmentUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -49,8 +46,7 @@ export function AttachmentUpload({ contractId, onUploadComplete }: AttachmentUpl
       const result = await addAttachment(formData);
       
       if (result.success) {
-        toast({
-          title: "Attachment uploaded",
+        toast.success("Attachment uploaded", {
           description: "Your file has been uploaded successfully",
         });
         
@@ -62,17 +58,13 @@ export function AttachmentUpload({ contractId, onUploadComplete }: AttachmentUpl
           onUploadComplete();
         }
       } else {
-        toast({
-          title: "Upload failed",
+        toast.error("Upload failed", {
           description: result.error || "There was an error uploading your file",
-          variant: "destructive",
         });
       }
     } catch (error) {
-      toast({
-        title: "Upload failed",
+      toast.error("Upload failed", {
         description: "There was an error uploading your file",
-        variant: "destructive",
       });
       console.error("Error uploading file:", error);
     } finally {
