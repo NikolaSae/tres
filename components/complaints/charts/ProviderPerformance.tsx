@@ -1,10 +1,10 @@
 // /components/complaints/charts/ProviderPerformance.tsx
 
-
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
 import { Complaint, Provider } from '@prisma/client';
+import { Loader2 } from 'lucide-react';
 
 interface ProviderPerformanceProps {
   complaints: (Complaint & {
@@ -13,13 +13,15 @@ interface ProviderPerformanceProps {
   title?: string;
   height?: number;
   maxProviders?: number;
+  isLoading?: boolean;
 }
 
 export function ProviderPerformance({ 
   complaints, 
   title = "Provider Performance", 
   height = 400,
-  maxProviders = 10
+  maxProviders = 10,
+  isLoading = false
 }: ProviderPerformanceProps) {
   const chartData = useMemo(() => {
     if (!complaints || complaints.length === 0) {
@@ -99,13 +101,26 @@ export function ProviderPerformance({
       }));
   }, [complaints, maxProviders]);
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (chartData.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center h-[300px]">
+        <CardContent className="flex items-center justify-center h-[400px]">
           <p className="text-muted-foreground">No data available</p>
         </CardContent>
       </Card>

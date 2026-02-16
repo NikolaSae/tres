@@ -1,6 +1,5 @@
 // components/complaints/charts/StatusChart.tsx
 "use client";
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";

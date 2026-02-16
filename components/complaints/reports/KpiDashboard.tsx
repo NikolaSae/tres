@@ -187,7 +187,7 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
 
         <TabsContent value="providers" className="space-y-6 mt-6">
           <ProviderPerformance
-            data={providerData}
+            complaints={providerData}
             isLoading={isLoading}
             title="Complaints by Provider"
           />
