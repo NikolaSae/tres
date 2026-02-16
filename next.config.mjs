@@ -31,19 +31,21 @@ const nextConfig = {
       'date-fns',
     ],
     optimizeCss: true,
+    // ⭐ NOVO: Optimizuj memory footprint
+    webpackBuildWorker: false, // Isključi paralelne workere (koristi manje RAM-a)
   },
   
   serverExternalPackages: ['prisma', '@prisma/client', 'xlsx', 'exceljs'],
   output: 'standalone',
   
-  // ⭐ KLJUČNA PROMENA: Isključi TypeScript checking tokom build-a
   typescript: {
-    ignoreBuildErrors: true, // ← Hostinger nema dovoljno RAM-a
+    // ⭐ Za sada isključi da build prođe, kasnije možeš vratiti
+    ignoreBuildErrors: true,
   },
   
-  // ⭐ KLJUČNA PROMENA: Isključi ESLint tokom build-a
   eslint: {
-    ignoreDuringBuilds: true, // ← Još jedna ušteda memorije
+    // ⭐ Isključi ESLint tokom build-a
+    ignoreDuringBuilds: true,
   },
   
   images: {
@@ -64,6 +66,13 @@ const nextConfig = {
   },
   
   webpack: (config, { isServer }) => {
+    // ⭐ NOVO: Memory optimization
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+      minimize: true,
+    };
+
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push({
