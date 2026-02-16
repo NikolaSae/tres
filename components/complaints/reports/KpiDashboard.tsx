@@ -13,7 +13,8 @@ import { DateRange } from "@/components/ui/date-range";
 import { Button } from "@/components/ui/button";
 import { Loader2, FileDown } from "lucide-react";
 import { ComplaintStatus, ServiceType } from "@/lib/types/enums";
-import { format, addDays, subDays, subMonths } from "date-fns";
+import { format, subMonths } from "date-fns";
+import { DateRange as DateRangePrimitive } from "react-day-picker";
 
 interface KpiDashboardProps {
   onExport?: () => void;
@@ -21,10 +22,7 @@ interface KpiDashboardProps {
 
 export function KpiDashboard({ onExport }: KpiDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<{
-    from: Date;
-    to: Date;
-  }>({
+  const [dateRange, setDateRange] = useState<DateRangePrimitive>({
     from: subMonths(new Date(), 1),
     to: new Date(),
   });
@@ -37,8 +35,8 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
   const [overviewData, setOverviewData] = useState<{
       totalComplaints: number;
       openComplaints: number;
-      avgResolutionTime: string; // Primer stringa, prilagodite tipu koji API vraća
-      resolutionRate: string; // Primer stringa, prilagodite tipu koji API vraća
+      avgResolutionTime: string;
+      resolutionRate: string;
   } | null>(null);
 
   useEffect(() => {
@@ -61,7 +59,7 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
         setTrendData(data.trendData || []);
         setServiceData(data.serviceData || []);
         setProviderData(data.providerData || []);
-        setOverviewData(data.overviewData || null); // Pretpostavljamo da API vraća i ove podatke
+        setOverviewData(data.overviewData || null);
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -119,8 +117,6 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
                 <div className="text-2xl font-bold">
                   {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : overviewData?.totalComplaints ?? 'N/A'}
                 </div>
-                {/* Prikazivanje promena iz prethodnog perioda zahteva dodatne podatke iz API-ja */}
-                {/* <p className="text-xs text-muted-foreground">+12% from previous period</p> */}
               </CardContent>
             </Card>
 
@@ -132,8 +128,6 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
                 <div className="text-2xl font-bold">
                   {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : overviewData?.openComplaints ?? 'N/A'}
                 </div>
-                 {/* Prikazivanje promena iz prethodnog perioda zahteva dodatne podatke iz API-ja */}
-                {/* <p className="text-xs text-muted-foreground">-3% from previous period</p> */}
               </CardContent>
             </Card>
 
@@ -145,8 +139,6 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
                 <div className="text-2xl font-bold">
                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : overviewData?.avgResolutionTime ?? 'N/A'}
                 </div>
-                 {/* Prikazivanje promena iz prethodnog perioda zahteva dodatne podatke iz API-ja */}
-                {/* <p className="text-xs text-muted-foreground">-0.5 days from previous period</p> */}
               </CardContent>
             </Card>
 
@@ -158,8 +150,6 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
                 <div className="text-2xl font-bold">
                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : overviewData?.resolutionRate ?? 'N/A'}
                 </div>
-                 {/* Prikazivanje promena iz prethodnog perioda zahteva dodatne podatke iz API-ja */}
-                {/* <p className="text-xs text-muted-foreground">+2.5% from previous period</p> */}
               </CardContent>
             </Card>
           </div>
@@ -182,14 +172,14 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
         <TabsContent value="services" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ServiceCategoryBreakdown
-              data={serviceData}
+              complaints={serviceData}
               isLoading={isLoading}
               title="Complaints by Service Category"
             />
 
             <MonthlyComparisonChart
-              isLoading={isLoading} // Pretpostavljamo da ova komponenta fecthuje sama ili prima samo loading state
-              title="Complaints by Service Type (Monthly)" // Ova komponenta verovatno treba da dobije i podatke
+              isLoading={isLoading}
+              title="Complaints by Service Type (Monthly)"
             />
           </div>
         </TabsContent>

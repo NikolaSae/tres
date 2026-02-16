@@ -1,11 +1,9 @@
 // /components/complaints/charts/ServiceCategoryBreakdown.tsx
-
-
-
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Complaint, Service, ServiceType } from '@prisma/client';
+import { Loader2 } from 'lucide-react';
 
 interface ServiceCategoryBreakdownProps {
   complaints: (Complaint & {
@@ -13,12 +11,14 @@ interface ServiceCategoryBreakdownProps {
   })[];
   title?: string;
   height?: number;
+  isLoading?: boolean;
 }
 
 export function ServiceCategoryBreakdown({ 
   complaints, 
   title = "Complaints by Service Category", 
-  height = 300 
+  height = 300,
+  isLoading = false
 }: ServiceCategoryBreakdownProps) {
   const chartData = useMemo(() => {
     if (!complaints || complaints.length === 0) {
@@ -65,6 +65,19 @@ export function ServiceCategoryBreakdown({
     return percentage > 5 ? `${type}: ${percentage.toFixed(0)}%` : '';
   };
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[300px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (chartData.length === 0) {
     return (
       <Card>
@@ -99,7 +112,7 @@ export function ServiceCategoryBreakdown({
             >
               {chartData.map((entry, index) => (
                 <Cell 
-                  key={`cell-${index}`} 
+                  key={`cell-${index}`}
                   fill={typeColors[entry.type as keyof typeof typeColors]} 
                 />
               ))}

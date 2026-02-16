@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 309ms
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 288ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
 ⚠ Invalid next.config.mjs options detected: 
 ⚠     Unrecognized key(s) in object: 'turbo' at "experimental"
@@ -117,19 +117,19 @@ Import traces:
     ./actions/reports/generate-all-humanitarian-reports.ts
 
 
-✓ Compiled successfully in 24.5s
+✓ Compiled successfully in 23.5s
   Running TypeScript ...
 Failed to compile.
 
-./components/complaints/NotificationBanner.tsx:67:12
-Type error: Type '"error" | "default" | "success" | "warning"' is not assignable to type '"default" | "destructive" | null | undefined'.
-  Type '"error"' is not assignable to type '"default" | "destructive" | null | undefined'.
+./components/complaints/reports/KpiDashboard.tsx:181:15
+Type error: Type '{ isLoading: boolean; title: string; }' is not assignable to type 'IntrinsicAttributes & MonthlyComparisonChartProps'.
+  Property 'isLoading' does not exist on type 'IntrinsicAttributes & MonthlyComparisonChartProps'.
 
-[0m [90m 65 |[39m
- [90m 66 |[39m   [36mreturn[39m (
-[31m[1m>[22m[39m[90m 67 |[39m     [33m<[39m[33mAlert[39m variant[33m=[39m{alertVariant} className[33m=[39m[32m"mb-4"[39m[33m>[39m
- [90m    |[39m            [31m[1m^[22m[39m
- [90m 68 |[39m       [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex items-start justify-between w-full"[39m[33m>[39m
- [90m 69 |[39m         [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex items-start"[39m[33m>[39m
- [90m 70 |[39m           {getIcon()}[0m
+[0m [90m 179 |[39m
+ [90m 180 |[39m             [33m<[39m[33mMonthlyComparisonChart[39m
+[31m[1m>[22m[39m[90m 181 |[39m               isLoading[33m=[39m{isLoading}
+ [90m     |[39m               [31m[1m^[22m[39m
+ [90m 182 |[39m               title[33m=[39m[32m"Complaints by Service Type (Monthly)"[39m
+ [90m 183 |[39m             [33m/[39m[33m>[39m
+ [90m 184 |[39m           [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
 Next.js build worker exited with code: 1 and signal: null

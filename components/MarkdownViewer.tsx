@@ -231,7 +231,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
           const level = match[1].length;
           const text = match[2];
           const id = generateId(text);
-          const Tag = `h${level}` as keyof JSX.IntrinsicElements;
+          const Tag = `h${level}` as React.ElementType;
           
           elements.push(
             <Tag key={elements.length} id={id}>
