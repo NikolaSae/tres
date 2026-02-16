@@ -178,6 +178,7 @@ export function KpiDashboard({ onExport }: KpiDashboardProps) {
             />
 
             <MonthlyComparisonChart
+              complaints={serviceData}
               isLoading={isLoading}
               title="Complaints by Service Type (Monthly)"
             />

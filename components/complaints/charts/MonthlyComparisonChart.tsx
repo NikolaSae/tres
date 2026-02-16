@@ -1,24 +1,25 @@
 // /components/complaints/charts/MonthlyComparisonChart.tsx
-
-
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Complaint } from '@prisma/client';
-import { format, parseISO, subMonths, differenceInMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 
 interface MonthlyComparisonChartProps {
   complaints: Complaint[];
   monthsToShow?: number;
   title?: string;
   height?: number;
+  isLoading?: boolean;
 }
 
 export function MonthlyComparisonChart({ 
   complaints, 
   monthsToShow = 6,
   title = "Monthly Complaint Comparison", 
-  height = 300 
+  height = 300,
+  isLoading = false
 }: MonthlyComparisonChartProps) {
   const chartData = useMemo(() => {
     if (!complaints || complaints.length === 0) {
@@ -66,6 +67,19 @@ export function MonthlyComparisonChart({
       };
     });
   }, [complaints, monthsToShow]);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[300px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (chartData.length === 0) {
     return (
