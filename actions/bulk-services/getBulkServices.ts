@@ -1,13 +1,12 @@
 // actions/bulk-services/getBulkServices.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { ServerError } from "@/lib/exceptions";
 import { BulkServiceFilters } from "@/lib/types/bulk-service-types";
 import { getCurrentUser } from "@/lib/session";
 import { Prisma } from "@prisma/client";
+import { getCachedData } from "@/lib/cache/memory-cache";
 
-// Dodajemo poseban tip za paginaciju i sortiranje
 interface PaginationParams {
   page?: number;
   limit?: number;
@@ -15,7 +14,6 @@ interface PaginationParams {
   sortOrder?: "asc" | "desc";
 }
 
-// Kombinujemo filtere i paginaciju u jedan objekat
 type GetBulkServicesParams = BulkServiceFilters & PaginationParams;
 
 export async function getBulkServices({
@@ -33,101 +31,114 @@ export async function getBulkServices({
 }: GetBulkServicesParams = {}) {
   try {
     const currentUser = await getCurrentUser();
+    
     if (!currentUser) {
-      throw new Error("Unauthorized");
+      throw new ServerError("Unauthorized");
     }
 
-    const skip = (page - 1) * limit;
+    // Kreiraj cache key na osnovu parametara
+    const cacheKey = `bulk-services:list:${JSON.stringify({
+      providerId,
+      serviceId,
+      providerName,
+      serviceName,
+      senderName,
+      startDate,
+      endDate,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    })}`;
 
-    // Građenje Prisma where uslova
-    const where: Prisma.BulkServiceWhereInput = {};
+    return await getCachedData(
+      cacheKey,
+      async () => {
+        const skip = (page - 1) * limit;
 
-    // Filter by provider ID (relacija)
-    if (providerId) {
-      where.providerId = providerId;
-    }
+        // Build where clause
+        const where: Prisma.BulkServiceWhereInput = {};
 
-    // Filter by service ID (relacija)
-    if (serviceId) {
-      where.serviceId = serviceId;
-    }
+        if (providerId) {
+          where.providerId = providerId;
+        }
 
-    // Filter by provider name (direktna kolona u tabeli)
-    if (providerName) {
-      where.provider_name = {
-        contains: providerName,
-        mode: "insensitive",
-      };
-    }
+        if (serviceId) {
+          where.serviceId = serviceId;
+        }
 
-    // Filter by service name (direktna kolona u tabeli)
-    if (serviceName) {
-      where.service_name = {
-        contains: serviceName,
-        mode: "insensitive",
-      };
-    }
+        if (providerName) {
+          where.provider_name = {
+            contains: providerName,
+            mode: "insensitive",
+          };
+        }
 
-    // Filter by sender name (direktna kolona u tabeli)
-    if (senderName) {
-      where.sender_name = {
-        contains: senderName,
-        mode: "insensitive",
-      };
-    }
+        if (serviceName) {
+          where.service_name = {
+            contains: serviceName,
+            mode: "insensitive",
+          };
+        }
 
-    // Filter by date range
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = startDate;
-      if (endDate) where.createdAt.lte = endDate;
-    }
+        if (senderName) {
+          where.sender_name = {
+            contains: senderName,
+            mode: "insensitive",
+          };
+        }
 
-    // Ukupan broj zapisa (za paginaciju)
-    const totalCount = await db.bulkService.count({ where });
+        if (startDate || endDate) {
+          where.createdAt = {};
+          if (startDate) where.createdAt.gte = startDate;
+          if (endDate) where.createdAt.lte = endDate;
+        }
 
-    // Dohvatanje podataka sa SAMO relacionim tabelama koje POSTOJE
-    const bulkServices = await db.bulkService.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: {
-        [sortBy]: sortOrder,
-      },
-      include: {
-        provider: {
-          select: {
-            id: true,
-            name: true,
+        // Parallel execution of count and data fetch
+        const [totalCount, bulkServices] = await Promise.all([
+          db.bulkService.count({ where }),
+          db.bulkService.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: {
+              [sortBy]: sortOrder,
+            },
+            include: {
+              provider: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              service: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          })
+        ]);
+
+        return {
+          data: bulkServices,
+          meta: {
+            totalCount,
+            page,
+            limit,
+            totalPages: Math.ceil(totalCount / limit),
           },
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        };
       },
-    });
-
-    // Transformišemo podatke - svi _name field-ovi već postoje u bazi!
-    const data = bulkServices.map((bs) => ({
-      ...bs,
-      // Ovi field-ovi već postoje u bazi, samo ih prosleđujemo
-      // Ne treba mapiranje jer su već u objektu
-    }));
-
-    return {
-      data,
-      meta: {
-        totalCount,
-        page,
-        limit,
-        totalPages: Math.ceil(totalCount / limit),
-      },
-    };
+      30 // cache 30 sekundi za paginovane rezultate
+    );
   } catch (error) {
     console.error("[GET_BULK_SERVICES]", error);
+    
+    if (error instanceof ServerError) {
+      throw error;
+    }
     throw new ServerError("Neuspešno dohvatanje bulk servisa");
   }
 }

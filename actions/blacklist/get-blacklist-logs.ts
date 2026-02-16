@@ -1,36 +1,121 @@
 // actions/blacklist/get-blacklist-logs.ts
-
 "use server";
 
+import { unstable_cache } from 'next/cache';
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 
-export async function getBlacklistLogs() {
-  try {
-    const logs = await db.blacklistLog.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
+interface GetBlacklistLogsParams {
+  filters?: {
+    search?: string;
+    action?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+  };
+}
+
+const getCachedBlacklistLogs = unstable_cache(
+  async (
+    search: string | undefined,
+    action: string | undefined,
+    dateFrom: Date | undefined,
+    dateTo: Date | undefined,
+    page: number,
+    limit: number
+  ) => {
+    console.log('🔍 Fetching blacklist logs from database...');
+
+    const skip = (page - 1) * limit;
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { blacklistEntry: { senderName: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (action) {
+      where.action = action;
+    }
+
+    if (dateFrom || dateTo) {
+      where.timestamp = {};
+      if (dateFrom) where.timestamp.gte = dateFrom;
+      if (dateTo) {
+        const dateToEnd = new Date(dateTo);
+        dateToEnd.setHours(23, 59, 59, 999);
+        where.timestamp.lte = dateToEnd;
+      }
+    }
+
+    const [logs, total] = await db.$transaction([
+      db.blacklistLog.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          blacklistEntry: {
+            select: {
+              id: true,
+              senderName: true,
+            },
+          },
         },
-        blacklistEntry: {
-          select: {
-            id: true,
-            senderName: true
-          }
-        }
-      },
-      orderBy: {
-        timestamp: "desc"
-      },
-      take: 100 // Limit to 100 most recent logs
-    });
+        orderBy: {
+          timestamp: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      db.blacklistLog.count({ where }),
+    ]);
 
-    return logs;
+    return { logs, total };
+  },
+  ['blacklist-logs'],
+  { revalidate: 30 }
+);
+
+export async function getBlacklistLogs({ filters = {}, pagination }: GetBlacklistLogsParams) {
+  try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return { success: false, error: "Unauthorized", data: { logs: [], total: 0 } };
+    }
+
+    // Only admins can view audit logs
+    if (currentUser.role !== "ADMIN") {
+      return { success: false, error: "Forbidden", data: { logs: [], total: 0 } };
+    }
+
+    const data = await getCachedBlacklistLogs(
+      filters.search,
+      filters.action,
+      filters.dateFrom,
+      filters.dateTo,
+      pagination.page,
+      pagination.limit
+    );
+
+    return { success: true, data };
   } catch (error) {
-    console.error("Failed to fetch blacklist logs:", error);
-    return [];
+    console.error("[GET_BLACKLIST_LOGS_ERROR]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch blacklist logs",
+      data: { logs: [], total: 0 },
+    };
   }
 }

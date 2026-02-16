@@ -1,3 +1,5 @@
+//components/auth/.tsx
+
 "use client";
 
 import { logout } from "@/actions/logout";

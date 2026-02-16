@@ -3,173 +3,121 @@
 
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Search, X } from "lucide-react";
+import { Search, X, ArrowUpDown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface FilterOptions {
+interface FilterState {
   search?: string;
-  isActive?: boolean;
-  hasContracts?: boolean;
-  hasComplaints?: boolean;
-  sortBy?: string;
-  sortDirection?: "asc" | "desc";
+  sortBy?: 'name' | 'email' | 'phone';
+  sortOrder?: 'asc' | 'desc';
 }
 
 interface ProviderFiltersProps {
-  initialFilters: FilterOptions;
-  onFilterChange: (filters: FilterOptions) => void;
+  initialFilters: FilterState;
+  onFilterChange: (filters: FilterState) => void;
   loading?: boolean;
 }
 
-export function ProviderFilters({
-  initialFilters,
-  onFilterChange,
-  loading = false
+export function ProviderFilters({ 
+  initialFilters, 
+  onFilterChange, 
+  loading 
 }: ProviderFiltersProps) {
-  const [filters, setFilters] = useState<FilterOptions>({
-  ...initialFilters,
-  hasContracts: initialFilters.hasContracts || false,
-  hasComplaints: initialFilters.hasComplaints || false,
-});
-  const [searchQuery, setSearchQuery] = useState(initialFilters.search || "");
-  
-  // Одложено претраживање
+  const [search, setSearch] = useState(initialFilters.search || '');
+  const [sortBy, setSortBy] = useState<'name' | 'email' | 'phone'>(initialFilters.sortBy || 'name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialFilters.sortOrder || 'asc');
+
+  // ✅ Debounce search input
   useEffect(() => {
-  const timer = setTimeout(() => {
-    handleFilterChange('search', searchQuery || undefined);
-  }, 500);
+    const timeoutId = setTimeout(() => {
+      onFilterChange({ search, sortBy, sortOrder });
+    }, 300);
 
-  return () => clearTimeout(timer);
-}, [searchQuery]);
+    return () => clearTimeout(timeoutId);
+  }, [search, sortBy, sortOrder, onFilterChange]);
 
-  const handleFilterChange = (key: keyof FilterOptions, value: any) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+  const handleClearSearch = () => {
+    setSearch('');
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
   };
 
   const handleReset = () => {
-    const defaultFilters: FilterOptions = {
-      search: undefined,
-      isActive: undefined,
-      hasContracts: false,
-      hasComplaints: false,
-      sortBy: "createdAt",
-      sortDirection: "desc",
-    };
-    setFilters(defaultFilters);
-    setSearchQuery("");
-    onFilterChange(defaultFilters);
+    setSearch('');
+    setSortBy('name');
+    setSortOrder('asc');
   };
 
+  const hasActiveFilters = search || sortBy !== 'name' || sortOrder !== 'asc';
+
   return (
-    <div className="bg-card p-4 rounded-md border space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Претрага */}
-        <div className="relative">
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Search Input */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search providers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            type="text"
+            placeholder="Search providers by name, contact, email, or phone..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 pr-10"
+            disabled={loading}
           />
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          {search && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              disabled={loading}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
-        {/* Статус филтер */}
-        <Select
-          value={filters.isActive === undefined ? "all" : filters.isActive ? "active" : "inactive"}
-          onValueChange={(value) => {
-            const isActiveMap = {
-              all: undefined,
-              active: true,
-              inactive: false,
-            };
-            handleFilterChange("isActive", isActiveMap[value as keyof typeof isActiveMap]);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Status" />
+        {/* Sort By */}
+        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)} disabled={loading}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Sort by..." />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="name">Sort by Name</SelectItem>
+            <SelectItem value="email">Sort by Email</SelectItem>
+            <SelectItem value="phone">Sort by Phone</SelectItem>
           </SelectContent>
         </Select>
 
-        {/* Сортирање */}
-        <Select
-          value={`${filters.sortBy || "createdAt"}-${filters.sortDirection || "desc"}`}
-          onValueChange={(value) => {
-            const [sortBy, sortDirection] = value.split("-");
-            handleFilterChange("sortBy", sortBy);
-            handleFilterChange("sortDirection", sortDirection);
-          }}
-          disabled={loading}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-            <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-            <SelectItem value="createdAt-desc">Newest first</SelectItem>
-            <SelectItem value="createdAt-asc">Oldest first</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="has-contracts"
-            checked={filters.hasContracts}
-            onCheckedChange={(checked) => 
-              handleFilterChange("hasContracts", checked === true)
-            }
-          />
-          <label
-            htmlFor="has-contracts"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Has contracts
-          </label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="has-complaints"
-            checked={filters.hasComplaints}
-            onCheckedChange={(checked) => 
-              handleFilterChange("hasComplaints", checked === true)
-            }
-          />
-          <label
-            htmlFor="has-complaints"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Has complaints
-          </label>
-        </div>
-
+        {/* Sort Order Toggle */}
         <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleReset}
-          className="ml-auto"
+          variant="outline"
+          size="icon"
+          onClick={toggleSortOrder}
+          disabled={loading}
+          title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
         >
-          <X className="mr-2 h-4 w-4" />
-          Reset Filters
+          <ArrowUpDown className={`h-4 w-4 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
         </Button>
+
+        {/* Reset Filters */}
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            onClick={handleReset}
+            disabled={loading}
+            className="whitespace-nowrap"
+          >
+            Reset Filters
+          </Button>
+        )}
       </div>
     </div>
   );

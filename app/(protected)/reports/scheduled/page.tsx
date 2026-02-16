@@ -1,4 +1,4 @@
-///app/(protected)/reports/scheduled/page.tsx
+// app/(protected)/reports/scheduled/page.tsx
 
 import { Metadata } from "next";
 import Link from "next/link";
@@ -15,16 +15,18 @@ export const metadata: Metadata = {
   description: "Manage and schedule automatic report generation",
 };
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+// Revalidate every 5 minutes for scheduled reports
+export const revalidate = 300;
+
 export default async function ScheduledReportsPage() {
-  // This would typically fetch scheduled reports from your database
   const scheduledReports = await getScheduledReports();
   
   const handleScheduleSubmit = async (data: any) => {
     "use server";
-    // Handle schedule creation
     console.log("Schedule submitted:", data);
-    // You would typically save this to your database here
-    // Then redirect to the active schedules tab
     redirect("/reports/scheduled?tab=active");
   };
   

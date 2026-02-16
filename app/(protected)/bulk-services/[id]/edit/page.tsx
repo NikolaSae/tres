@@ -1,4 +1,5 @@
-//app/(protected)/bulk-services/[id]/edit/page.tsx
+// app/(protected)/bulk-services/[id]/edit/page.tsx
+
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Heading } from "@/components/ui/heading";
@@ -10,25 +11,48 @@ import { BulkServiceForm } from "@/components/bulk-services/BulkServiceForm";
 import { getBulkServiceById } from "@/actions/bulk-services/getBulkServiceById";
 import { getAllServices } from "@/actions/services/getAllServices";
 import { getAllProviders } from "@/actions/providers/getAllProviders";
+import { unstable_cache } from 'next/cache';
 
 export const metadata: Metadata = {
   title: "Edit Bulk Service",
   description: "Modify bulk service details",
 };
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+// Cache helper functions
+const getCachedServices = unstable_cache(
+  async () => getAllServices({ type: "BULK" }),
+  ['bulk-services-list'],
+  {
+    revalidate: 300,
+    tags: ['services', 'bulk-services']
+  }
+);
+
+const getCachedProviders = unstable_cache(
+  async () => getAllProviders({ isActive: true }),
+  ['active-providers-list'],
+  {
+    revalidate: 300,
+    tags: ['providers']
+  }
+);
+
 export default async function EditBulkServicePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // Await params in Next.js 15+
   const { id } = await params;
 
-  // Fetch the bulk service, services, and providers
+  // Fetch bulk service without cache (it's being edited)
+  // Fetch reference data with cache
   const [bulkService, services, providers] = await Promise.all([
     getBulkServiceById(id),
-    getAllServices({ type: "BULK" }),
-    getAllProviders({ isActive: true }),
+    getCachedServices(),
+    getCachedProviders(),
   ]);
 
   if (!bulkService) {

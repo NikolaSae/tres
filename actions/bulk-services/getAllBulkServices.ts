@@ -1,9 +1,8 @@
-//actions/bulk-services/getAllBulkServices.ts
-
+// actions/bulk-services/getAllBulkServices.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { BulkService } from "@prisma/client";
+import { getCachedData } from "@/lib/cache/memory-cache";
 
 type BulkServiceWithRelations = BulkService & {
   provider: { name: string };
@@ -12,25 +11,29 @@ type BulkServiceWithRelations = BulkService & {
 
 export async function getAllBulkServices(): Promise<BulkServiceWithRelations[]> {
   try {
-    const bulkServices = await db.bulkService.findMany({
-      orderBy: {
-        createdAt: "desc"
+    return await getCachedData(
+      "bulk-services:all",
+      async () => {
+        return await db.bulkService.findMany({
+          orderBy: {
+            createdAt: "desc"
+          },
+          include: {
+            provider: {
+              select: {
+                name: true
+              }
+            },
+            service: {
+              select: {
+                name: true
+              }
+            }
+          }
+        });
       },
-      include: {
-        provider: {
-          select: {
-            name: true
-          }
-        },
-        service: {
-          select: {
-            name: true
-          }
-        }
-      }
-    });
-    
-    return bulkServices;
+      300 // cache 60 sekundi
+    );
   } catch (error) {
     console.error("[GET_ALL_BULK_SERVICES_ERROR]", error);
     throw new Error("Failed to fetch bulk services");

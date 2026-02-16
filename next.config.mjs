@@ -1,31 +1,19 @@
-// next.config.mjs - ČIST TURBOPACK PRISTUP
+// next.config.mjs
 import bundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
-
 const nextConfig = {
-  // ✅ Turbopack config (mora biti prisutan za Next.js 16)
-  turbopack: {},
-  
-  // ✅ VAŽNO: Standalone build za Hostinger
-  output: 'standalone',
-  
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'finappsolutions.com' },
-      { protocol: 'https', hostname: '*.supabase.co' },
-    ],
-    deviceSizes: [640, 750, 828, 1080, 1200],
-    imageSizes: [16, 32, 48, 64, 96],
-    minimumCacheTTL: 60,
-    formats: ['image/webp'],
-  },
-
+  // ✅ Turbopack config - ignore reports directory
   experimental: {
+    turbo: {
+      rules: {
+        // Ignore Excel files in bundling
+        '*.{xls,xlsx}': {
+          loaders: [],
+          as: '*.js',
+        },
+      },
+    },
     serverActions: {
       allowedOrigins: [
         "finappsolutions.com",
@@ -41,9 +29,54 @@ const nextConfig = {
       '@radix-ui/react-icons',
       'recharts',
       'date-fns',
+      'xlsx',
+      'exceljs',
     ],
   },
-
+  
+  // ✅ Standalone build za Hostinger
+  output: 'standalone',
+  
+  typescript: {
+    // ⚠️ PRIVREMENO: Ignoriši TypeScript greške tokom build-a
+    ignoreBuildErrors: false,
+  },
+  
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'finappsolutions.com' },
+      { protocol: 'https', hostname: '*.supabase.co' },
+    ],
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96],
+    minimumCacheTTL: 60,
+    formats: ['image/webp'],
+  },
+  
+  // ✅ Exclude public/reports from webpack processing
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Prevent bundling of public directory files
+      config.externals = config.externals || [];
+      config.externals.push({
+        'fs/promises': 'commonjs fs/promises',
+      });
+    }
+    
+    // Ignore large directories during build
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        '**/node_modules/**',
+        '**/public/reports/**', // ✅ Ignore reports directory
+        '**/.git/**',
+        '**/.next/**',
+      ],
+    };
+    
+    return config;
+  },
+  
   async headers() {
     return [
       {
@@ -73,7 +106,7 @@ const nextConfig = {
       },
     ];
   },
-
+  
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
   compress: true,

@@ -1,7 +1,7 @@
-///hooks/use-bulk-services.ts
+// hooks/use-bulk-services.ts
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { BulkService } from "@prisma/client";
@@ -18,11 +18,18 @@ interface BulkServicesApiResponse {
   };
 }
 
-// API functions for bulk services
+// API error type
+interface ApiError {
+  message: string;
+  details?: any;
+}
+
+// API functions with better error handling
 const API = {
   getAll: async (
     filters?: BulkServiceFilters,
-    pagination?: { page: number; limit: number }
+    pagination?: { page: number; limit: number },
+    signal?: AbortSignal
   ): Promise<BulkServicesApiResponse> => {
     const params = new URLSearchParams();
     
@@ -44,21 +51,33 @@ const API = {
     }
     
     const queryString = params.toString() ? `?${params.toString()}` : "";
-    const response = await fetch(`/api/bulk-services${queryString}`);
+    const response = await fetch(`/api/bulk-services${queryString}`, {
+      signal,
+      // Enable caching on client side
+      next: { revalidate: 60 }
+    });
     
     if (!response.ok) {
-      const error = await response.json();
+      const error: ApiError = await response.json().catch(() => ({ 
+        message: "Failed to fetch bulk services" 
+      }));
       throw new Error(error.message || "Failed to fetch bulk services");
     }
     
     return response.json();
   },
   
-  getById: async (id: string): Promise<BulkServiceWithRelations> => {
-    const response = await fetch(`/api/bulk-services/${id}`);
+  getById: async (id: string, signal?: AbortSignal): Promise<BulkServiceWithRelations> => {
+    const response = await fetch(`/api/bulk-services/${id}`, {
+      signal,
+      // Enable caching
+      next: { revalidate: 120 }
+    });
     
     if (!response.ok) {
-      const error = await response.json();
+      const error: ApiError = await response.json().catch(() => ({ 
+        message: "Failed to fetch bulk service" 
+      }));
       throw new Error(error.message || "Failed to fetch bulk service");
     }
     
@@ -75,7 +94,9 @@ const API = {
     });
     
     if (!response.ok) {
-      const error = await response.json();
+      const error: ApiError = await response.json().catch(() => ({ 
+        message: "Failed to create bulk service" 
+      }));
       throw new Error(error.message || "Failed to create bulk service");
     }
     
@@ -92,7 +113,9 @@ const API = {
     });
     
     if (!response.ok) {
-      const error = await response.json();
+      const error: ApiError = await response.json().catch(() => ({ 
+        message: "Failed to update bulk service" 
+      }));
       throw new Error(error.message || "Failed to update bulk service");
     }
     
@@ -105,7 +128,9 @@ const API = {
     });
     
     if (!response.ok) {
-      const error = await response.json();
+      const error: ApiError = await response.json().catch(() => ({ 
+        message: "Failed to delete bulk service" 
+      }));
       throw new Error(error.message || "Failed to delete bulk service");
     }
   },
@@ -120,7 +145,9 @@ const API = {
     });
     
     if (!response.ok) {
-      const error = await response.json();
+      const error: ApiError = await response.json().catch(() => ({ 
+        message: "Failed to import bulk services" 
+      }));
       throw new Error(error.message || "Failed to import bulk services");
     }
     
@@ -144,7 +171,9 @@ const API = {
     const response = await fetch(`/api/bulk-services/export${queryString}`);
     
     if (!response.ok) {
-      const error = await response.json();
+      const error: ApiError = await response.json().catch(() => ({ 
+        message: "Failed to export bulk services" 
+      }));
       throw new Error(error.message || "Failed to export bulk services");
     }
     
@@ -163,16 +192,33 @@ export function useBulkServices(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
   const fetchBulkServices = useCallback(async () => {
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
+    
     setLoading(true);
     setError(null);
     
     try {
-      const data = await API.getAll(filters, pagination);
+      const data = await API.getAll(filters, pagination, abortControllerRef.current.signal);
       setBulkServices(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      toast.error(err instanceof Error ? err.message : "Failed to load bulk services");
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      
+      const errorMessage = err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -180,6 +226,13 @@ export function useBulkServices(
   
   useEffect(() => {
     fetchBulkServices();
+    
+    // Cleanup: abort request on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [fetchBulkServices]);
   
   const updateFilters = useCallback((newFilters: Partial<BulkServiceFilters>) => {
@@ -219,18 +272,35 @@ export function useBulkService(id?: string) {
   const [loading, setLoading] = useState(id ? true : false);
   const [error, setError] = useState<string | null>(null);
   
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
   const fetchBulkService = useCallback(async () => {
     if (!id) return;
+    
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
     
     setLoading(true);
     setError(null);
     
     try {
-      const data = await API.getById(id);
+      const data = await API.getById(id, abortControllerRef.current.signal);
       setBulkService(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      toast.error(err instanceof Error ? err.message : "Failed to load bulk service");
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      
+      const errorMessage = err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -240,6 +310,13 @@ export function useBulkService(id?: string) {
     if (id) {
       fetchBulkService();
     }
+    
+    // Cleanup: abort request on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [id, fetchBulkService]);
   
   const createBulkService = useCallback(async (data: Omit<BulkService, "id" | "createdAt" | "updatedAt">) => {
@@ -249,11 +326,13 @@ export function useBulkService(id?: string) {
       
       startTransition(() => {
         router.push(`/bulk-services/${newBulkService.id}`);
+        router.refresh(); // Trigger server component refresh
       });
       
       return newBulkService;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create bulk service");
+      const errorMessage = err instanceof Error ? err.message : "Failed to create bulk service";
+      toast.error(errorMessage);
       throw err;
     }
   }, [router]);
@@ -262,9 +341,13 @@ export function useBulkService(id?: string) {
     if (!id || !bulkService) return null;
     
     try {
+      // Optimistic update
+      const previousBulkService = bulkService;
+      setBulkService(prev => prev ? { ...prev, ...data } as BulkServiceWithRelations : null);
+      
       const updatedService = await API.update(id, data);
       
-      // Merge updated fields while preserving relations
+      // Update with server response
       setBulkService(prev => {
         if (!prev) return null;
         return {
@@ -272,19 +355,25 @@ export function useBulkService(id?: string) {
           ...updatedService,
           // Preserve the relations from previous state
           provider: prev.provider,
-          agreement: prev.agreement,
-          step: prev.step,
-          sender: prev.sender,
+          service: prev.service,
         };
       });
       
       toast.success("Bulk service updated successfully");
+      
+      // Trigger router refresh to update server components
+      router.refresh();
+      
       return updatedService;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update bulk service");
+      // Rollback optimistic update on error
+      setBulkService(bulkService);
+      
+      const errorMessage = err instanceof Error ? err.message : "Failed to update bulk service";
+      toast.error(errorMessage);
       throw err;
     }
-  }, [id, bulkService]);
+  }, [id, bulkService, router]);
   
   const deleteBulkService = useCallback(async () => {
     if (!id) return;
@@ -295,9 +384,11 @@ export function useBulkService(id?: string) {
       
       startTransition(() => {
         router.push("/bulk-services");
+        router.refresh(); // Trigger server component refresh
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete bulk service");
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete bulk service";
+      toast.error(errorMessage);
       throw err;
     }
   }, [id, router]);
@@ -305,13 +396,21 @@ export function useBulkService(id?: string) {
   const importBulkServices = useCallback(async (file: File) => {
     try {
       const result = await API.import(file);
-      toast.success(`Imported ${result.imported} bulk services successfully${result.errors > 0 ? ` (${result.errors} errors)` : ''}`);
+      const message = `Imported ${result.imported} bulk services successfully${
+        result.errors > 0 ? ` (${result.errors} errors)` : ''
+      }`;
+      toast.success(message);
+      
+      // Trigger router refresh to update server components
+      router.refresh();
+      
       return result;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to import bulk services");
+      const errorMessage = err instanceof Error ? err.message : "Failed to import bulk services";
+      toast.error(errorMessage);
       throw err;
     }
-  }, []);
+  }, [router]);
   
   const exportBulkServices = useCallback(async (filters?: BulkServiceFilters) => {
     try {
@@ -322,11 +421,17 @@ export function useBulkService(id?: string) {
       a.download = `bulk-services-export-${new Date().toISOString().split("T")[0]}.csv`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
       toast.success("Bulk services exported successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to export bulk services");
+      const errorMessage = err instanceof Error ? err.message : "Failed to export bulk services";
+      toast.error(errorMessage);
       throw err;
     }
   }, []);

@@ -1,17 +1,39 @@
 // /actions/providers/get-by-service.ts
 "use server";
 
+import { unstable_cache } from 'next/cache';
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
-export async function getProvidersByService(serviceId?: string) {
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error("Unauthorized access");
-  }
+// ✅ Cached funkcija za provider IDs po service-u
+const getCachedProviderIdsByService = unstable_cache(
+  async (serviceId: string) => {
+    console.log(`🔍 Fetching provider IDs for service: ${serviceId}`);
+    
+    const contractsWithService = await db.serviceContract.findMany({
+      where: { serviceId },
+      select: {
+        contract: {
+          select: {
+            providerId: true,
+          },
+        },
+      },
+    });
 
-  if (!serviceId) {
-    // Return all active providers if no service ID is provided
+    return contractsWithService
+      .map(sc => sc.contract.providerId)
+      .filter(Boolean) as string[];
+  },
+  ['provider-ids-by-service'],
+  { revalidate: 300 } // 5 minuta cache
+);
+
+// ✅ Cached funkcija za sve aktivne providere
+const getCachedActiveProviders = unstable_cache(
+  async () => {
+    console.log('🔍 Fetching all active providers');
+    
     return db.provider.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -23,38 +45,16 @@ export async function getProvidersByService(serviceId?: string) {
         phone: true,
       },
     });
-  }
+  },
+  ['all-active-providers'],
+  { revalidate: 60 } // 1 minut cache
+);
 
-  // Check if the service exists
-  const service = await db.service.findUnique({
-    where: { id: serviceId },
-  });
-
-  if (!service) {
-    throw new Error("Service not found");
-  }
-
-  // Get providers associated with this service through contracts
-  const contractsWithService = await db.serviceContract.findMany({
-    where: {
-      serviceId,
-    },
-    select: {
-      contract: {
-        select: {
-          providerId: true,
-        },
-      },
-    },
-  });
-
-  // Extract provider IDs
-  const providerIds = contractsWithService
-    .map(sc => sc.contract.providerId)
-    .filter(Boolean) as string[];
-
-  // If there are associated providers, fetch them
-  if (providerIds.length > 0) {
+// ✅ Cached funkcija za providere po ID listama
+const getCachedProvidersByIds = unstable_cache(
+  async (providerIds: string[]) => {
+    console.log(`🔍 Fetching providers by IDs: ${providerIds.length} providers`);
+    
     return db.provider.findMany({
       where: {
         id: { in: providerIds },
@@ -69,18 +69,41 @@ export async function getProvidersByService(serviceId?: string) {
         phone: true,
       },
     });
+  },
+  ['providers-by-ids'],
+  { revalidate: 120 } // 2 minuta cache
+);
+
+export async function getProvidersByService(serviceId?: string) {
+  const session = await auth();
+  
+  if (!session?.user) {
+    throw new Error("Unauthorized access");
   }
 
-  // If no providers are directly associated, return all active providers
-  return db.provider.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      contactName: true,
-      email: true,
-      phone: true,
-    },
+  // Ako nema serviceId, vrati sve aktivne providere
+  if (!serviceId) {
+    return getCachedActiveProviders();
+  }
+
+  // Proveri da li servis postoji (bez cachinga jer je brz upit)
+  const service = await db.service.findUnique({
+    where: { id: serviceId },
+    select: { id: true },
   });
+
+  if (!service) {
+    throw new Error("Service not found");
+  }
+
+  // Dohvati provider IDs za ovaj servis (cached)
+  const providerIds = await getCachedProviderIdsByService(serviceId);
+
+  // Ako ima povezanih providera, vrati ih
+  if (providerIds.length > 0) {
+    return getCachedProvidersByIds(providerIds);
+  }
+
+  // Ako nema povezanih providera, vrati sve aktivne
+  return getCachedActiveProviders();
 }

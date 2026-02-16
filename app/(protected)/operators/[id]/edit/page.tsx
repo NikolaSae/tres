@@ -2,7 +2,6 @@
 
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-
 import { getOperatorById } from "@/actions/operators";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardShell from "@/components/dashboard/DashboardShell";
@@ -17,6 +16,9 @@ export const metadata: Metadata = {
   title: "Edit Operator",
   description: "Edit operator details",
 };
+
+// Force dynamic rendering (requires authentication)
+export const dynamic = 'force-dynamic';
 
 interface EditOperatorPageProps {
   params: Promise<{
@@ -34,7 +36,7 @@ export default async function EditOperatorPage({ params }: EditOperatorPageProps
   }
   
   const operator = await getOperatorById(id);
-
+  
   if (!operator) {
     notFound();
   }

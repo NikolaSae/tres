@@ -2,7 +2,6 @@
 
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-
 import { OperatorForm } from "@/components/operators/OperatorForm";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardShell from "@/components/dashboard/DashboardShell";
@@ -16,33 +15,16 @@ export const metadata: Metadata = {
   description: "Create a new operator in the system.",
 };
 
+// Force dynamic rendering (requires authentication)
+export const dynamic = 'force-dynamic';
+
 export default async function NewOperatorPage() {
-  console.log("[NEW_OPERATOR_PAGE] Starting page load");
-  
   try {
-    // Debug: Check multiple ways to get user info
-    const userRole = await getUserRole();
-    const currentUser = await getCurrentUser();
     const hasAccess = await hasRequiredRole([UserRole.ADMIN, UserRole.MANAGER]);
     
-    console.log("[NEW_OPERATOR_PAGE] Access check:", {
-      userRole,
-      currentUser: currentUser ? {
-        id: currentUser.id,
-        email: currentUser.email,
-        role: currentUser.role
-      } : null,
-      hasAccess,
-      requiredRoles: [UserRole.ADMIN, UserRole.MANAGER]
-    });
-    
-    // Check access using the helper function
     if (!hasAccess) {
-      console.log("[NEW_OPERATOR_PAGE] Access denied, redirecting to operators list");
-      redirect("/operators"); // Redirect to operators list instead of dashboard
+      redirect("/operators");
     }
-    
-    console.log("[NEW_OPERATOR_PAGE] Access granted, rendering page");
     
     return (
       <DashboardShell>
@@ -63,7 +45,6 @@ export default async function NewOperatorPage() {
   } catch (error) {
     console.error("[NEW_OPERATOR_PAGE] Error:", error);
     
-    // Show error page instead of redirecting
     return (
       <DashboardShell>
         <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">

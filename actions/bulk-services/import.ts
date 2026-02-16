@@ -8,6 +8,7 @@ import { parseBulkServiceCSV, processBulkServiceCsv } from "@/lib/bulk-services/
 import { ActivityLogService } from "@/lib/services/activity-log-service";
 import { LogSeverity, ServiceType, BillingType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { invalidateCache } from "@/lib/cache/memory-cache";
 import { BulkServiceImportResult } from "@/lib/types/bulk-service-types";
 
 export async function importBulkServicesFromCsv(
@@ -27,6 +28,7 @@ export async function importBulkServicesFromCsv(
 
   try {
     const currentUser = await getCurrentUser();
+    
     if (!currentUser?.id) {
       results.error = "Unauthorized";
       results.importErrors.push("Unauthorized");
@@ -35,22 +37,29 @@ export async function importBulkServicesFromCsv(
 
     const { data: parsedCsvData, errors: initialParseErrors } = await parseBulkServiceCSV(csvContent);
 
-    // Store only error messages, not the error objects
+    // Store error messages
     initialParseErrors.forEach(e => {
       results.importErrors.push(`Row ${e.rowIndex === -1 ? 'N/A' : e.rowIndex + 2}: ${e.errors.join('; ')}`);
     });
 
     results.totalRows = parsedCsvData.length;
 
+    // Parallel fetch of existing providers and services
     const [existingProviders, existingServices] = await Promise.all([
-      db.provider.findMany({ select: { id: true, name: true } }),
-      db.service.findMany({ select: { id: true, name: true } }),
+      db.provider.findMany({ 
+        select: { id: true, name: true },
+        where: { isActive: true }
+      }),
+      db.service.findMany({ 
+        select: { id: true, name: true },
+        where: { type: ServiceType.BULK }
+      }),
     ]);
 
     const providerMap = new Map(existingProviders.map(p => [p.name.toLowerCase(), p.id]));
     let serviceMap = new Map(existingServices.map(s => [s.name.toLowerCase(), s.id]));
 
-    // Auto-create missing services
+    // Collect unique composite services
     const uniqueCompositeServices = new Map<string, {
       originalProviderName: string;
       originalAgreementName: string;
@@ -80,32 +89,46 @@ export async function importBulkServicesFromCsv(
 
     const newlyCreatedServices: { id: string; name: string }[] = [];
 
-    for (const [compositeLower, details] of uniqueCompositeServices) {
-      if (!serviceMap.has(compositeLower)) {
-        try {
-          const newService = await db.service.create({
-            data: {
-              name: details.compositeNamePreserveCase,
-              type: ServiceType.BULK,
-              billingType: BillingType.POSTPAID,
-              description: `Auto-created from bulk import: ${details.compositeNamePreserveCase}`,
-              isActive: true,
-            },
-          });
+    // Create missing services in batch
+    const servicesToCreate = Array.from(uniqueCompositeServices.entries())
+      .filter(([compositeLower]) => !serviceMap.has(compositeLower));
 
-          newlyCreatedServices.push({ id: newService.id, name: newService.name });
-          serviceMap.set(compositeLower, newService.id);
-        } catch (err: any) {
-          if (err.code === 'P2002') {
-            // Race condition – service created in meantime
-            const existing = await db.service.findFirst({
-              where: { name: { equals: details.compositeNamePreserveCase, mode: 'insensitive' } },
-            });
-            if (existing) serviceMap.set(existing.name.toLowerCase(), existing.id);
-          } else {
-            results.importErrors.push(`Failed to create service "${details.compositeNamePreserveCase}": ${err.message}`);
-          }
-        }
+    if (servicesToCreate.length > 0) {
+      try {
+        // Use transaction for batch service creation
+        const createdServices = await db.$transaction(
+          servicesToCreate.map(([, details]) => 
+            db.service.create({
+              data: {
+                name: details.compositeNamePreserveCase,
+                type: ServiceType.BULK,
+                billingType: BillingType.POSTPAID,
+                description: `Auto-created from bulk import: ${details.compositeNamePreserveCase}`,
+                isActive: true,
+              },
+            })
+          )
+        );
+
+        createdServices.forEach(service => {
+          newlyCreatedServices.push({ id: service.id, name: service.name });
+          serviceMap.set(service.name.toLowerCase(), service.id);
+        });
+      } catch (err: any) {
+        // Handle race conditions by fetching again
+        const existingAfterRace = await db.service.findMany({
+          where: { 
+            type: ServiceType.BULK,
+            name: { 
+              in: servicesToCreate.map(([, d]) => d.compositeNamePreserveCase) 
+            }
+          },
+          select: { id: true, name: true }
+        });
+        
+        existingAfterRace.forEach(service => {
+          serviceMap.set(service.name.toLowerCase(), service.id);
+        });
       }
     }
 
@@ -114,11 +137,7 @@ export async function importBulkServicesFromCsv(
     const processingResult = processBulkServiceCsv(parsedCsvData, providerMap, serviceMap);
 
     results.validRows = processingResult.validRows;
-    
-    // Only add CsvRowValidationResult items to invalidRows
     results.invalidRows = processingResult.invalidRows;
-    
-    // Add error messages separately
     results.importErrors.push(...processingResult.importErrors);
 
     if (results.importErrors.length > 0 || results.validRows.length === 0) {
@@ -126,7 +145,7 @@ export async function importBulkServicesFromCsv(
       return results;
     }
 
-    // Check for existing records by composite key + datumNaplate
+    // Check for existing records
     const existingRecords = await db.bulkService.findMany({
       where: { datumNaplate: importDate },
       select: {
@@ -155,7 +174,7 @@ export async function importBulkServicesFromCsv(
       return existingKeys.has(key);
     });
 
-    // Create new
+    // Use single transaction for all creates
     const created = await db.$transaction(
       recordsToCreate.map(r =>
         db.bulkService.create({
@@ -177,27 +196,33 @@ export async function importBulkServicesFromCsv(
       )
     );
 
-    // Update existing (updateMany vraća broj ažuriranih)
+    // Batch update existing records
     let updatedCount = 0;
-    for (const r of recordsToUpdate) {
-      const count = await db.bulkService.updateMany({
-        where: {
-          provider_name: r.provider_name,
-          agreement_name: r.agreement_name,
-          service_name: r.service_name,
-          step_name: r.step_name,
-          sender_name: r.sender_name,
-          datumNaplate: importDate,
-        },
-        data: {
-          providerId: r.providerId!,
-          serviceId: r.serviceId!,
-          requests: r.requests,
-          message_parts: r.message_parts,
-          updatedAt: new Date(),
-        },
-      });
-      updatedCount += count.count;
+    
+    if (recordsToUpdate.length > 0) {
+      const updateResults = await db.$transaction(
+        recordsToUpdate.map(r =>
+          db.bulkService.updateMany({
+            where: {
+              provider_name: r.provider_name,
+              agreement_name: r.agreement_name,
+              service_name: r.service_name,
+              step_name: r.step_name,
+              sender_name: r.sender_name,
+              datumNaplate: importDate,
+            },
+            data: {
+              providerId: r.providerId!,
+              serviceId: r.serviceId!,
+              requests: r.requests,
+              message_parts: r.message_parts,
+              updatedAt: new Date(),
+            },
+          })
+        )
+      );
+      
+      updatedCount = updateResults.reduce((sum, result) => sum + result.count, 0);
     }
 
     results.createdCount = created.length;
@@ -209,9 +234,15 @@ export async function importBulkServicesFromCsv(
       entityId: null,
       details: `Uvezeno ${results.createdCount} novih, ažurirano ${results.updatedCount} postojećih bulk servisa. Kreirano ${results.createdServices.length} novih servisa.`,
       severity: LogSeverity.INFO,
-      userId: currentUser.id,
+      userId: currentUser.id!,
     });
 
+    // Invalidate all relevant caches
+    invalidateCache("bulk-services:*");
+    invalidateCache("bulk-service:*");
+    invalidateCache("services:*");
+    invalidateCache("provider-*-bulk-services");
+    
     revalidatePath("/bulk-services");
     revalidatePath("/services");
 

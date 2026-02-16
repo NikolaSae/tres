@@ -1,15 +1,12 @@
 // components/auth/login-form.tsx
-
 "use client";
 
 import * as z from "zod";
-
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema } from "@/schemas";
-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,13 +22,14 @@ import { FormError } from "@/components/form-error";
 import { FormSuccess } from "@/components/form-success";
 import { login } from "@/actions/login";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export const LoginForm = () => {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   const urlError =
     searchParams.get("error") === "OAuthAccountNotLinked"
-      ? "Email already in use with different provider!"
+      ? "Email već postoji sa drugim provajderom!"
       : "";
 
   const [showTwoFactor, setShowTwoFactor] = useState<boolean>(false);
@@ -47,7 +45,8 @@ export const LoginForm = () => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof loginSchema>) => {
+  // ✅ Optimizovano - useCallback za stabilnost
+  const onSubmit = useCallback((values: z.infer<typeof loginSchema>) => {
     setError("");
     setSuccess("");
 
@@ -68,9 +67,9 @@ export const LoginForm = () => {
             setShowTwoFactor(true);
           }
         })
-        .catch(() => setError("Something went wrong"));
+        .catch(() => setError("Nešto je pošlo po zlu"));
     });
-  };
+  }, [callbackUrl, form]);
 
   return (
     <CardWrapper
@@ -88,12 +87,13 @@ export const LoginForm = () => {
                 name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Two Factor Code</FormLabel>
+                    <FormLabel>Two Factor Kod</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         disabled={isPending}
-                        placeholder="xxxxxx"
+                        placeholder="123456"
+                        autoComplete="one-time-code"
                       />
                     </FormControl>
                     <FormMessage />
@@ -113,8 +113,9 @@ export const LoginForm = () => {
                         <Input
                           {...field}
                           disabled={isPending}
-                          placeholder="markomarkovic@example.com"
+                          placeholder="marko.markovic@example.com"
                           type="email"
+                          autoComplete="email"
                         />
                       </FormControl>
                       <FormMessage />
@@ -132,8 +133,9 @@ export const LoginForm = () => {
                         <Input
                           {...field}
                           disabled={isPending}
-                          placeholder="**********"
+                          placeholder="••••••••"
                           type="password"
+                          autoComplete="current-password"
                         />
                       </FormControl>
                       <Button
@@ -156,7 +158,16 @@ export const LoginForm = () => {
           <FormSuccess message={success} />
 
           <Button disabled={isPending} type="submit" className="w-full">
-            {showTwoFactor ? "Uspešno" : "Prijava"}
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Učitavanje...
+              </>
+            ) : showTwoFactor ? (
+              "Potvrdi"
+            ) : (
+              "Prijavi se"
+            )}
           </Button>
         </form>
       </Form>

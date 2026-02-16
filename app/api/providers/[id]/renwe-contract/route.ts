@@ -1,8 +1,8 @@
 // app/api/providers/[id]/renew-contract/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
-import { db } from '@/lib/db'; // FIX: Promenjen import sa prisma na db
+import { db } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
@@ -11,7 +11,6 @@ export async function POST(
   try {
     const session = await auth();
     
-    // FIX: Dodaj proveru za session.user.id
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -29,6 +28,14 @@ export async function POST(
 
     const { id: providerId } = await params;
     const body = await request.json();
+
+    // Validate required fields
+    if (!body.contractNumber || !body.startDate || !body.endDate) {
+      return NextResponse.json(
+        { error: 'Contract number, start date, and end date are required' },
+        { status: 400 }
+      );
+    }
 
     // Verify provider exists
     const provider = await db.provider.findUnique({
@@ -65,7 +72,22 @@ export async function POST(
       );
     }
 
-    // Create new contract with renewal data - session.user.id is now guaranteed to be string
+    // Check if contract number already exists
+    const duplicateContract = await db.contract.findFirst({
+      where: {
+        contractNumber: body.contractNumber,
+        NOT: { id: existingContract.id }
+      }
+    });
+
+    if (duplicateContract) {
+      return NextResponse.json(
+        { error: 'Contract number already exists' },
+        { status: 409 }
+      );
+    }
+
+    // Create new contract with renewal data
     const newContract = await db.contract.create({
       data: {
         name: body.name || `${provider.name} - Renewed Contract`,
@@ -77,7 +99,7 @@ export async function POST(
         revenuePercentage: body.revenuePercentage || existingContract.revenuePercentage,
         description: body.description,
         providerId: providerId,
-        createdById: session.user.id, // ✅ Now type-safe
+        createdById: session.user.id,
         operatorRevenue: body.operatorRevenue,
         isRevenueSharing: body.isRevenueSharing ?? true,
         operatorId: body.operatorId,
@@ -97,18 +119,28 @@ export async function POST(
       }
     });
 
-    // Update old contract status to EXPIRED or TERMINATED
+    // Update old contract status to EXPIRED
     await db.contract.update({
       where: { id: existingContract.id },
       data: {
         status: 'EXPIRED',
-        lastModifiedById: session.user.id, // ✅ Now type-safe
+        lastModifiedById: session.user.id,
       }
     });
 
-    return NextResponse.json(newContract, { status: 201 });
+    // ✅ Invaliduj cache
+    revalidatePath('/providers');
+    revalidatePath(`/providers/${providerId}`);
+    revalidatePath('/contracts');
+
+    return NextResponse.json({
+      success: true,
+      contract: newContract,
+      message: 'Contract renewed successfully'
+    }, { status: 201 });
+
   } catch (error) {
-    console.error('Error renewing contract:', error);
+    console.error('[CONTRACT_RENEW_ERROR]', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -1,3 +1,5 @@
+//components/auth/.tsx
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";

@@ -1,7 +1,6 @@
 // lib/services/activity-log-service.ts
-
 import { db } from "@/lib/db";
-import { LogSeverity, LogActionType, LogEntityType } from "@prisma/client";
+import { LogSeverity } from "@prisma/client";
 
 interface ActivityLogParams {
   action: string;
@@ -39,7 +38,7 @@ export const ActivityLogService = {
         },
       });
     } catch (error) {
-      console.error(`ActivityLogService: Failed to create log entry for action "${action}":`, error);
+      console.error(`ActivityLogService: Failed to create log entry for action "${action}":`, error); // ← Ispravljena linija
       // Ne bacamo grešku dalje – logovanje ne sme da sruši glavnu operaciju
     }
   },

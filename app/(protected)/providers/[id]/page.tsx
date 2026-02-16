@@ -1,5 +1,4 @@
 // /app/(protected)/providers/[id]/page.tsx
- 
 import { Metadata } from "next";
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
@@ -18,7 +17,6 @@ import ProviderDetails from "@/components/providers/ProviderDetails";
 import ProviderContracts from "@/components/providers/ProviderContracts";
 import ProviderServicesOverview from "@/components/providers/ProviderServicesOverview";
 
-
 interface ProviderDetailsPageProps {
     params: Promise<{
         id: string;
@@ -30,12 +28,29 @@ export async function generateMetadata({ params }: ProviderDetailsPageProps): Pr
      const providerResult = await getProviderDetails(id);
 
      return {
-         title: providerResult.success && providerResult.data ? `${providerResult.data.name} | Provider Details` : 'Provider Not Found',
-         description: providerResult.success && providerResult.data ? `Details for provider ${providerResult.data.name}.` : 'Details for provider.',
+         title: providerResult.success && providerResult.data 
+           ? `${providerResult.data.name} | Provider Details` 
+           : 'Provider Not Found',
+         description: providerResult.success && providerResult.data 
+           ? `Details for provider ${providerResult.data.name}.` 
+           : 'Details for provider.',
      };
 }
 
-async function ProviderDetailsFetcher({ providerId }: { providerId: string }) {
+// ✅ Komponenta koja dobija već fetchovane podatke
+function ProviderDetailsDisplay({ provider }: { provider: any }) {
+    return <ProviderDetails provider={provider} />;
+}
+
+// ✅ Komponenta koja dobija provider info
+function ProviderServicesOverviewDisplay({ providerId, providerName }: { providerId: string; providerName: string }) {
+    return <ProviderServicesOverview providerId={providerId} providerName={providerName} />;
+}
+
+export default async function ProviderDetailsPage({ params }: ProviderDetailsPageProps) {
+    const { id: providerId } = await params;
+
+    // ✅ SAMO JEDAN poziv getProviderDetails - cached!
     const providerResult = await getProviderDetails(providerId);
 
     if (!providerResult.success || !providerResult.data) {
@@ -43,30 +58,11 @@ async function ProviderDetailsFetcher({ providerId }: { providerId: string }) {
     }
 
     const provider = providerResult.data;
-    return <ProviderDetails provider={provider} />;
-}
-
-async function ProviderServicesOverviewFetcher({ providerId, providerName }: { providerId: string; providerName: string }) {
-    return <ProviderServicesOverview providerId={providerId} providerName={providerName} />;
-}
-
-
-export default async function ProviderDetailsPage({ params }: ProviderDetailsPageProps) {
-    const { id: providerId } = await params;
-
-    const providerHeaderResult = await getProviderDetails(providerId);
-
-     if (!providerHeaderResult.success || !providerHeaderResult.data) {
-         notFound();
-     }
-
-     const providerForHeader = providerHeaderResult.data;
-
 
     return (
         <div className="container mx-auto py-6 space-y-6">
             <PageHeader
-                title={providerForHeader.name}
+                title={provider.name}
                 description={`Details for provider: ${providerId}`}
                 actions={
                     <Link href={`/providers/${providerId}/edit`} passHref>
@@ -92,15 +88,14 @@ export default async function ProviderDetailsPage({ params }: ProviderDetailsPag
                 <TabsContent value="details">
                     <Card>
                         <CardContent className="pt-6">
-                            <Suspense fallback={<DetailSkeleton />}>
-                                <ProviderDetailsFetcher providerId={providerId} />
-                            </Suspense>
+                            {/* ✅ Prosleđuj već fetchovane podatke - nema Suspense potrebe */}
+                            <ProviderDetailsDisplay provider={provider} />
                         </CardContent>
                     </Card>
                 </TabsContent>
 
                 <TabsContent value="contracts">
-                     <Card>
+                    <Card>
                         <CardContent className="pt-6">
                             <Suspense fallback={<DetailSkeleton />}>
                                 <ProviderContracts providerId={providerId} />
@@ -112,16 +107,16 @@ export default async function ProviderDetailsPage({ params }: ProviderDetailsPag
                 <TabsContent value="services-overview">
                     <Card>
                         <CardContent className="pt-6">
+                            {/* ✅ Prosleđuj provider name iz već fetchovanih podataka */}
                             <Suspense fallback={<DetailSkeleton />}>
-                                <ProviderServicesOverviewFetcher
+                                <ProviderServicesOverviewDisplay
                                     providerId={providerId}
-                                    providerName={providerForHeader.name}
+                                    providerName={provider.name}
                                 />
                             </Suspense>
                         </CardContent>
                     </Card>
                 </TabsContent>
-
             </Tabs>
         </div>
     );

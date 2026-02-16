@@ -1,9 +1,11 @@
+// components/auth/login-button.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
-
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { useCallback } from "react";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 import { LoginForm } from "@/components/auth/login-form";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
 interface LoginButtonProps {
   children: React.ReactNode;
@@ -17,15 +19,19 @@ export const LoginButton = ({
 }: LoginButtonProps) => {
   const router = useRouter();
 
-  const onClick = () => {
-    router.push("auth/login");
-  };
+  const onClick = useCallback(() => {
+    router.push("/auth/login");
+  }, [router]);
 
   if (mode === "modal") {
     return (
       <Dialog>
         <DialogTrigger asChild>{children}</DialogTrigger>
         <DialogContent className="p-0 w-auto bg-transparent border-none">
+          {/* ✅ Dodaj hidden title za accessibility */}
+          <VisuallyHidden>
+            <DialogTitle>Prijava</DialogTitle>
+          </VisuallyHidden>
           <LoginForm />
         </DialogContent>
       </Dialog>

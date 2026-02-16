@@ -7,7 +7,6 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { LogSeverity } from '@prisma/client';
 
-// Fixed return type - removed duplicate 'success'
 export async function createProvider(data: ProviderFormData): Promise<{ 
   success: boolean; 
   id?: string; 
@@ -16,7 +15,7 @@ export async function createProvider(data: ProviderFormData): Promise<{
   details?: any;
 }> {
     const validationResult = providerSchema.safeParse(data);
-
+    
     if (!validationResult.success) {
         console.error("Validation failed:", validationResult.error.format());
         return {
@@ -27,7 +26,6 @@ export async function createProvider(data: ProviderFormData): Promise<{
     }
 
     const validatedData = validationResult.data;
-
     const session = await auth();
     const userId = session?.user?.id;
 
@@ -74,10 +72,11 @@ export async function createProvider(data: ProviderFormData): Promise<{
             entityId: provider.id,
             details: `Provider created: ${provider.name}`,
             userId: userId,
-            severity: LogSeverity.INFO, // Use enum instead of string
+            severity: LogSeverity.INFO,
           },
         });
 
+        // ✅ Cache invalidation
         revalidatePath('/providers');
         revalidatePath(`/providers/${provider.id}`);
 
@@ -86,12 +85,13 @@ export async function createProvider(data: ProviderFormData): Promise<{
           message: 'Provider created successfully.', 
           id: provider.id 
         };
-
+        
     } catch (error) {
         console.error("[PROVIDER_CREATE_ERROR] Error creating provider:", error);
-
+        
         if (error instanceof Error) {
            const prismaError = error as any;
+           
            if (prismaError.code === 'P2002') {
              return {
                 success: false,
@@ -100,6 +100,7 @@ export async function createProvider(data: ProviderFormData): Promise<{
                 details: prismaError.meta?.target,
              };
            }
+           
            if (prismaError.code && prismaError.clientVersion) {
                 return {
                     success: false,
@@ -109,7 +110,7 @@ export async function createProvider(data: ProviderFormData): Promise<{
                 };
            }
         }
-
+        
         return { 
           success: false,
           error: 'Failed to create provider.', 

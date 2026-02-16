@@ -1,12 +1,11 @@
+// components/auth/register-form.tsx
 "use client";
 
 import * as z from "zod";
-
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RegisterSchema } from "@/schemas";
-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +18,9 @@ import {
 } from "@/components/ui/form";
 import { CardWrapper } from "@/components/auth/card-wrapper";
 import { FormError } from "@/components/form-error";
-import { FormSuccess } from "../form-success";
+import { FormSuccess } from "@/components/form-success";
 import { register } from "@/actions/register";
+import { Loader2 } from "lucide-react";
 
 export const RegisterForm = () => {
   const [error, setError] = useState<string | undefined>("");
@@ -36,7 +36,8 @@ export const RegisterForm = () => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof RegisterSchema>) => {
+  // ✅ Optimizovano - useCallback
+  const onSubmit = useCallback((values: z.infer<typeof RegisterSchema>) => {
     setError("");
     setSuccess("");
 
@@ -46,12 +47,12 @@ export const RegisterForm = () => {
         setSuccess(data.success);
       });
     });
-  };
+  }, []);
 
   return (
     <CardWrapper
-      headerLabel="Create an account"
-      backButtonLabel="Already have an account?"
+      headerLabel="Kreirajte nalog"
+      backButtonLabel="Već imate nalog?"
       backButtonRef="/auth/login"
       showSocial
     >
@@ -63,12 +64,13 @@ export const RegisterForm = () => {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Ime i prezime</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       disabled={isPending}
-                      placeholder="John Doe"
+                      placeholder="Marko Marković"
+                      autoComplete="name"
                     />
                   </FormControl>
                   <FormMessage />
@@ -86,8 +88,9 @@ export const RegisterForm = () => {
                     <Input
                       {...field}
                       disabled={isPending}
-                      placeholder="john.doe@example.com"
+                      placeholder="marko.markovic@example.com"
                       type="email"
+                      autoComplete="email"
                     />
                   </FormControl>
                   <FormMessage />
@@ -100,13 +103,14 @@ export const RegisterForm = () => {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>Lozinka</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       disabled={isPending}
-                      placeholder="**********"
+                      placeholder="••••••••"
                       type="password"
+                      autoComplete="new-password"
                     />
                   </FormControl>
                   <FormMessage />
@@ -119,7 +123,14 @@ export const RegisterForm = () => {
           <FormSuccess message={success} />
 
           <Button disabled={isPending} type="submit" className="w-full">
-            Create an account
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Kreiranje naloga...
+              </>
+            ) : (
+              "Kreiraj nalog"
+            )}
           </Button>
         </form>
       </Form>

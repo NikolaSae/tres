@@ -1,9 +1,14 @@
-// /app/(protected)/contracts/[id]/edit/page.tsx
+// app/(protected)/contracts/[id]/edit/page.tsx
+
 import { ContractForm } from "@/components/contracts/ContractForm";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { unstable_cache } from 'next/cache';
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const params = await props.params;
@@ -12,6 +17,7 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
   try {
     const contract = await db.contract.findUnique({
       where: { id },
+      select: { name: true }
     });
 
     if (!contract) {
@@ -63,41 +69,21 @@ async function getContract(id: string, currentUserId?: string, userRole?: string
       return null;
     }
 
-    console.log("[GET_CONTRACT] Permission check:", {
-      currentUserId,
-      userRole,
-      contractCreatedById: contract.createdById,
-      isAdmin: userRole === 'ADMIN',
-      isCreator: contract.createdById === currentUserId,
-      stringComparison: String(contract.createdById) === String(currentUserId)
-    });
-
     const isAdmin = userRole === 'ADMIN';
     const isCreator = contract.createdById === currentUserId;
     
     if (currentUserId && !isAdmin && !isCreator) {
-      console.error("[GET_CONTRACT] Permission denied:", {
-        reason: "Not admin and not creator",
-        userRole,
-        currentUserId,
-        contractCreatedById: contract.createdById,
-        isAdmin,
-        isCreator
-      });
       throw new Error("Forbidden");
     }
 
-    console.log("[GET_CONTRACT] Permission granted");
-
-    // Return contract with properly typed fields matching ContractFormProps
     return {
       id: contract.id,
       name: contract.name,
       contractNumber: contract.contractNumber,
       type: contract.type,
       status: contract.status,
-      startDate: contract.startDate, // Already a Date from Prisma
-      endDate: contract.endDate, // Already a Date from Prisma
+      startDate: contract.startDate,
+      endDate: contract.endDate,
       revenuePercentage: contract.revenuePercentage,
       description: contract.description,
       providerId: contract.providerId,
@@ -120,76 +106,67 @@ async function getContract(id: string, currentUserId?: string, userRole?: string
   }
 }
 
-async function getProviders() {
-  return db.provider.findMany({
+// Cache reference data with longer revalidation
+const getCachedProviders = unstable_cache(
+  async () => db.provider.findMany({
     where: { isActive: true },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
-  });
-}
+  }),
+  ['providers-select-list'],
+  {
+    revalidate: 600,
+    tags: ['providers']
+  }
+);
 
-async function getOperators() {
-  return db.operator.findMany({
+const getCachedOperators = unstable_cache(
+  async () => db.operator.findMany({
     where: { active: true },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
-  });
-}
+  }),
+  ['operators-select-list'],
+  {
+    revalidate: 600,
+    tags: ['operators']
+  }
+);
 
-async function getHumanitarianOrgs() {
-  return db.humanitarianOrg.findMany({
+const getCachedHumanitarianOrgs = unstable_cache(
+  async () => db.humanitarianOrg.findMany({
     where: { isActive: true },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
-  });
-}
+  }),
+  ['humanitarian-orgs-select-list'],
+  {
+    revalidate: 600,
+    tags: ['humanitarian-orgs']
+  }
+);
 
-async function getParkingServices() {
-  return db.parkingService.findMany({
-    where: { 
-      isActive: true 
-    },
+const getCachedParkingServices = unstable_cache(
+  async () => db.parkingService.findMany({
+    where: { isActive: true },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
-  });
-}
+  }),
+  ['parking-services-select-list'],
+  {
+    revalidate: 600,
+    tags: ['parking-services']
+  }
+);
 
 export default async function EditContractPage(props: EditContractPageProps) {
   const params = await props.params;
   const id = params.id;
   
   const session = await auth();
-  console.log("[EDIT_PAGE] Complete session debugging:", {
-    hasSession: !!session,
-    hasUser: !!session?.user,
-    userId: session?.user?.id,
-    userEmail: session?.user?.email,
-    userRole: (session?.user as any)?.role,
-    userProps: session?.user ? Object.keys(session.user) : [],
-    fullUser: session?.user,
-    rawSession: session
-  });
   
-  if (!session) {
-    console.error("[EDIT_PAGE] No session found");
+  if (!session?.user) {
     return redirect("/auth/login");
-  }
-  
-  if (!session.user) {
-    console.error("[EDIT_PAGE] Session exists but no user object");
-    return redirect("/auth/login");
-  }
-  
-  if (session?.user?.id) {
-    try {
-      const dbUser = await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { id: true, email: true, role: true, name: true }
-      });
-      console.log("[EDIT_PAGE] Direct DB user query:", dbUser);
-    } catch (error) {
-      console.error("[EDIT_PAGE] Error fetching user from DB:", error);
-    }
   }
   
   let userId = '';
@@ -205,13 +182,6 @@ export default async function EditContractPage(props: EditContractPageProps) {
       if (dbUser) {
         userId = dbUser.id;
         userRole = dbUser.role || '';
-        console.log("[EDIT_PAGE] Enhanced user data from DB:", {
-          userId,
-          userRole,
-          userName: dbUser.name
-        });
-      } else {
-        console.error("[EDIT_PAGE] User not found in database with email:", session.user.email);
       }
     } catch (error) {
       console.error("[EDIT_PAGE] Error fetching user from DB:", error);
@@ -221,14 +191,9 @@ export default async function EditContractPage(props: EditContractPageProps) {
   if (!userId) {
     if (session.user.id) userId = session.user.id;
     else if ((session.user as any)?.sub) userId = (session.user as any).sub;
-    else if ((session as any)?.userId) userId = (session as any).userId;
   }
   
   if (!userId) {
-    console.error(
-      "[EDIT_PAGE] User ID not found anywhere:", 
-      JSON.stringify(session, null, 2)
-    );
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold text-red-600">Authentication Error</h1>
@@ -238,12 +203,14 @@ export default async function EditContractPage(props: EditContractPageProps) {
   }
 
   try {
+    // Fetch contract without cache (it's user-specific)
+    // Fetch reference data with cache
     const [contract, providers, operators, humanitarianOrgs, parkingServices] = await Promise.all([
       getContract(id, userId, userRole),
-      getProviders(),
-      getOperators(),
-      getHumanitarianOrgs(),
-      getParkingServices()
+      getCachedProviders(),
+      getCachedOperators(),
+      getCachedHumanitarianOrgs(),
+      getCachedParkingServices()
     ]);
 
     if (!contract) {

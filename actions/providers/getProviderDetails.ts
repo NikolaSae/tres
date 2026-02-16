@@ -1,7 +1,7 @@
-///actions/providers/getProviderDetails.ts
-
+// /actions/providers/getProviderDetails.ts
 "use server";
 
+import { unstable_cache } from 'next/cache';
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { logActivity } from "@/lib/security/audit-logger";
@@ -62,16 +62,12 @@ type ProviderWithDetails = Prisma.ProviderGetPayload<{
   };
 }>;
 
-export async function getProviderDetails(
-  providerId: string
-): Promise<{ success: boolean; data?: ProviderWithDetails; error?: string }> {
-  try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: "Unauthorized" };
-    }
-
-    const provider = await db.provider.findUnique({
+// ✅ Cached funkcija za provider details
+const getCachedProviderDetails = unstable_cache(
+  async (providerId: string) => {
+    console.log(`🔍 Fetching provider details for ID: ${providerId}`);
+    
+    return db.provider.findUnique({
       where: { id: providerId },
       include: {
         contracts: {
@@ -92,19 +88,63 @@ export async function getProviderDetails(
             }
           }
         },
-        vasServices: { select: { id: true, proizvod: true, mesec_pruzanja_usluge: true, naplacen_iznos: true } },
-        bulkServices: { select: { id: true, service_name: true, requests: true } },
-        complaints: { select: { id: true, title: true, status: true, createdAt: true } },
+        vasServices: { 
+          select: { 
+            id: true, 
+            proizvod: true, 
+            mesec_pruzanja_usluge: true, 
+            naplacen_iznos: true 
+          } 
+        },
+        bulkServices: { 
+          select: { 
+            id: true, 
+            service_name: true, 
+            requests: true 
+          } 
+        },
+        complaints: { 
+          select: { 
+            id: true, 
+            title: true, 
+            status: true, 
+            createdAt: true 
+          } 
+        },
         _count: {
-            select: { contracts: true, vasServices: true, bulkServices: true, complaints: true }
+          select: { 
+            contracts: true, 
+            vasServices: true, 
+            bulkServices: true, 
+            complaints: true 
+          }
         }
       },
     });
+  },
+  ['provider-details'],
+  { revalidate: 120 } // 2 minuta cache
+);
+
+export async function getProviderDetails(
+  providerId: string
+): Promise<{ success: boolean; data?: ProviderWithDetails; error?: string }> {
+  try {
+    // ✅ Auth check (ne cache-irati)
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // ✅ Cached DB query
+    const provider = await getCachedProviderDetails(providerId);
 
     if (!provider) {
       return { success: false, error: "Provider not found" };
     }
 
+    // ✅ Log activity (ne cache-irati)
     await logActivity("GET_PROVIDER_DETAILS", {
       entityType: "provider",
       entityId: providerId,
@@ -113,7 +153,7 @@ export async function getProviderDetails(
     });
 
     return { success: true, data: provider };
-
+    
   } catch (error) {
     console.error(`Error fetching provider ${providerId} details:`, error);
     return {

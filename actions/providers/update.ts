@@ -7,12 +7,19 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { LogSeverity } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import { z } from 'zod';
 
-
-export async function updateProvider(id: string, data: ProviderFormData): Promise<{ success?: boolean; id?: string; error?: string; details?: any, message?: string }> {
+export async function updateProvider(
+  id: string, 
+  data: ProviderFormData
+): Promise<{ 
+  success?: boolean; 
+  id?: string; 
+  error?: string; 
+  details?: any; 
+  message?: string 
+}> {
     const validationResult = providerSchema.safeParse(data);
-
+    
     if (!validationResult.success) {
         console.error("Validation failed:", validationResult.error.format());
         return {
@@ -23,14 +30,12 @@ export async function updateProvider(id: string, data: ProviderFormData): Promis
     }
 
     const validatedData = validationResult.data;
-
     const session = await auth();
     const userId = session?.user?.id;
 
-     if (!userId) {
+    if (!userId) {
        return { error: "Unauthorized", success: false };
-     }
-
+    }
 
     try {
          const existingProvider = await db.provider.findUnique({
@@ -56,9 +61,11 @@ export async function updateProvider(id: string, data: ProviderFormData): Promis
          });
 
          if (duplicateProvider) {
-              return { error: `Provider with name "${validatedData.name}" already exists.`, success: false };
+              return { 
+                error: `Provider with name "${validatedData.name}" already exists.`, 
+                success: false 
+              };
          }
-
 
         const updatedProvider = await db.provider.update({
             where: { id },
@@ -80,23 +87,30 @@ export async function updateProvider(id: string, data: ProviderFormData): Promis
             entityId: updatedProvider.id,
             details: `Provider updated: ${updatedProvider.name}`,
             userId: userId,
-            severity: "INFO",
+            severity: LogSeverity.INFO,
           },
         });
 
-
+        // ✅ Cache invalidation
         revalidatePath('/providers');
         revalidatePath(`/providers/${id}`);
 
-
-        return { success: true, message: 'Provider updated successfully.', id: updatedProvider.id };
-
+        return { 
+          success: true, 
+          message: 'Provider updated successfully.', 
+          id: updatedProvider.id 
+        };
+        
     } catch (error) {
         console.error(`[PROVIDER_UPDATE_ERROR] Error updating provider with ID ${id}:`, error);
-
-         if (error instanceof PrismaClientKnownRequestError) {
+        
+        if (error instanceof PrismaClientKnownRequestError) {
               if (error.code === 'P2002') {
-                  return { error: "An provider with similar details already exists.", success: false, message: "Provider name already exists." };
+                  return { 
+                    error: "An provider with similar details already exists.", 
+                    success: false, 
+                    message: "Provider name already exists." 
+                  };
               }
                if (error.code && error.clientVersion) {
                 return {
@@ -106,8 +120,12 @@ export async function updateProvider(id: string, data: ProviderFormData): Promis
                     success: false
                 };
            }
-         }
-
-        return { error: "Failed to update provider.", success: false, message: "An unexpected error occurred." };
+        }
+        
+        return { 
+          error: "Failed to update provider.", 
+          success: false, 
+          message: "An unexpected error occurred." 
+        };
     }
-};
+}

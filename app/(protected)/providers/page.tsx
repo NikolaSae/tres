@@ -1,12 +1,10 @@
 // app/(protected)/providers/page.tsx
 import { Metadata } from "next";
-import { ProviderList } from "@/components/providers/ProviderList";
+import { ProviderListClient } from "@/components/providers/ProviderListClient";
 import { BlacklistSection } from "@/components/blacklist/BlacklistSection";
-import { auth } from "@/auth";
-import { UserRole } from "@prisma/client";
+import { getProviders } from "@/actions/providers/get-providers";
 import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { redirect } from "next/navigation"; // ✅ Dodaj import
 
 export const metadata: Metadata = {
   title: "Providers | Management Dashboard",
@@ -32,19 +30,8 @@ function LoadingFallback() {
 }
 
 export default async function ProvidersPage() {
-  const session = await auth();
-  
-  // ✅ Provera autentifikacije
-  if (!session) {
-    redirect("/auth/login"); // Umesto <div>Unauthenticated</div>
-  }
-
-  const userRole = session.user?.role;
-  
-  // ✅ Provera role - redirect na 403 ako nema dozvolu
-  if (!userRole || (userRole !== UserRole.ADMIN && userRole !== UserRole.MANAGER)) {
-    redirect("/403"); // Umesto <div>Unauthorized</div>
-  }
+  // ✅ SAMO fetchuj cached podatke - middleware već proverava auth
+  const providers = await getProviders();
   
   return (
     <div className="p-6 space-y-6">
@@ -95,7 +82,8 @@ export default async function ProvidersPage() {
             </p>
           </div>
           <Suspense fallback={<LoadingFallback />}>
-            <ProviderList />
+            {/* ✅ Prosleđuj cached providers */}
+            <ProviderListClient initialProviders={providers} />
           </Suspense>
         </TabsContent>
         

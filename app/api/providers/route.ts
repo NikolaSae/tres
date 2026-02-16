@@ -1,43 +1,30 @@
 // app/api/providers/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    
-    // ✅ Pagination parameters
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '12', 10);
+// ✅ Cached funkcija za fetching providers
+const getCachedProviders = unstable_cache(
+  async (
+    page: number,
+    limit: number,
+    search: string | null,
+    isActiveParam: string | null,
+    hasContracts: boolean,
+    sortBy: string,
+    sortDirection: string
+  ) => {
     const skip = (page - 1) * limit;
 
-    // ✅ Filter parameters
-    const search = searchParams.get('search');
-    const isActiveParam = searchParams.get('isActive');
-    const hasContracts = searchParams.get('hasContracts') === 'true';
-    const hasComplaints = searchParams.get('hasComplaints') === 'true';
-    const sortBy = searchParams.get('sortBy') || 'name';
-    const sortDirection = searchParams.get('sortDirection') || 'asc';
-
-    // ✅ Build where clause
+    // Build where clause
     const where: any = {};
 
-    // Active status filter
     if (isActiveParam !== null) {
       where.isActive = isActiveParam === 'true';
     }
 
-    // Search filter
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -46,21 +33,13 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Has contracts filter
     if (hasContracts) {
-      where.contracts = {
-        some: {}
-      };
+      where.contracts = { some: {} };
     }
 
-    // Has complaints filter (if you have complaints relation)
-    // if (hasComplaints) {
-    //   where.complaints = {
-    //     some: {}
-    //   };
-    // }
+    console.log('🔍 Fetching providers from database...');
 
-    // ✅ Fetch providers with pagination
+    // Fetch providers with pagination
     const [providers, total] = await Promise.all([
       prisma.provider.findMany({
         where,
@@ -92,7 +71,49 @@ export async function GET(request: NextRequest) {
       prisma.provider.count({ where })
     ]);
 
-    // ✅ Return proper format with metadata
+    return { providers, total };
+  },
+  ['providers-api'],
+  { 
+    revalidate: 60,
+  }
+);
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    
+    // Pagination parameters
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '12', 10);
+
+    // Filter parameters
+    const search = searchParams.get('search');
+    const isActiveParam = searchParams.get('isActive');
+    const hasContracts = searchParams.get('hasContracts') === 'true';
+    const sortBy = searchParams.get('sortBy') || 'name';
+    const sortDirection = searchParams.get('sortDirection') || 'asc';
+
+    // ✅ Koristi cached funkciju
+    const { providers, total } = await getCachedProviders(
+      page,
+      limit,
+      search,
+      isActiveParam,
+      hasContracts,
+      sortBy,
+      sortDirection
+    );
+
     return NextResponse.json({
       items: providers,
       total,
@@ -100,8 +121,9 @@ export async function GET(request: NextRequest) {
       limit,
       totalPages: Math.ceil(total / limit)
     });
+    
   } catch (error) {
-    console.error('Error fetching providers:', error);
+    console.error('[PROVIDERS_GET_ERROR]', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -120,7 +142,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has permission (ADMIN or MANAGER only)
+    // Check permissions
     if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
       return NextResponse.json(
         { error: 'Forbidden - insufficient permissions' },
@@ -138,9 +160,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if provider with same name already exists
-    const existingProvider = await prisma.provider.findUnique({
-      where: { name: body.name }
+    // Check if provider exists
+    const existingProvider = await prisma.provider.findFirst({
+      where: { 
+        name: {
+          equals: body.name,
+          mode: 'insensitive'
+        }
+      }
     });
 
     if (existingProvider) {
@@ -175,9 +202,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // ✅ Invaliduj cache posle create
+    revalidatePath('/providers');
+    revalidatePath('/api/providers');
+
     return NextResponse.json(provider, { status: 201 });
+    
   } catch (error) {
-    console.error('Error creating provider:', error);
+    console.error('[PROVIDER_CREATE_ERROR]', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

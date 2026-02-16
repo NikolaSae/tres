@@ -1,7 +1,7 @@
-//actions/log/updateLogStatus.ts
-
+// actions/log/updateLogStatus.ts
 "use server";
 
+import { revalidatePath } from 'next/cache';
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { LogStatus } from "@prisma/client";
@@ -15,25 +15,28 @@ const updateLogStatusSchema = z.object({
 export type UpdateLogStatusInput = z.infer<typeof updateLogStatusSchema>;
 
 interface UpdateLogStatusResult {
-    success: boolean;
-    data?: {
-        id: string;
-        status: LogStatus;
-    };
-    error?: string;
+  success: boolean;
+  data?: {
+    id: string;
+    status: LogStatus;
+  };
+  error?: string;
 }
 
 export async function updateLogStatus(
   params: UpdateLogStatusInput
 ): Promise<UpdateLogStatusResult> {
   try {
+    // Auth check
     const currentUser = await getCurrentUser();
+    
     if (!currentUser) {
       return { success: false, error: "Unauthorized" };
     }
 
+    // Validation
     const validatedParams = updateLogStatusSchema.safeParse(params);
-
+    
     if (!validatedParams.success) {
       console.error("Update log status validation failed:", validatedParams.error.errors);
       return { success: false, error: "Invalid input parameters." };
@@ -41,27 +44,32 @@ export async function updateLogStatus(
 
     const { id, status } = validatedParams.data;
 
+    // Update log status
     const updatedLog = await db.logEntry.update({
       where: { id },
       data: {
         status: status,
         updatedAt: new Date(),
-        updatedById: currentUser.id, // Postavljamo updatedById na ID trenutnog korisnika
+        updatedById: currentUser.id,
       },
       select: {
-          id: true,
-          status: true,
+        id: true,
+        status: true,
       }
     });
 
-    return {
-        success: true,
-        data: {
-            id: updatedLog.id,
-            status: updatedLog.status,
-        }
-    };
+    // ✅ Invaliduj cache posle uspešnog update-a
+    revalidatePath('/logs');
+    revalidatePath('/dashboard');
 
+    return {
+      success: true,
+      data: {
+        id: updatedLog.id,
+        status: updatedLog.status,
+      }
+    };
+    
   } catch (error) {
     console.error("[UPDATE_LOG_STATUS_ERROR]", error);
     return {

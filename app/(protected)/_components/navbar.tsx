@@ -8,7 +8,7 @@ import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { ClientSideUserButton } from "@/components/auth/client-side-user-button";
 import { NavLink } from "@/components/ui/nav-link";
-import { RefreshSessionButton } from "@/components/auth/refresh-session-button"; // ✅ Import
+import { RefreshSessionButton } from "@/components/auth/refresh-session-button";
 import Link from "next/link";
 import { UserRole } from "@prisma/client";
 
@@ -27,7 +27,7 @@ interface CustomDropdownProps {
 
 const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActive, disabled = false }) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const timeoutRef = React.useRef<NodeJS.Timeout>();
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null); // ← Ispravka: dodaj null kao inicijalnu vrednost
 
   const handleMouseEnter = () => {
     if (disabled) return;
@@ -260,7 +260,7 @@ export const Navbar = () => {
         </div>
       </div>
 
-      <div className="ml-auto flex-shrink-0">
+      <div className="ml-auto flex-shrink-0 flex items-center gap-2">
         <RefreshSessionButton />
         <ClientSideUserButton />
       </div>
