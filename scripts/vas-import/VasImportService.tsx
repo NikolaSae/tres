@@ -924,11 +924,9 @@ class VasImportService {
           entityType,
           entityId,
           action,
-          description,
-          errorDetails,
-          level,
+          details: description,
+          severity: level === 'INFO' ? 'INFO' : level === 'WARNING' ? 'WARNING' : 'ERROR',
           userId: this.currentUserId,
-          timestamp: new Date()
         }
       });
     } catch (error) {

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/toast/toast-context";
+import { toast } from "sonner"; // ✅ FIXED: Koristi sonner umesto toast-context
 import { XCircle } from "lucide-react";
 import { getServicesByType } from '@/actions/services/get';
 
@@ -70,7 +70,10 @@ export function ServiceSelector({
           setAvailableServices(filtered);
         }
       } catch (err) {
-        toast({ title: "Error", description: "Failed to load services", variant: "destructive" });
+        // ✅ FIXED: Koristi sonner toast umesto kontekst toast-a
+        toast.error("Failed to load services", {
+          description: "Please try again later"
+        });
       } finally {
         setLoading(false);
       }
@@ -87,7 +90,10 @@ export function ServiceSelector({
 
   const handleAddService = () => {
     if (!serviceToAddId) {
-      toast({ title: "Error", description: "Select a service first", variant: "destructive" });
+      // ✅ FIXED: Koristi sonner toast
+      toast.error("Select a service first", {
+        description: "Please choose a service from the dropdown"
+      });
       return;
     }
 
@@ -102,10 +108,23 @@ export function ServiceSelector({
     onChange([...selectedServices, newService]);
     setServiceToAddId("");
     setSearchTerm("");
+    
+    // ✅ Success feedback
+    toast.success("Service added", {
+      description: `${service.name} has been added to the contract`
+    });
   };
 
   const handleRemoveService = (serviceId: string) => {
+    const service = allServices.find(s => s.id === serviceId);
     onChange(selectedServices.filter(s => s.serviceId !== serviceId));
+    
+    // ✅ Success feedback
+    if (service) {
+      toast.success("Service removed", {
+        description: `${service.name} has been removed from the contract`
+      });
+    }
   };
 
   const handleTermsChange = (serviceId: string, terms: string) => {
@@ -134,11 +153,17 @@ export function ServiceSelector({
                   <SelectValue placeholder={loading ? "Loading..." : "Select service"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredServices.map(service => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name} ({service.type})
-                    </SelectItem>
-                  ))}
+                  {filteredServices.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      {searchTerm ? "No services found" : "No services available"}
+                    </div>
+                  ) : (
+                    filteredServices.map(service => (
+                      <SelectItem key={service.id} value={service.id}>
+                        {service.name} ({service.type})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               <Input

@@ -1,12 +1,11 @@
-//actions/parking-services/update.ts
+// actions/parking-services/update.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
-import { UpdateParkingServiceParams } from "@/lib/types/parking-service-types";
-import { updateParkingServiceSchema } from "@/schemas/parking-service";
+import { parkingServiceUpdateSchema } from "@/schemas/parking-service";
 import { logActivity } from "@/lib/security/audit-logger";
+import type { UpdateParkingServiceParams } from "@/lib/types/parking-service-types";
 
 export async function update(data: UpdateParkingServiceParams) {
   try {
@@ -15,7 +14,7 @@ export async function update(data: UpdateParkingServiceParams) {
       return { success: false, error: "Unauthorized" };
     }
 
-    const validatedData = updateParkingServiceSchema.parse(data);
+    const validatedData = parkingServiceUpdateSchema.parse(data);
     const { id, ...updateData } = validatedData;
 
     const existingParkingService = await db.parkingService.findUnique({

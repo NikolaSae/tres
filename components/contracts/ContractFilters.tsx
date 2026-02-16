@@ -12,22 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ContractType, ContractStatus } from "@prisma/client";
-
-interface Contract {
-  id: string;
-  name: string;
-  contractNumber: string;
-  type: ContractType;
-  status: ContractStatus;
-  startDate: Date;
-  endDate: Date;
-  revenuePercentage: number;
-  provider?: { id: string; name: string } | null;
-  humanitarianOrg?: { id: string; name: string } | null;
-  parkingService?: { id: string; name: string } | null;
-  createdAt: Date;
-}
+import { Contract } from "@/lib/types/contract-types";
 
 interface ContractFiltersProps {
   contracts: Contract[] | undefined | null;
@@ -42,15 +27,12 @@ export function ContractFilters({ contracts, onFilterChange, serverTime }: Contr
   const [expiringSoon, setExpiringSoon] = useState<boolean>(false);
   const [mounted, setMounted] = useState(false);
 
-  // Fix for hydration mismatch - only render the component when mounted
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Parse the server time only once when component mounts
   const serverDate = serverTime ? new Date(serverTime) : new Date();
 
-  // Define the filtering function with useCallback to prevent recreations
   const applyFilters = useCallback(() => {
     const contractsToFilter = Array.isArray(contracts) ? contracts : [];
     let filtered = [...contractsToFilter];
@@ -86,11 +68,9 @@ export function ContractFilters({ contracts, onFilterChange, serverTime }: Contr
     return filtered;
   }, [searchTerm, selectedType, selectedStatus, expiringSoon, contracts, serverDate]);
 
-  // Apply filters when filter criteria or contracts change
   useEffect(() => {
     if (!mounted) return;
     
-    // Use requestAnimationFrame to ensure filtering happens after rendering
     const timeoutId = setTimeout(() => {
       const filteredResults = applyFilters();
       onFilterChange(filteredResults);
@@ -106,7 +86,6 @@ export function ContractFilters({ contracts, onFilterChange, serverTime }: Contr
     setExpiringSoon(false);
   };
 
-  // Don't render until client-side
   if (!mounted) {
     return (
       <Card>
@@ -142,9 +121,10 @@ export function ContractFilters({ contracts, onFilterChange, serverTime }: Contr
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                {Object.values(ContractType).map(type => (
-                  <SelectItem key={type} value={type}>{type.replace(/_/g, ' ')}</SelectItem>
-                ))}
+                <SelectItem value="PROVIDER">Provider</SelectItem>
+                <SelectItem value="HUMANITARIAN">Humanitarian</SelectItem>
+                <SelectItem value="PARKING">Parking</SelectItem>
+                <SelectItem value="BULK">Bulk</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -159,9 +139,12 @@ export function ContractFilters({ contracts, onFilterChange, serverTime }: Contr
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                {Object.values(ContractStatus).map(status => (
-                  <SelectItem key={status} value={status}>{status.replace(/_/g, ' ')}</SelectItem>
-                ))}
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="EXPIRED">Expired</SelectItem>
+                <SelectItem value="TERMINATED">Terminated</SelectItem>
+                <SelectItem value="RENEWAL_IN_PROGRESS">Renewal In Progress</SelectItem>
               </SelectContent>
             </Select>
           </div>

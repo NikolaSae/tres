@@ -171,7 +171,6 @@ export async function GET(request: NextRequest) {
       const pastDate = addDays(today, -days);
 
       const expiringConditions: Prisma.ContractWhereInput[] = [
-        // Contracts expiring in the next X days
         {
           endDate: {
             gte: today,
@@ -180,7 +179,6 @@ export async function GET(request: NextRequest) {
         }
       ];
 
-      // Contracts expired in the last X days (only if includeExpired is true)
       if (includeExpired) {
         expiringConditions.push({
           endDate: {
@@ -204,21 +202,52 @@ export async function GET(request: NextRequest) {
       db.contract.findMany({
         where,
         include: {
-          provider: { select: { id: true, name: true } },
-          humanitarianOrg: { select: { id: true, name: true } },
-          parkingService: { select: { id: true, name: true } },
+          provider: { 
+            select: { 
+              id: true, 
+              name: true 
+            } 
+          },
+          humanitarianOrg: { 
+            select: { 
+              id: true, 
+              name: true 
+            } 
+          },
+          parkingService: { 
+            select: { 
+              id: true, 
+              name: true 
+            } 
+          },
           services: {
             select: {
               id: true,
               contractId: true,
               serviceId: true,
               specificTerms: true,
-              service: { select: { id: true, name: true, type: true } }
+              service: { 
+                select: { 
+                  id: true, 
+                  name: true, 
+                  type: true 
+                } 
+              }
             }
           },
-          _count: { select: { services: true, attachments: true, reminders: true } }
+          _count: { 
+            select: { 
+              services: true, 
+              attachments: true, 
+              reminders: true 
+            } 
+          }
         },
-        orderBy: [{ status: "asc" }, { endDate: "asc" }, { updatedAt: "desc" }],
+        orderBy: [
+          { status: "asc" }, 
+          { endDate: "asc" }, 
+          { updatedAt: "desc" }
+        ],
         skip,
         take: limit
       }),

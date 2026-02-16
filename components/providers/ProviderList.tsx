@@ -1,14 +1,13 @@
-//components/providers/ProviderList.tsx
+// components/providers/ProviderList.tsx
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { ProviderCard } from "@/components/providers/ProviderCard";
-import { ProviderFilters } from "@/components/providers/ProviderFilters";
+import { ProviderFilters, FilterState } from "@/components/providers/ProviderFilters";
 import { useProviders } from "@/hooks/use-providers";
 import { toast } from "sonner";
 import ProviderLogList from "@/components/providers/ProviderLogList";
-import { useDebounce } from '@/hooks/useDebounce';
 
 export function ProviderList() {
   const {
@@ -30,7 +29,7 @@ export function ProviderList() {
     setPagination(prev => ({ ...prev, page: newPage }));
   }, [setPagination]);
 
-  const handleFilterChange = useCallback((newFilters: any) => {
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
     setPagination(prev => ({ ...prev, page: 1 }));
     setFilters(newFilters);
   }, [setPagination, setFilters]);
@@ -86,7 +85,6 @@ export function ProviderList() {
     setLogRefreshKey(prev => prev + 1);
   }, []);
 
-  // ✅ FIX: Check if providers is null/undefined
   if (loading && (!providers || providers.length === 0)) {
     return <div className="text-center py-4">Loading providers...</div>;
   }
@@ -105,7 +103,6 @@ export function ProviderList() {
         loading={loading || actionLoading}
       />
 
-      {/* ✅ FIX: Add null/undefined check before checking length */}
       {!providers || providers.length === 0 ? (
         <div className="text-center py-8 bg-white rounded-md border">
           <p className="text-gray-500">No providers found matching your criteria.</p>

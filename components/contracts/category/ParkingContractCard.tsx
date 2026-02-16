@@ -1,6 +1,4 @@
 ///components/contracts/category/ParkingContractCard.tsx
-
-
 "use client";
 
 import { useState } from "react";
@@ -8,13 +6,14 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ContractStatusBadge } from "@/components/contracts/ContractStatusBadge";
 import { ExpiryWarning } from "@/components/contracts/ExpiryWarning";
+import { ContractStatus } from "@prisma/client";
 
 interface ParkingContractCardProps {
   contract: {
     id: string;
     name: string;
     contractNumber: string;
-    status: string;
+    status: ContractStatus | string;
     startDate: Date;
     endDate: Date;
     revenuePercentage: number;
@@ -53,7 +52,7 @@ export function ParkingContractCard({ contract }: ParkingContractCardProps) {
             </h3>
             <p className="text-sm text-gray-500">Contract #{contract.contractNumber}</p>
           </div>
-          <ContractStatusBadge status={contract.status} />
+          <ContractStatusBadge status={contract.status as ContractStatus} />
         </div>
       </div>
       
@@ -80,7 +79,7 @@ export function ParkingContractCard({ contract }: ParkingContractCardProps) {
               {format(new Date(contract.endDate), "PPP")}
               {new Date(contract.endDate) > new Date() && 
                 new Date(contract.endDate).getTime() - new Date().getTime() < 30 * 24 * 60 * 60 * 1000 && (
-                <ExpiryWarning endDate={contract.endDate} />
+                <ExpiryWarning endDate={contract.endDate} contractId={contract.id} />
               )}
             </p>
           </div>
@@ -131,7 +130,7 @@ export function ParkingContractCard({ contract }: ParkingContractCardProps) {
               
               <div>
                 <p className="text-sm font-medium text-gray-500">Contract Status</p>
-                <ContractStatusBadge status={contract.status} />
+                <ContractStatusBadge status={contract.status as ContractStatus} />
               </div>
             </div>
             

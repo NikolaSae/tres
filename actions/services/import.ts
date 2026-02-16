@@ -1,9 +1,8 @@
-// actions/services/import.ts
+// actions/services/import.ts - ISPRAVLJEN
 'use server';
 
 import { db } from '@/lib/db';
 import { parse } from 'csv-parse/sync';
-import { stringify } from 'csv-stringify/sync';
 import { ServiceCsvRow, CsvImportResult } from '@/lib/types/csv-types';
 import { serviceSchema, ServiceFormData } from '@/schemas/service';
 import { processServiceCsv } from '@/lib/services/csv-processor';
@@ -34,18 +33,20 @@ export async function importServices(csvContent: string): Promise<CsvImportResul
       },
       select: { name: true }
     });
-    const existingNamesSet = new Set(existingServiceNames.map(s => s.name));
 
+    const existingNamesSet = new Set(existingServiceNames.map(s => s.name));
     const rowsToCreate = processingResult.validRows.filter(row => !existingNamesSet.has(row.name));
     const duplicateRows = processingResult.validRows.filter(row => existingNamesSet.has(row.name));
 
+    // ✅ ISPRAVLJENA GREŠKA: Dodajem `data` property za nevalidne redove
     duplicateRows.forEach(row => {
       const originalRecords = parse(csvContent, { columns: true, skip_empty_lines: true, trim: true });
       const rowIndex = originalRecords.findIndex((rec: any) => rec.name === row.name);
       const originalRow = rowIndex !== -1 ? originalRecords[rowIndex] : {};
-
+      
       processingResult.invalidRows.push({
-        originalRow: originalRow,           // ← ispravljeno: originalRow umesto data
+        data: row, // ✅ DODATO: Required property
+        originalRow: originalRow,
         errors: ["Service with this name already exists."],
         isValid: false,
         rowIndex: rowIndex !== -1 ? rowIndex + 1 : -1,
@@ -69,7 +70,6 @@ export async function importServices(csvContent: string): Promise<CsvImportResul
       error: processingResult.invalidRows.length > 0 || processingResult.importErrors.length > 0 ? "Import completed with errors or skipped duplicates." : null,
       createdCount,
     };
-
   } catch (error) {
     console.error("Error during database insert in service import action:", error);
     processingResult.importErrors.push(`Database error during import: ${error instanceof Error ? error.message : String(error)}`);

@@ -1,6 +1,7 @@
 ///components/contracts/charts/ExpiryTimelineChart.tsx
 "use client";
 
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContractType } from "@prisma/client";
 import {
@@ -38,18 +39,71 @@ interface ExpiryData {
 }
 
 interface ExpiryTimelineChartProps {
-  data: ExpiryData[];
+  data: any[]; // Accept raw contract data
   title?: string;
   showLegend?: boolean;
   height?: number;
 }
 
 export function ExpiryTimelineChart({ 
-  data = [],
+  data: rawData = [],
   title = "Vremenski tok isteka ugovora",
   showLegend = true,
   height = 350
 }: ExpiryTimelineChartProps) {
+  
+  // Transform contract data into ExpiryData format
+  const data: ExpiryData[] = React.useMemo(() => {
+    if (!rawData || rawData.length === 0) return [];
+    
+    // Group contracts by month
+    const monthMap = new Map<string, ExpiryData>();
+    
+    rawData.forEach((contract: any) => {
+      const endDate = new Date(contract.endDate);
+      const monthKey = format(endDate, 'MMM yyyy');
+      
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          month: monthKey,
+          date: endDate,
+          provider: 0,
+          humanitarian: 0,
+          parking: 0,
+          total: 0,
+          contracts: []
+        });
+      }
+      
+      const monthData = monthMap.get(monthKey)!;
+      
+      // Increment count based on contract type
+      if (contract.type === 'PROVIDER') {
+        monthData.provider++;
+      } else if (contract.type === 'HUMANITARIAN') {
+        monthData.humanitarian++;
+      } else if (contract.type === 'PARKING') {
+        monthData.parking++;
+      }
+      
+      monthData.total++;
+      monthData.contracts.push({
+        id: contract.id,
+        contractNumber: contract.contractNumber,
+        organizationName: contract.provider?.name || contract.humanitarianOrg?.name || contract.parkingService?.name || 'N/A',
+        type: contract.type,
+        endDate: endDate,
+        status: contract.status,
+        value: 0,
+        hasRenewal: false
+      });
+    });
+    
+    // Convert map to array and sort by date
+    return Array.from(monthMap.values()).sort((a, b) => 
+      a.date.getTime() - b.date.getTime()
+    );
+  }, [rawData]);
   
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
@@ -229,7 +283,7 @@ export function ExpiryTimelineChart({
                 name={getContractTypeLabel("parking")}
                 stackId="contracts" 
                 fill={getContractTypeColor("parking")}
-                radius={[2, 2, 0, 0]} // Only top bars get rounded corners
+                radius={[2, 2, 0, 0]}
               />
             </BarChart>
           </ResponsiveContainer>

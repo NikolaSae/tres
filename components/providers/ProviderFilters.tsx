@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface FilterState {
+export interface FilterState {
   search?: string;
   sortBy?: 'name' | 'email' | 'phone';
   sortOrder?: 'asc' | 'desc';
@@ -34,7 +34,6 @@ export function ProviderFilters({
   const [sortBy, setSortBy] = useState<'name' | 'email' | 'phone'>(initialFilters.sortBy || 'name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialFilters.sortOrder || 'asc');
 
-  // ✅ Debounce search input
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       onFilterChange({ search, sortBy, sortOrder });
@@ -62,7 +61,6 @@ export function ProviderFilters({
   return (
     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Search Input */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -84,8 +82,7 @@ export function ProviderFilters({
           )}
         </div>
 
-        {/* Sort By */}
-        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)} disabled={loading}>
+        <Select value={sortBy} onValueChange={(value: 'name' | 'email' | 'phone') => setSortBy(value)} disabled={loading}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Sort by..." />
           </SelectTrigger>
@@ -96,7 +93,6 @@ export function ProviderFilters({
           </SelectContent>
         </Select>
 
-        {/* Sort Order Toggle */}
         <Button
           variant="outline"
           size="icon"
@@ -107,7 +103,6 @@ export function ProviderFilters({
           <ArrowUpDown className={`h-4 w-4 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
         </Button>
 
-        {/* Reset Filters */}
         {hasActiveFilters && (
           <Button
             variant="ghost"

@@ -1,5 +1,4 @@
-//components/reports/ExcelGenerator.tsx
-
+// components/reports/ExcelGenerator.tsx - ISPRAVLJEN
 "use client";
 
 import { useState } from "react";
@@ -235,8 +234,9 @@ export function ExcelGenerator({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="start-date">Start Date</Label>
+                {/* ✅ ISPRAVLJENA GREŠKA: Uklonjen 'id' prop */}
                 <DatePicker
-                  id="start-date"
+                  name="start-date"
                   date={startDate}
                   setDate={setStartDate}
                   placeholder="Select start date"
@@ -245,12 +245,12 @@ export function ExcelGenerator({
 
               <div className="space-y-2">
                 <Label htmlFor="end-date">End Date</Label>
+                {/* ✅ ISPRAVLJENA GREŠKA: Uklonjen 'id' i 'fromDate' prop */}
                 <DatePicker
-                  id="end-date"
+                  name="end-date"
                   date={endDate}
                   setDate={setEndDate}
                   placeholder="Select end date"
-                  fromDate={startDate}
                 />
               </div>
             </div>

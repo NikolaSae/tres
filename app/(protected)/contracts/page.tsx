@@ -1,4 +1,4 @@
-// app/(protected)/contracts/page.tsx
+// app/(protected)/contracts/page.tsx - KONAČNO ISPRAVLJEN
 import ContractsSection from "@/components/contracts/ContractsSection";
 import { db } from "@/lib/db";
 import { ContractStatus, ContractType as PrismaContractType } from "@prisma/client";
@@ -8,9 +8,8 @@ interface PageProps {
 }
 
 export default async function ContractsPage({ searchParams }: PageProps) {
-  // Await searchParams - required in Next.js 15
   const params = await searchParams;
-
+  
   const safeParams = {
     page: params.page || "1",
     limit: params.limit || "25",
@@ -24,6 +23,7 @@ export default async function ContractsPage({ searchParams }: PageProps) {
   const limitNumber = parseInt(safeParams.limit);
 
   const where: any = {};
+
   if (safeParams.search) {
     where.OR = [
       { name: { contains: safeParams.search, mode: "insensitive" } },
@@ -48,19 +48,40 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     ];
   }
 
-  const [rawContracts, totalCount] = await Promise.all([
+  const [contracts, totalCount] = await Promise.all([
     db.contract.findMany({
       where,
       include: {
-        provider: { select: { id: true, name: true } },
-        humanitarianOrg: { select: { id: true, name: true } },
-        parkingService: { select: { id: true, name: true } },
+        provider: { 
+          select: { 
+            id: true, 
+            name: true 
+          } 
+        },
+        humanitarianOrg: { 
+          select: { 
+            id: true, 
+            name: true 
+          } 
+        },
+        parkingService: { 
+          select: { 
+            id: true, 
+            name: true 
+          } 
+        },
         services: {
           include: {
             service: true,
           },
         },
-        _count: { select: { services: true, attachments: true, reminders: true } },
+        _count: { 
+          select: { 
+            services: true, 
+            attachments: true, 
+            reminders: true 
+          } 
+        },
       },
       skip: (pageNumber - 1) * limitNumber,
       take: limitNumber,
@@ -69,18 +90,20 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     db.contract.count({ where }),
   ]);
 
-  // Transform the data to match the expected Contract type
-  const contracts = rawContracts.map(contract => ({
+  // Transform contracts - specificTerms može biti null
+  const transformedContracts = contracts.map(contract => ({
     ...contract,
-    services: contract.services.map(cs => cs.service),
-    provider: contract.provider ? { name: contract.provider.name } : undefined,
-    humanitarianOrg: contract.humanitarianOrg ? { name: contract.humanitarianOrg.name } : undefined,
-    parkingService: contract.parkingService ? { name: contract.parkingService.name } : undefined,
+    services: contract.services.map(sc => ({
+      ...sc.service,
+      serviceContractId: sc.id,
+      contractId: sc.contractId,
+      specificTerms: sc.specificTerms ?? undefined, // ✅ Convert null to undefined
+    }))
   }));
 
   return (
     <ContractsSection
-      initialContracts={contracts}
+      initialContracts={transformedContracts}
       initialTotalCount={totalCount}
       initialTotalPages={Math.ceil(totalCount / limitNumber)}
       initialCurrentPage={pageNumber}

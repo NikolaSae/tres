@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, Clock, FileText, RefreshCw, Edit, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, FileText, RefreshCw, Edit, Loader2, XCircle } from 'lucide-react';
 import { useContracts } from '@/hooks/use-contracts';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -32,19 +32,47 @@ interface ContractStatusManagerProps {
   onStatusUpdated?: () => void;
 }
 
+// ✅ FIXED: Dodato PENDING u statusConfig
 const statusConfig = {
-  DRAFT: { label: 'Nacrt', color: 'bg-gray-100 text-gray-800', icon: FileText },
-  ACTIVE: { label: 'Aktivan', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  EXPIRED: { label: 'Istekao', color: 'bg-red-100 text-red-800', icon: AlertCircle },
-  TERMINATED: { label: 'Raskinut', color: 'bg-red-100 text-red-800', icon: AlertCircle },
-  RENEWAL_IN_PROGRESS: { label: 'Obnova u toku', color: 'bg-blue-100 text-blue-800', icon: RefreshCw }
+  DRAFT: { 
+    label: 'Nacrt', 
+    color: 'bg-gray-100 text-gray-800', 
+    icon: FileText 
+  },
+  PENDING: { 
+    label: 'Na čekanju', 
+    color: 'bg-yellow-100 text-yellow-800', 
+    icon: Clock 
+  },
+  ACTIVE: { 
+    label: 'Aktivan', 
+    color: 'bg-green-100 text-green-800', 
+    icon: CheckCircle 
+  },
+  EXPIRED: { 
+    label: 'Istekao', 
+    color: 'bg-red-100 text-red-800', 
+    icon: AlertCircle 
+  },
+  TERMINATED: { 
+    label: 'Raskinut', 
+    color: 'bg-red-100 text-red-800', 
+    icon: XCircle 
+  },
+  RENEWAL_IN_PROGRESS: { 
+    label: 'Obnova u toku', 
+    color: 'bg-blue-100 text-blue-800', 
+    icon: RefreshCw 
+  }
 };
 
+// ✅ FIXED: Dodato PENDING u statusTransitions
 const statusTransitions: Record<ContractStatus, ContractStatus[]> = {
-  DRAFT: ['ACTIVE'],
+  DRAFT: ['PENDING', 'ACTIVE'], // Draft može ići u Pending ili direktno Active
+  PENDING: ['ACTIVE', 'TERMINATED'], // Pending može biti odobren ili odbijen
   ACTIVE: ['EXPIRED', 'TERMINATED', 'RENEWAL_IN_PROGRESS'],
   EXPIRED: ['RENEWAL_IN_PROGRESS', 'TERMINATED'],
-  TERMINATED: [],
+  TERMINATED: [], // Terminated je finalno stanje
   RENEWAL_IN_PROGRESS: ['ACTIVE', 'TERMINATED', 'EXPIRED']
 };
 
@@ -61,6 +89,8 @@ export const ContractStatusManager: React.FC<ContractStatusManagerProps> = ({
   const router = useRouter();
 
   const availableStatuses = statusTransitions[contract.status] || [];
+  
+  // ✅ FIXED: TypeScript sada zna da contract.status može biti PENDING
   const currentStatusConfig = statusConfig[contract.status];
   const CurrentStatusIcon = currentStatusConfig.icon;
 
@@ -109,6 +139,15 @@ export const ContractStatusManager: React.FC<ContractStatusManagerProps> = ({
   const getStatusChangeMessage = (newStatus: ContractStatus) => {
     if (newStatus === 'RENEWAL_IN_PROGRESS' && contract.type === 'HUMANITARIAN') {
       return 'Postavljanjem ovog statusa će se automatski kreirati proces obnove ugovora u sistemu za praćenje obnova humanitarnih ugovora.';
+    }
+    if (newStatus === 'PENDING') {
+      return 'Ugovor će biti postavljen na čekanje odobrenja. Nakon odobrenja može biti aktiviran.';
+    }
+    if (newStatus === 'ACTIVE' && contract.status === 'PENDING') {
+      return 'Ugovor će biti odobren i aktiviran u sistemu.';
+    }
+    if (newStatus === 'TERMINATED') {
+      return 'Ugovor će biti trajno raskinut. Ova akcija je nepovratna.';
     }
     return '';
   };

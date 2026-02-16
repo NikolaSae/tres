@@ -1,13 +1,12 @@
-//components/parking-services/ParkingServiceForm.tsx
-//components/parking-services/ParkingServiceForm.tsx
-
+// components/parking-services/ParkingServiceForm.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FieldValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createParkingServiceSchema } from "@/schemas/parking-service";
+import { parkingServiceSchema } from "@/schemas/parking-service";
+import type { ParkingServiceFormData } from "@/lib/types/parking-service-types";
 import {
   Form,
   FormControl,
@@ -22,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { ParkingServiceFormData } from "@/lib/types/parking-service-types";
 import { create } from "@/actions/parking-services/create";
 import { update } from "@/actions/parking-services/update";
 
@@ -39,7 +37,7 @@ export default function ParkingServiceForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ParkingServiceFormData>({
-    resolver: zodResolver(createParkingServiceSchema),
+    resolver: zodResolver(parkingServiceSchema),
     defaultValues: initialData || {
       name: "",
       contactName: "",
@@ -52,25 +50,23 @@ export default function ParkingServiceForm({
     },
   });
 
-  // Use field array for managing additional emails
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "additionalEmails",
+    name: "additionalEmails" as never,
   });
 
   const onSubmit = async (data: ParkingServiceFormData) => {
     try {
       setIsSubmitting(true);
 
-      // Filter out empty email addresses
       const cleanedData = {
         ...data,
-        additionalEmails: data.additionalEmails?.filter(email => email.trim() !== "") || []
+        additionalEmails: data.additionalEmails.filter(email => email.trim() !== "")
       };
 
       let result;
       if (isEditing && initialData?.id) {
-        result = await update({ id: initialData.id, ...cleanedData });
+        result = await update({ ...cleanedData, id: initialData.id });
       } else {
         result = await create(cleanedData);
       }
@@ -95,14 +91,6 @@ export default function ParkingServiceForm({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const addEmailField = () => {
-    append("");
-  };
-
-  const removeEmailField = (index: number) => {
-    remove(index);
   };
 
   return (
@@ -130,7 +118,7 @@ export default function ParkingServiceForm({
               <FormItem>
                 <FormLabel>Contact Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter contact person's name" {...field} />
+                  <Input placeholder="Enter contact person's name" {...field} value={field.value || ""} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -211,7 +199,6 @@ export default function ParkingServiceForm({
             )}
           />
 
-          {/* Additional Emails Section */}
           <div className="col-span-1 md:col-span-2">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -220,7 +207,7 @@ export default function ParkingServiceForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={addEmailField}
+                  onClick={() => append("")}
                   className="flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
@@ -238,7 +225,7 @@ export default function ParkingServiceForm({
                 <div key={field.id} className="flex items-center gap-2">
                   <FormField
                     control={form.control}
-                    name={`additionalEmails.${index}`}
+                    name={`additionalEmails.${index}` as never}
                     render={({ field }) => (
                       <FormItem className="flex-1">
                         <FormControl>
@@ -256,7 +243,7 @@ export default function ParkingServiceForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => removeEmailField(index)}
+                    onClick={() => remove(index)}
                     className="px-2"
                   >
                     <X className="h-4 w-4" />

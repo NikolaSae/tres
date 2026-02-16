@@ -1,19 +1,16 @@
-// lib/types/csv-types.ts
-
+// lib/types/csv-types.ts - ISPRAVLJEN
 export interface ServiceCsvRow {
   name: string;
-  // ostala polja koja imaš u CSV-u, npr:
   description?: string;
   type?: string;
-  // ...
 }
 
 export interface CsvRowValidationResult<T> {
   rowIndex: number;
   errors: string[];
   originalRow: Record<string, any>;
-  isValid: boolean;           // ← DODATO OVO POLJE
-  data?: T;                   // opciono, ako želiš validirani objekat posle validacije
+  isValid: boolean;
+  data: T;  // ✅ Required, ne optional
 }
 
 export interface CsvImportResult<T> {
@@ -22,5 +19,5 @@ export interface CsvImportResult<T> {
   invalidRows: CsvRowValidationResult<T>[];
   importErrors: string[];
   error?: string | null;
-  createdCount?: number;      // opciono, ako koristiš createMany
+  createdCount?: number;
 }

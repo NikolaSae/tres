@@ -1,13 +1,12 @@
+// components/ui/calendar.tsx - ISPRAVLJEN ZA react-day-picker v9
 "use client"
-
 import * as React from "react"
-import { DayPicker } from "react-day-picker"
-
+import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons"
+import { DayPicker, DayPickerProps } from "react-day-picker"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons"
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = DayPickerProps
 
 function Calendar({
   className,
@@ -59,18 +58,16 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
+      // ✅ ISPRAVLJENA GREŠKA: U react-day-picker v9, koristimo chevronLeft/chevronRight umesto IconLeft/IconRight
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeftIcon className={cn("h-4 w-4", className)} {...props} />
-        ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRightIcon className={cn("h-4 w-4", className)} {...props} />
-        ),
+        Chevron: ({ orientation, ...props }) => {
+          const Icon = orientation === "left" ? ChevronLeftIcon : ChevronRightIcon;
+          return <Icon className="h-4 w-4" />;
+        },
       }}
       {...props}
     />
   )
 }
 Calendar.displayName = "Calendar"
-
 export { Calendar }

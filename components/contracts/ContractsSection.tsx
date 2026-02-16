@@ -1,3 +1,4 @@
+//Path/components/contracts//ContractsSection.tsx
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
@@ -142,6 +143,15 @@ export default function ContractsSection({
     return pages;
   }, [currentPage, totalPages]);
 
+  // Get current server time
+  const serverTime = new Date().toISOString();
+
+  // ✅ FIXED: Handler koji prima filtered contracts i ažurira state
+  // Type assertion nije potreban ako Contract type ima ispravan provider field
+  const handleFilterChange = useCallback((filtered: Contract[]) => {
+    setContracts(filtered);
+  }, []);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -157,9 +167,10 @@ export default function ContractsSection({
           </div>
         </CardHeader>
         <CardContent>
+          {/* ✅ FIXED: Koristi callback funkciju umesto inline lambda */}
           <ContractFilters
             contracts={contracts}
-            onFilterChange={(filtered) => setContracts(filtered)}
+            onFilterChange={handleFilterChange}
           />
 
           {loading ? (
@@ -167,7 +178,7 @@ export default function ContractsSection({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
           ) : (
-            <ContractsList contracts={contracts} />
+            <ContractsList contracts={contracts} serverTime={serverTime} />
           )}
 
           {totalPages > 1 && (

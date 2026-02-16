@@ -285,43 +285,43 @@ export class PostpaidExcelProcessor {
   }
 
   async processVasServiceSheet(
-    worksheet: any, 
-    sheetName: string, 
-    parkingServiceId: string,
-    filename: string,
-    defaultServiceId: string = '',
-    defaultProviderId: string = ''
-  ): Promise<ProcessedVasServiceSheet> {
-    const warnings: string[] = [];
-    const records: VasServiceRecord[] = [];
-    const monthlyTotals: any[] = [];
+  worksheet: any, 
+  sheetName: string, 
+  parkingServiceId: string,
+  filename: string,
+  defaultServiceId: string = '',
+  defaultProviderId: string = ''
+): Promise<ProcessedVasServiceSheet> {
+  const warnings: string[] = [];
+  const records: VasServiceRecord[] = [];
+  const monthlyTotals: any[] = [];
 
-    try {
-      // Read all rows
-      const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1,
-        defval: null,
-        blankrows: false,
-        skipHidden: true
-      }).filter(row => row.some(cell => cell !== null));
+  try {
+    // ✅ ISPRAVLJENA GREŠKA: Dodao eksplicitan tip za rows
+    const rows: any[][] = (XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      defval: null,
+      blankrows: false,
+      skipHidden: true
+    }) as any[][]).filter((row: any[]) => row.some((cell: any) => cell !== null));
 
-      if (!rows.length) {
-        warnings.push(`Sheet ${sheetName} is empty`);
-        return { name: sheetName, records: [], warnings: [], monthlyTotals: [] };
-      }
+    if (!rows.length) {
+      warnings.push(`Sheet ${sheetName} is empty`);
+      return { name: sheetName, records: [], warnings: [], monthlyTotals: [] };
+    }
 
-      this.log(`Processing ${rows.length} rows in sheet ${sheetName}`, 'info');
+    this.log(`Processing ${rows.length} rows in sheet ${sheetName}`, 'info');
 
-      // Find header row and extract contract info
-      const headerRowIndex = this.findHeaderRow(rows);
-      let currentMonth = '';
+    // Find header row and extract contract info
+    const headerRowIndex = this.findHeaderRow(rows);
+    let currentMonth = '';
 
-      // Process each row
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i].map((x: any) => (x !== null ? String(x).trim() : ''));
-        
-        if (this.isServiceDataRow(row)) {
-          try {
+    // Process each row
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i].map((x: any) => (x !== null ? String(x).trim() : ''));
+      
+      if (this.isServiceDataRow(row)) {
+        try {
             // Mapiranje na VasService model strukture
             const record: VasServiceRecord = {
               proizvod: row[this.VAS_SERVICE_COLUMNS.SERVICE] || '',

@@ -1,4 +1,4 @@
-// components/reports/HumanitarianFileUploader.tsx
+// components/reports/HumanitarianFileUploader.tsx - ISPRAVLJEN
 "use client";
 
 import { useState, useCallback } from "react";
@@ -21,7 +21,8 @@ import { useDropzone } from "react-dropzone";
 
 interface ParsedFileInfo {
   file: File;
-  reportCategory: "humanitarian" | "provider" | "parking" | "unknown";
+  // ✅ ISPRAVLJENA GREŠKA: Uklonjen "unknown" tip
+  reportCategory: "humanitarian" | "provider" | "parking";
 
   // Humanitarian specific
   kratkiBroj?: string;
@@ -67,7 +68,8 @@ export function HumanitarianFileUploader() {
       let startDate = "";
       let endDate = "";
       let isMonthlyReport = false;
-      let reportCategory: ParsedFileInfo["reportCategory"] = "unknown";
+      // ✅ ISPRAVLJENA GREŠKA: Default je "humanitarian", nikada "unknown"
+      let reportCategory: ParsedFileInfo["reportCategory"] = "humanitarian";
 
       const lower = fileName.toLowerCase();
       if (lower.includes("human")) reportCategory = "humanitarian";
@@ -151,7 +153,8 @@ export function HumanitarianFileUploader() {
     } catch (err) {
       return {
         file,
-        reportCategory: "unknown",
+        // ✅ ISPRAVLJENA GREŠKA: Default je "humanitarian"
+        reportCategory: "humanitarian",
         startDate: "",
         endDate: "",
         fileName,

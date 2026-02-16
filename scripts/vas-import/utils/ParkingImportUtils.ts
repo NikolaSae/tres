@@ -98,21 +98,23 @@ export async function importRecordsToDatabase(
       });
 
       if (existing) {
+        // ✅ ISPRAVLJENA GREŠKA: Koristimo UncheckedUpdateInput (direktan serviceId)
         await prisma.parkingTransaction.update({
           where: { id: existing.id },
           data: {
             price: record.price,
             quantity: record.quantity,
             amount: record.amount,
-            service: { connect: { id: record.serviceId } }
+            serviceId: record.serviceId // ✅ Direktan ID umesto connect
           }
         });
         updated++;
       } else {
+        // ✅ ISPRAVLJENA GREŠKA: Koristimo UncheckedCreateInput (direktan serviceId)
         await prisma.parkingTransaction.create({
           data: {
             parkingServiceId: record.parkingServiceId,
-            service: { connect: { id: record.serviceId } },
+            serviceId: record.serviceId, // ✅ Direktan ID umesto connect
             date: record.date,
             group: record.group,
             serviceName: record.serviceName,

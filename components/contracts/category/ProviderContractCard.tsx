@@ -1,6 +1,4 @@
 ///components/contracts/category/ProviderContractCard.tsx
-
-
 "use client";
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,7 +106,7 @@ export function ProviderContractCard({
           </div>
           
           {isExpiringSoon && !isExpired && (
-            <ExpiryWarning daysRemaining={daysUntilExpiration} />
+            <ExpiryWarning daysRemaining={daysUntilExpiration} contractId={id} />
           )}
         </div>
       </CardContent>

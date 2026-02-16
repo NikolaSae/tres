@@ -1,4 +1,4 @@
-// /lib/types/contract-types.ts
+// lib/types/contract-types.ts - ISPRAVLJEN
 import { ContractStatus, ContractType, ContractRenewalSubStatus, Service } from '@prisma/client';
 import { z } from 'zod';
 import { contractSchema } from '@/schemas/contract';
@@ -13,6 +13,7 @@ export interface SelectedService {
   specificTerms?: string;
 }
 
+// ✅ FIXED: specificTerms može biti string | null | undefined
 export interface Contract {
   id: string;
   name: string;
@@ -26,11 +27,24 @@ export interface Contract {
   providerId: string | null;
   humanitarianOrgId: string | null;
   parkingServiceId: string | null;
-  services?: (Service & { specificTerms?: string })[];
+  services?: (Service & { specificTerms?: string | null })[];  // ✅ Dodato | null
   renewals?: ContractRenewal[];
-  provider?: { name: string };
-  humanitarianOrg?: { name: string };
-  parkingService?: { name: string };
+  
+  provider?: {
+    id: string;
+    name: string;
+  } | null;
+  
+  humanitarianOrg?: {
+    id: string;
+    name: string;
+  } | null;
+  
+  parkingService?: {
+    id: string;
+    name: string;
+  } | null;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,7 +88,7 @@ export interface ContractRenewalAttachment {
 }
 
 export interface ServiceWithTerms extends Service {
-  specificTerms?: string;
+  specificTerms?: string | null;  // ✅ Dodato | null
 }
 
 export interface FilterOptions {

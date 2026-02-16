@@ -1,4 +1,4 @@
-//components/parking-services/ParkingServiceFilters.tsx
+// components/parking-services/ParkingServiceFilters.tsx - ISPRAVLJEN
 "use client";
 
 import { useState, useEffect } from "react";
@@ -52,7 +52,6 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
   const [isFiltersActive, setIsFiltersActive] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Create URLSearchParams object from current URL
   const params = new URLSearchParams(searchParams.toString());
   
   const form = useForm<FilterFormValues>({
@@ -71,7 +70,6 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
     },
   });
 
-  // Update form when URL parameters change
   useEffect(() => {
     const newParams = new URLSearchParams(searchParams.toString());
     const searchTerm = newParams.get("searchTerm") || "";
@@ -100,13 +98,11 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
       hasContracts: hasContractsValue,
     });
 
-    // Auto-show advanced filters if any advanced filter is set
     if (serviceNumber || hasContractsValue !== "all") {
       setShowAdvanced(true);
     }
   }, [searchParams, form]);
 
-  // Check if any filters are active
   useEffect(() => {
     const searchTerm = form.watch("searchTerm");
     const isActive = form.watch("isActive");
@@ -114,9 +110,9 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
     const hasContracts = form.watch("hasContracts");
     
     setIsFiltersActive(
-      (searchTerm && searchTerm.length > 0) || 
+      Boolean(searchTerm && searchTerm.length > 0) || 
       isActive !== "all" ||
-      (serviceNumber && serviceNumber.length > 0) ||
+      Boolean(serviceNumber && serviceNumber.length > 0) ||
       hasContracts !== "all"
     );
   }, [form.watch("searchTerm"), form.watch("isActive"), form.watch("serviceNumber"), form.watch("hasContracts")]);
@@ -140,10 +136,8 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
       newParams.set("hasContracts", data.hasContracts);
     }
     
-    // Reset to page 1 when filtering
     newParams.set("page", "1");
     
-    // Preserve pageSize parameter
     const pageSize = searchParams.get("pageSize");
     if (pageSize) {
       newParams.set("pageSize", pageSize);
@@ -154,13 +148,9 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
   };
 
   const resetFilters = () => {
-    // Create new params without filter values
     const newParams = new URLSearchParams();
-    
-    // Reset to page 1
     newParams.set("page", "1");
     
-    // Preserve pageSize parameter
     const pageSize = searchParams.get("pageSize");
     if (pageSize) {
       newParams.set("pageSize", pageSize);
@@ -168,16 +158,13 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
     
     const queryString = newParams.toString();
     router.push(`/parking-services${queryString ? `?${queryString}` : ""}`);
-    
-    // Hide advanced filters after reset
     setShowAdvanced(false);
   };
 
-  // Count active filters
   const activeFilterCount = [
-    form.watch("searchTerm") && form.watch("searchTerm").length > 0,
+    Boolean(form.watch("searchTerm") && (form.watch("searchTerm") || "").length > 0),
     form.watch("isActive") !== "all",
-    form.watch("serviceNumber") && form.watch("serviceNumber").length > 0,
+    Boolean(form.watch("serviceNumber") && (form.watch("serviceNumber") || "").length > 0),
     form.watch("hasContracts") !== "all",
   ].filter(Boolean).length;
 
@@ -186,7 +173,6 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
       <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Basic Filters Row */}
             <div className="flex flex-col gap-4 md:flex-row md:items-end">
               <FormField
                 control={form.control}
@@ -267,7 +253,6 @@ export default function ParkingServiceFilters({ initialFilters }: ParkingService
               </div>
             </div>
 
-            {/* Advanced Filters Row */}
             {showAdvanced && (
               <div className="pt-4 border-t flex flex-col gap-4 md:flex-row md:items-end">
                 <FormField

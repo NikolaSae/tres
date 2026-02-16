@@ -1,5 +1,4 @@
 // hooks/use-providers-by-service.ts
-
 import { useState, useEffect } from 'react';
 import { getProvidersByService } from '@/actions/providers/get-by-service';
 import { Provider } from '@/lib/types/interfaces';
@@ -25,8 +24,8 @@ export function useProvidersByService(serviceId?: string): UseProvidersByService
     try {
       setIsLoading(true);
       setError(null);
-      const data = await getProvidersByService({ serviceId });
-      setProviders(data);
+      const data = await getProvidersByService(serviceId);
+      setProviders(data as Provider[]);
     } catch (err) {
       console.error('Error fetching providers for service:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch providers'));

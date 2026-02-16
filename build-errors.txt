@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 290ms
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 287ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
 
 ⚠ Invalid next.config.mjs options detected: 
 ⚠     Unrecognized key(s) in object: 'turbo' at "experimental"
@@ -117,18 +117,18 @@ Import traces:
     ./actions/reports/generate-all-humanitarian-reports.ts
 
 
-✓ Compiled successfully in 23.7s
+✓ Compiled successfully in 22.8s
   Running TypeScript ...
 Failed to compile.
 
-./components/contracts/AttachmentUpload.tsx:53:11
-Type error: Object literal may only specify known properties, and 'title' does not exist in type 'ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<...> | (() => ReactNode)'.
+./components/parking-services/ParkingServiceForm.tsx:55:5
+Type error: Type 'string' is not assignable to type 'never'.
 
-[0m [90m 51 |[39m       [36mif[39m (result[33m.[39msuccess) {
- [90m 52 |[39m         toast({
-[31m[1m>[22m[39m[90m 53 |[39m           title[33m:[39m [32m"Attachment uploaded"[39m[33m,[39m
- [90m    |[39m           [31m[1m^[22m[39m
- [90m 54 |[39m           description[33m:[39m [32m"Your file has been uploaded successfully"[39m[33m,[39m
- [90m 55 |[39m         })[33m;[39m
- [90m 56 |[39m         [0m
+[0m [90m 53 |[39m   [36mconst[39m { fields[33m,[39m append[33m,[39m remove } [33m=[39m useFieldArray({
+ [90m 54 |[39m     control[33m:[39m form[33m.[39mcontrol[33m,[39m
+[31m[1m>[22m[39m[90m 55 |[39m     name[33m:[39m [32m"additionalEmails"[39m[33m,[39m
+ [90m    |[39m     [31m[1m^[22m[39m
+ [90m 56 |[39m   })[33m;[39m
+ [90m 57 |[39m
+ [90m 58 |[39m   [36mconst[39m onSubmit [33m=[39m [36masync[39m (data[33m:[39m [33mParkingServiceFormData[39m) [33m=>[39m {[0m
 Next.js build worker exited with code: 1 and signal: null

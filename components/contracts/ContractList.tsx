@@ -1,4 +1,4 @@
-// Path: /components/contracts/ContractsList.tsx
+// Path: /components/contracts/ContractList.tsx
 "use client";
 
 import { memo, useMemo } from "react";
@@ -31,7 +31,7 @@ import Link from "next/link";
 
 interface ContractListProps {
   contracts: Contract[];
-  serverTime: string;
+  serverTime?: string;
 }
 
 // Status badge component
@@ -97,8 +97,8 @@ const StatusBadge = memo(({ status }: { status: ContractStatus }) => {
 StatusBadge.displayName = "StatusBadge";
 
 // Check if contract is expiring soon (within 30 days)
-const isExpiringSoon = (endDate: Date, serverTime: string): boolean => {
-  const now = new Date(serverTime);
+const isExpiringSoon = (endDate: Date, serverTime?: string): boolean => {
+  const now = serverTime ? new Date(serverTime) : new Date();
   const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   return endDate <= thirtyDaysFromNow && endDate > now;
 };
@@ -106,7 +106,7 @@ const isExpiringSoon = (endDate: Date, serverTime: string): boolean => {
 // Memoized ContractRow component to prevent unnecessary re-renders
 const ContractRow = memo(({ contract, serverTime }: { 
   contract: Contract; 
-  serverTime: string 
+  serverTime?: string 
 }) => {
   const partnerName = useMemo(() => 
     contract.provider?.name || 
@@ -127,6 +127,12 @@ const ContractRow = memo(({ contract, serverTime }: {
       maximumFractionDigits: 0
     }).format(amount);
   };
+
+  // Get services count safely
+  const servicesCount = (contract as any)._count?.services || 0;
+  
+  // Get attachments count safely
+  const attachmentsCount = (contract as any)._count?.attachments || 0;
 
   return (
     <TableRow className="hover:bg-muted/50">
@@ -189,16 +195,8 @@ const ContractRow = memo(({ contract, serverTime }: {
 
       <TableCell>
         <div className="space-y-1">
-          {contract.totalValue && (
-            <div className="flex items-center text-sm">
-              <DollarSign className="h-3 w-3 mr-1 text-muted-foreground flex-shrink-0" />
-              <span className="font-medium">
-                {formatCurrency(contract.totalValue)}
-              </span>
-            </div>
-          )}
           <div className="text-xs text-muted-foreground">
-            {contract._count?.services || 0} services
+            {servicesCount} services
           </div>
         </div>
       </TableCell>
@@ -217,7 +215,7 @@ const ContractRow = memo(({ contract, serverTime }: {
               <span className="sr-only">Edit contract</span>
             </Link>
           </Button>
-          {contract._count?.attachments && contract._count.attachments > 0 && (
+          {attachmentsCount > 0 && (
             <Button variant="ghost" size="sm" asChild>
               <Link href={`/contracts/${contract.id}/documents`}>
                 <FileText className="h-4 w-4" />
@@ -263,7 +261,7 @@ export const ContractsList = memo(({ contracts, serverTime }: ContractListProps)
             <TableHead className="font-semibold">Type & Status</TableHead>
             <TableHead className="font-semibold">Duration</TableHead>
             <TableHead className="font-semibold">Partner</TableHead>
-            <TableHead className="font-semibold">Value & Services</TableHead>
+            <TableHead className="font-semibold">Services</TableHead>
             <TableHead className="font-semibold w-[120px]">Actions</TableHead>
           </TableRow>
         </TableHeader>

@@ -1,4 +1,4 @@
-// hooks/use-providers.ts
+// hooks/use-providers.ts - ISPRAVLJEN
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -29,7 +29,7 @@ export interface FilterOptions {
   isActive?: boolean;
   hasContracts?: boolean;
   hasComplaints?: boolean;
-  sortBy?: string;
+  sortBy?: 'name' | 'email' | 'phone';  // ✅ FIXED: Specificirani tipovi
   sortDirection?: "asc" | "desc";
 }
 
@@ -44,13 +44,11 @@ export function useProviders(
   const [pagination, setPagination] = useState<PaginationOptions>(initialPagination);
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   
-  // Track previous values to prevent unnecessary re-fetches
   const prevRequest = useRef<string>("");
 
   const fetchProviders = useCallback(async () => {
     const requestKey = JSON.stringify({ pagination, filters });
     
-    // Skip if same request was already made
     if (prevRequest.current === requestKey) {
       return;
     }
@@ -81,35 +79,32 @@ export function useProviders(
         params.append("sortDirection", filters.sortDirection || "asc");
       }
 
-      // ✅ FIX: Use parentheses instead of backticks
+      // ✅ FIXED: Normalne zagrade umesto backtick
       const response = await fetch(`/api/providers?${params.toString()}`, {
         credentials: 'include',
         cache: 'no-store'
       });
 
       if (!response.ok) {
-        // ✅ FIX: Use parentheses instead of backticks
+        // ✅ FIXED: Normalne zagrade umesto backtick
         throw new Error(`Error fetching providers: ${response.statusText}`);
       }
 
       const data = await response.json();
       
-      // ✅ DEBUG: Add console.log to see what API returns
       console.log('📦 API Response:', data);
-
-      setProviders(data.items || []); // ✅ Add fallback to empty array
+      setProviders(data.items || []);
       setTotal(data.total || 0);
     } catch (err) {
       console.error("Failed to fetch providers:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch providers");
-      setProviders([]); // ✅ Set to empty array on error
+      setProviders([]);
       setTotal(0);
     } finally {
       setLoading(false);
     }
   }, [pagination, filters]);
 
-  // Fetch only when pagination or filters change
   useEffect(() => {
     fetchProviders();
   }, [fetchProviders]);

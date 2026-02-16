@@ -186,7 +186,7 @@ export default function ParkingServiceDetails({
                 <div className="w-full">
                   <span className="font-medium">Additional Emails:</span>
                   <div className="space-y-1">
-                    {parkingService.additionalEmails.map((email, index) => (
+                    {parkingService.additionalEmails.map((email: string, index: number) => (
                       <div key={index} className="flex justify-between items-center">
                         <span className="text-sm">{email}</span>
                         <div className="flex gap-1">

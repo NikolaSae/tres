@@ -1,8 +1,5 @@
 //components/contracts/ContractForm.tsx
-
 "use client";
-
-
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -51,6 +48,11 @@ interface ContractFormProps {
   providers?: Array<{ id: string; name: string }>;
   parkingServices?: Array<{ id: string; name: string }>;
   operators?: Array<{ id: string; name: string }>;
+}
+
+// ✅ Type guard za proveru contractId u result objektu
+function hasContractId(result: any): result is { success: true; contractId: string; message?: string } {
+  return result && result.success === true && typeof result.contractId === 'string';
 }
 
 export function ContractForm({
@@ -153,11 +155,11 @@ export function ContractForm({
         }
       }
       
-      // Prepare payload with proper data types
+      // Prepare payload with proper data types (string dates for API)
       const payload = {
         ...data,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
+        startDate: new Date(data.startDate).toISOString(),
+        endDate: new Date(data.endDate).toISOString(),
         revenuePercentage: Number(data.revenuePercentage),
         operatorRevenue: isRevenueSharing ? Number(data.operatorRevenue) : 0,
         operatorId: isRevenueSharing ? data.operatorId : null,
@@ -185,12 +187,15 @@ export function ContractForm({
         // Reset form after successful creation
         if (!isEditing) form.reset();
         
-        // Navigate after successful operation
-        if (result.contract?.id) {
-          router.push(`/contracts/${result.contract.id}`);
+        // ✅ FIXED: Navigate after successful operation - proper type narrowing
+        if (hasContractId(result)) {
+          // TypeScript now knows result.contractId exists and is a string
+          router.push(`/contracts/${result.contractId}`);
         } else if (contract?.id) {
+          // Fallback to existing contract ID for updates
           router.push(`/contracts/${contract.id}`);
         } else {
+          // Fallback to list page
           router.push('/contracts');
         }
         router.refresh();
@@ -368,7 +373,8 @@ export function ContractForm({
                         min="0"
                         max="100"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                        value={field.value ?? ''}
                         disabled={isLoading}
                       />
                     </FormControl>
@@ -441,7 +447,8 @@ export function ContractForm({
                             min="0"
                             max="100"
                             {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                            value={field.value ?? ''}
                             disabled={isLoading}
                           />
                         </FormControl>

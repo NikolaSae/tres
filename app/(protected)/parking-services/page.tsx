@@ -1,4 +1,4 @@
-//app/(protected)/parking-services/page.tsx
+// app/(protected)/parking-services/page.tsx - ISPRAVLJEN
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { getParkingServices } from "@/actions/parking-services/getParkingServices";
@@ -6,29 +6,18 @@ import ParkingServiceList from "@/components/parking-services/ParkingServiceList
 import ParkingServiceFilters from "@/components/parking-services/ParkingServiceFilters";
 import ParkingReportSender from "@/components/parking-services/ParkingReportSender";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { GetParkingServicesParams } from "@/lib/types/parking-service-types";
 
 export const metadata: Metadata = {
   title: "Parking Services | Contract Management System",
   description: "Manage parking services in the contract management system",
 };
 
-interface ParkingServiceFilters {
-  searchTerm?: string;
-  isActive?: boolean | undefined;
-  serviceNumber?: string;
-  hasContracts?: boolean | undefined;
-  page: number;
-  pageSize: number;
-  sortBy?: string;
-  sortDirection?: "asc" | "desc";
-}
-
-async function ParkingServiceListFetcher({ filters }: { filters: ParkingServiceFilters }) {
+async function ParkingServiceListFetcher({ filters }: { filters: GetParkingServicesParams }) {
   const result = await getParkingServices(filters);
 
   if (!result.success || !result.data) {
@@ -56,20 +45,19 @@ export default async function ParkingServicesPage({
 }) {
   const awaitedSearchParams = await searchParams;
 
-  const filters: ParkingServiceFilters = {
+  const filters: GetParkingServicesParams = {
     searchTerm: awaitedSearchParams.searchTerm as string | undefined,
     isActive: awaitedSearchParams.isActive === "true" ? true : awaitedSearchParams.isActive === "false" ? false : undefined,
     page: awaitedSearchParams.page ? parseInt(awaitedSearchParams.page as string) : 1,
     pageSize: awaitedSearchParams.pageSize ? parseInt(awaitedSearchParams.pageSize as string) : 10,
-    sortBy: awaitedSearchParams.sortBy as string | undefined,
+    sortBy: awaitedSearchParams.sortBy as "name" | "createdAt" | "updatedAt" | "lastImportDate" | undefined,
     sortDirection: awaitedSearchParams.sortDirection as "asc" | "desc" | undefined,
   };
 
-  // Fetch all active parking services for report sender
   const allServicesResult = await getParkingServices({
     isActive: true,
     page: 1,
-    pageSize: 1000 // Get all active services
+    pageSize: 1000
   });
 
   const allActiveServices = allServicesResult.success && allServicesResult.data 
@@ -78,7 +66,6 @@ export default async function ParkingServicesPage({
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-start gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Parking Services</h1>
@@ -112,30 +99,27 @@ export default async function ParkingServicesPage({
         </Link>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="services" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="services">Parking Servisi</TabsTrigger>
           <TabsTrigger value="reports">Slanje Izveštaja</TabsTrigger>
         </TabsList>
 
-        {/* Services List Tab */}
         <TabsContent value="services" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Parking servisi</CardTitle>
             </CardHeader>
             <CardContent>
-              <ParkingServiceFilters initialFilters={filters} />
+              <ParkingServiceFilters />
 
-              <Suspense fallback={<ListSkeleton count={filters.pageSize} />}>
+              <Suspense fallback={<ListSkeleton count={filters.pageSize || 10} />}>
                 <ParkingServiceListFetcher filters={filters} />
               </Suspense>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Reports Tab */}
         <TabsContent value="reports" className="mt-6">
           <Card>
             <CardHeader>
