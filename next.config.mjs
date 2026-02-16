@@ -1,32 +1,39 @@
 // next.config.mjs
-import bundleAnalyzer from '@next/bundle-analyzer';
+let withBundleAnalyzer;
 
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-});
+try {
+  // Pokušaj da importuješ bundle analyzer (samo ako postoji)
+  const bundleAnalyzer = await import('@next/bundle-analyzer');
+  withBundleAnalyzer = bundleAnalyzer.default({
+    enabled: process.env.ANALYZE === 'true',
+  });
+} catch {
+  // Ako ne postoji (production build), koristi identity function
+  withBundleAnalyzer = (config) => config;
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-  serverActions: {
-    bodySizeLimit: '10mb',
-    allowedOrigins: [
-      "finappsolutions.com",
-      "*.finappsolutions.com",
+    serverActions: {
+      bodySizeLimit: '10mb',
+      allowedOrigins: [
+        "finappsolutions.com",
+        "*.finappsolutions.com",
+      ],
+      allowedForwardedHosts: [
+        "finappsolutions.com",
+        "*.finappsolutions.com",
+      ],
+    },
+    optimizePackageImports: [
+      'lucide-react', 
+      '@radix-ui/react-icons',
+      'recharts',
+      'date-fns',
     ],
-    allowedForwardedHosts: [
-      "finappsolutions.com",
-      "*.finappsolutions.com",
-    ],
+    optimizeCss: true,
   },
-  optimizePackageImports: [
-    'lucide-react', 
-    '@radix-ui/react-icons',
-    'recharts',
-    'date-fns',
-  ],
-  optimizeCss: true,
-},
   
   // ✅ Next.js 16: Server-only packages
   serverExternalPackages: ['prisma', '@prisma/client', 'xlsx', 'exceljs'],
@@ -49,11 +56,9 @@ const nextConfig = {
     formats: ['image/webp'],
   },
   
-  // ⭐ KRITIČNO: Turbopack config (mora biti prisutan ako imaš webpack)
+  // ⭐ KRITIČNO: Turbopack config
   turbopack: {
-    // Prazan config je OK - Next.js 16 zahteva samo da postoji
     resolveAlias: {
-      // Opciono: canvas fallback
       canvas: './empty-module.js',
     },
   },
@@ -76,7 +81,6 @@ const nextConfig = {
       os: false,
     };
     
-    // Ignoriši public/reports za webpack mode
     config.watchOptions = {
       ...config.watchOptions,
       ignored: [
