@@ -60,7 +60,20 @@ export function ExpiryTimelineChart({
     const monthMap = new Map<string, ExpiryData>();
     
     rawData.forEach((contract: any) => {
+      // Skip if endDate is missing or invalid
+      if (!contract.endDate) {
+        console.warn(`Contract ${contract.id || 'unknown'} has no endDate, skipping`);
+        return;
+      }
+      
       const endDate = new Date(contract.endDate);
+      
+      // Validate date - skip if invalid
+      if (isNaN(endDate.getTime())) {
+        console.warn(`Contract ${contract.id || 'unknown'} has invalid endDate: ${contract.endDate}, skipping`);
+        return;
+      }
+      
       const monthKey = format(endDate, 'MMM yyyy');
       
       if (!monthMap.has(monthKey)) {
@@ -113,10 +126,10 @@ export function ExpiryTimelineChart({
     if (!dataPoint) return null;
 
     return (
-      <div className="bg-white p-4 border rounded-lg shadow-lg max-w-sm">
-        <div className="border-b pb-2 mb-3">
-          <p className="font-semibold text-gray-900">{label}</p>
-          <p className="text-sm text-gray-600">
+      <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-w-sm">
+        <div className="border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">
+          <p className="font-semibold text-gray-900 dark:text-gray-100">{label}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {format(new Date(dataPoint.date), "MMMM yyyy")}
           </p>
         </div>
@@ -132,20 +145,20 @@ export function ExpiryTimelineChart({
                   className="w-3 h-3 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: entry.color }}
                 />
-                <span className="text-sm text-gray-700">{entry.name}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{entry.name}</span>
               </div>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {entry.value}
               </span>
             </div>
           ))}
           
-          <div className="pt-2 mt-2 border-t border-gray-200">
+          <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Ukupno
               </span>
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {dataPoint.total}
               </span>
             </div>
@@ -154,11 +167,11 @@ export function ExpiryTimelineChart({
 
         {/* Show contract details if there are few contracts */}
         {dataPoint.contracts.length > 0 && dataPoint.contracts.length <= 5 && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <p className="text-xs font-medium text-gray-600 mb-2">Ugovori:</p>
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Ugovori:</p>
             <div className="space-y-1">
               {dataPoint.contracts.map((contract) => (
-                <div key={contract.id} className="text-xs text-gray-600">
+                <div key={contract.id} className="text-xs text-gray-600 dark:text-gray-400">
                   <span className="font-medium">{contract.contractNumber}</span>
                   {" - "}
                   <span>{contract.organizationName}</span>
@@ -203,21 +216,21 @@ export function ExpiryTimelineChart({
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold text-gray-900">
+        <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
-          <div className="flex items-center justify-center h-80 text-gray-500">
+          <div className="flex items-center justify-center h-80 text-gray-500 dark:text-gray-400">
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <p className="text-gray-600 font-medium mb-1">Nema podataka za prikaz</p>
-              <p className="text-sm text-gray-500">
+              <p className="text-gray-600 dark:text-gray-300 font-medium mb-1">Nema podataka za prikaz</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Timeline podaci će biti prikazani kada se učitaju ugovori
               </p>
             </div>
@@ -237,6 +250,7 @@ export function ExpiryTimelineChart({
                 strokeDasharray="3 3" 
                 stroke="#f1f5f9" 
                 opacity={0.7}
+                className="dark:stroke-gray-700"
               />
               <XAxis 
                 dataKey="month" 

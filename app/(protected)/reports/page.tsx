@@ -16,6 +16,7 @@ import ReportScanner from "@/components/reports/ReportScanner";
 import UnifiedReportsScanner from "@/components/reports/UnifiedReportsScanner";
 import { ClientGeneratedReport } from "@/components/reports/ClientGeneratedReport";
 import { getRecentReports, getGeneratedHumanitarianReports } from "@/actions/reports/get-recent-reports";
+import HumanitarianPrepaidUploader from "@/components/reports/HumanitarianPrepaidUploader";
 
 // Ažuriraj interfejs da odgovara stvarnim podacima iz getRecentReports
 interface ReportFile {
@@ -308,6 +309,7 @@ export default function ReportsPage() {
 
           {/* ---------------- Financial Tab ---------------- */}
           <TabsContent value="financial">
+            <HumanitarianPrepaidUploader />
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Financial Reports</h2>
               <p className="text-muted-foreground mb-4">Generate reports for revenue, payments, and financial performance</p>

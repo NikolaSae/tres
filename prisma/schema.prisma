@@ -135,6 +135,7 @@ model User {
   // Added the inverse relation to LogEntry, using the relation name
   logEntries              LogEntry[]             @relation("LogCreator")
   updatedLogs             LogEntry[]             @relation("LogUpdater") // Relacija ka logovima koje je ažurirao
+  humanitarianImports     HumanitarianTransaction[] @relation("UserHumanitarianImports")
 }
 
 // Provider model
@@ -184,6 +185,7 @@ model HumanitarianOrg {
   shortNumber String?   @map("kratki_broj")  @db.VarChar(10) // Short code (up to 10 chars)
 
   // Relations
+  transactions HumanitarianTransaction[] @relation("HumanitarianOrgTransactions")
   contracts   Contract[]
   renewals    HumanitarianContractRenewal[]
   complaints  Complaint[]
@@ -612,6 +614,7 @@ model Service {
   createdById   String?
   createdBy     User?           @relation("ServiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   // Relations
+  humanitarianTransactions HumanitarianTransaction[] @relation("ServiceHumanitarianTransactions")
   contracts     ServiceContract[]
   vasServices   VasService[]
   bulkServices  BulkService[]
@@ -819,6 +822,49 @@ model Attachment {
 
   @@index([complaintId])
 }
+model HumanitarianTransaction {
+  id                    String           @id @default(cuid())
+  
+  // Relations
+  humanitarianOrgId     String
+  humanitarianOrg       HumanitarianOrg  @relation("HumanitarianOrgTransactions", fields: [humanitarianOrgId], references: [id], onDelete: Cascade)
+  
+  serviceId             String
+  service               Service          @relation("ServiceHumanitarianTransactions", fields: [serviceId], references: [id], onDelete: Restrict)
+  
+  // Transaction data
+  date                  DateTime
+  serviceName           String
+  serviceCode           String?
+  price                 Float
+  quantity              Float
+  amount                Float
+  
+  // Metadata
+  billingType           String           // "PREPAID" or "POSTPAID"
+  messageType           String?
+  description           String?          @db.Text
+  
+  // Import metadata (instead of reportFile relation)
+  importedFileName      String?          // Original file name for reference
+  importedAt            DateTime         @default(now())
+  importedById          String?
+  importedBy            User?            @relation("UserHumanitarianImports", fields: [importedById], references: [id])
+  
+  // Audit
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  
+  // Unique constraint - serviceName + price + date + org
+  @@unique([humanitarianOrgId, date, serviceName, price])
+  
+  // Indexes
+  @@index([humanitarianOrgId, date])
+  @@index([serviceId])
+  @@index([date])
+  @@index([serviceName])
+  @@index([importedById])
+}
 
 // --- Log Entry Models (Corrected and Consolidated) ---
 enum LogActionType {
@@ -986,9 +1032,6 @@ model NotificationPreference {
   userId      String   @unique // Svaki korisnik ima samo jedan set podešavanja
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Koristimo JSON polje za čuvanje ugnježdenih preferenci
-  // Struktura unutar ovog JSON polja treba da odgovara NotificationPreferences interfejsu (bez userId)
-  // npr. { contractExpiring: { inApp: true, email: false }, ... }
   preferences Json
 
   createdAt   DateTime @default(now())

@@ -2,7 +2,7 @@
 import ContractsSection from "@/components/contracts/ContractsSection";
 import { db } from "@/lib/db";
 import { ContractStatus, ContractType as PrismaContractType } from "@prisma/client";
-
+export const dynamic = 'force-dynamic';
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }

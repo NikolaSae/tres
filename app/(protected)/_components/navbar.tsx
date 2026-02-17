@@ -2,20 +2,28 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Lock } from "lucide-react";
+import { 
+  ChevronDown, 
+  Lock, 
+  Home,
+  Bell,
+  HelpCircle,
+  Settings as SettingsIcon
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { ClientSideUserButton } from "@/components/auth/client-side-user-button";
-import { NavLink } from "@/components/ui/nav-link";
 import { RefreshSessionButton } from "@/components/auth/refresh-session-button";
 import Link from "next/link";
 import { UserRole } from "@prisma/client";
+import { Badge } from "@/components/ui/badge";
 
 interface DropdownItem {
   href: string;
   title: string;
   description?: string;
+  badge?: string;
 }
 
 interface CustomDropdownProps {
@@ -25,9 +33,14 @@ interface CustomDropdownProps {
   disabled?: boolean;
 }
 
-const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActive, disabled = false }) => {
+const CustomDropdown: React.FC<CustomDropdownProps> = ({ 
+  trigger, 
+  items, 
+  isActive, 
+  disabled = false 
+}) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null); // ← Ispravka: dodaj null kao inicijalnu vrednost
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = () => {
     if (disabled) return;
@@ -116,7 +129,7 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
         <>
           <div className="absolute left-0 top-full w-full h-2 bg-transparent" />
           
-          <div className="absolute left-0 top-full mt-2 w-[250px] bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-200">
+          <div className="absolute left-0 top-full mt-2 w-[280px] bg-popover border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 duration-200">
             <ul className="grid gap-1 p-4">
               {items.map((item) => (
                 <li key={item.href}>
@@ -125,7 +138,14 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
                     onClick={handleItemClick}
                     className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground w-full text-left"
                   >
-                    <div className="text-sm font-medium leading-none">{item.title}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium leading-none">{item.title}</div>
+                      {item.badge && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </div>
                     {item.description && (
                       <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
                         {item.description}
@@ -142,106 +162,358 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ trigger, items, isActiv
   );
 };
 
+interface SimpleNavLinkProps {
+  href: string;
+  children: React.ReactNode;
+  isActive: boolean;
+  disabled?: boolean;
+  icon?: React.ReactNode;
+}
+
+const SimpleNavLink: React.FC<SimpleNavLinkProps> = ({ 
+  href, 
+  children, 
+  isActive, 
+  disabled = false,
+  icon
+}) => {
+  if (disabled) {
+    return (
+      <button
+        className={cn(
+          "relative overflow-hidden",
+          "inline-flex items-center justify-center gap-2",
+          "px-4 py-2 rounded-lg h-9",
+          "text-sm font-medium",
+          "cursor-not-allowed opacity-50",
+          "bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-600",
+          "text-gray-500 dark:text-gray-400"
+        )}
+        disabled
+        title="Nemate pristup"
+      >
+        <Lock className="h-3 w-3" />
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "relative overflow-hidden",
+        "inline-flex items-center justify-center gap-2",
+        "px-4 py-2 rounded-lg h-9",
+        "text-white font-medium text-sm",
+        "bg-gradient-to-r from-teal-400 to-cyan-500",
+        "shadow-md shadow-teal-400/20",
+        "hover:shadow-lg hover:shadow-teal-400/30",
+        "hover:-translate-y-0.5",
+        "active:translate-y-0",
+        "transition-all duration-300 ease-in-out",
+        "before:absolute before:inset-0",
+        "before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
+        "before:translate-x-[-200%]",
+        "hover:before:translate-x-[200%]",
+        "before:transition-transform before:duration-700",
+        isActive && "ring-2 ring-white/30"
+      )}
+    >
+      {icon}
+      {children}
+    </Link>
+  );
+};
+
+interface IconNavButtonProps {
+  href: string;
+  icon: React.ReactNode;
+  isActive: boolean;
+  title: string;
+  badge?: number;
+}
+
+const IconNavButton: React.FC<IconNavButtonProps> = ({ 
+  href, 
+  icon, 
+  isActive, 
+  title,
+  badge 
+}) => {
+  return (
+    <Link
+      href={href}
+      title={title}
+      className={cn(
+        "relative overflow-hidden",
+        "inline-flex items-center justify-center",
+        "w-9 h-9 rounded-lg",
+        "text-white",
+        "bg-gradient-to-r from-teal-400 to-cyan-500",
+        "shadow-md shadow-teal-400/20",
+        "hover:shadow-lg hover:shadow-teal-400/30",
+        "hover:-translate-y-0.5",
+        "active:translate-y-0",
+        "transition-all duration-300 ease-in-out",
+        "before:absolute before:inset-0",
+        "before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
+        "before:translate-x-[-200%]",
+        "hover:before:translate-x-[200%]",
+        "before:transition-transform before:duration-700",
+        isActive && "ring-2 ring-white/30"
+      )}
+    >
+      {icon}
+      {badge && badge > 0 && (
+        <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full border-2 border-background">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </Link>
+  );
+};
+
 export const Navbar = () => {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userRole = session?.user?.role as UserRole;
   
+  // TODO: Replace with actual notification count from API
+  const [notificationCount] = React.useState(3);
+  
   // Definiši pristupna prava za svaki link
   const permissions = React.useMemo(() => ({
-    humanitarianOrgs: true, // Svi mogu
+    // Basic access
+    dashboard: true,
+    humanitarianOrgs: true,
+    operators: true,
+    parking: true,
+    bulkServices: true,
+    services: true,
+    contracts: true,
+    complaints: true,
+    notifications: true,
+    help: true,
+    settings: true,
+    profile: true,
+    
+    // Advanced access
     providers: userRole === 'ADMIN' || userRole === 'MANAGER',
-    operators: true, // Svi mogu
-    bulkServices: true, // Svi mogu
-    parking: true, // Svi mogu
-    complaints: true, // Svi mogu
-    adminComplaints: userRole === 'ADMIN', // Samo admin
-    contracts: true, // Svi mogu
-    services: true, // Svi mogu
+    adminComplaints: userRole === 'ADMIN',
     analytics: userRole === 'ADMIN' || userRole === 'MANAGER',
     reports: userRole === 'ADMIN' || userRole === 'MANAGER' || userRole === 'AGENT',
+    admin: userRole === 'ADMIN',
+    auditLogs: userRole === 'ADMIN',
   }), [userRole]);
   
   const isActivePath = (href: string) => pathname.startsWith(href);
   const isTriggerActive = (paths: string[]) => paths.some(p => isActivePath(p));
 
+  // Dropdown paths
+  const operacijePaths = ["/humanitarian-orgs", "/providers", "/operators", "/parking-services"];
+  const servisiPaths = ["/services", "/bulk-services"];
+  const ugovoriPaths = ["/contracts"];
   const reklamacijePaths = ["/complaints", "/admin/complaints"];
-  const analyticsPaths = ["/analytics", "/analytics/reports"];
+  const analyticsPaths = ["/analytics"];
+  const reportsPaths = ["/reports"];
+  const adminPaths = ["/admin"];
 
-  // Filtriraj items za dropdowns na osnovu pristupa
-  const reklamacijeItems = [
-    { href: "/complaints", title: "Sve reklamacije", description: "Pregled svih reklamacija u sistemu" },
-    ...(permissions.adminComplaints ? [
-      { href: "/admin/complaints", title: "Admin panel", description: "Administrativno upravljanje reklamacijama" }
-    ] : [])
+  // Dropdown items
+  const operacijeItems: DropdownItem[] = [
+    { 
+      href: "/humanitarian-orgs", 
+      title: "Humanitarne organizacije", 
+      description: "Upravljanje humanitarnim organizacijama"
+    },
+    ...(permissions.providers ? [{
+      href: "/providers", 
+      title: "Provajderi", 
+      description: "Upravljanje provajderima usluga"
+    }] : []),
+    { 
+      href: "/operators", 
+      title: "Operateri", 
+      description: "Upravljanje operaterima"
+    },
+    { 
+      href: "/parking-services", 
+      title: "Parking servisi", 
+      description: "Upravljanje parking uslugama"
+    },
   ];
 
-  const analyticsItems = [
-    { href: "/analytics", title: "Pregled", description: "Osnovni analytics dashboard" },
-    { href: "/analytics/reports", title: "Izveštaji", description: "Detaljni izveštaji i statistike" }
+  const servisiItems: DropdownItem[] = [
+    { 
+      href: "/services", 
+      title: "Servisi", 
+      description: "Pregled svih servisa po tipu"
+    },
+    { 
+      href: "/bulk-services", 
+      title: "Bulk servisi", 
+      description: "Masovno upravljanje servisima"
+    },
+  ];
+
+  const ugovoriItems: DropdownItem[] = [
+    { 
+      href: "/contracts", 
+      title: "Svi ugovori", 
+      description: "Pregled svih ugovora"
+    },
+    { 
+      href: "/contracts/expiring", 
+      title: "Ugovori koji ističu", 
+      description: "Ugovori koji uskoro ističu",
+      badge: "!"
+    },
+    { 
+      href: "/contracts/providers", 
+      title: "Po provajderima", 
+      description: "Ugovori grupisani po provajderima"
+    },
+  ];
+
+  const reklamacijeItems: DropdownItem[] = [
+    { 
+      href: "/complaints", 
+      title: "Sve reklamacije", 
+      description: "Pregled svih reklamacija u sistemu"
+    },
+    ...(permissions.adminComplaints ? [{
+      href: "/admin/complaints", 
+      title: "Admin panel", 
+      description: "Administrativno upravljanje reklamacijama"
+    }] : []),
+  ];
+
+  const analyticsItems: DropdownItem[] = [
+    { 
+      href: "/analytics", 
+      title: "Pregled", 
+      description: "Osnovni analytics dashboard"
+    },
+    { 
+      href: "/analytics/providers", 
+      title: "Provajderi", 
+      description: "Analitika provajdera"
+    },
+    { 
+      href: "/analytics/sales", 
+      title: "Prodaja", 
+      description: "Analitika prodaje"
+    },
+    { 
+      href: "/analytics/complaints", 
+      title: "Reklamacije", 
+      description: "Analitika reklamacija"
+    },
+    { 
+      href: "/analytics/financials", 
+      title: "Finansije", 
+      description: "Finansijska analitika"
+    },
+  ];
+
+  const reportsItems: DropdownItem[] = [
+    { 
+      href: "/reports", 
+      title: "Izveštaji", 
+      description: "Pregled svih izveštaja"
+    },
+    { 
+      href: "/reports/generate", 
+      title: "Generiši", 
+      description: "Kreiraj nove izveštaje"
+    },
+    { 
+      href: "/reports/scheduled", 
+      title: "Zakazani", 
+      description: "Automatski zakazani izveštaji"
+    },
+  ];
+
+  const adminItems: DropdownItem[] = [
+    { 
+      href: "/admin", 
+      title: "Dashboard", 
+      description: "Admin kontrolna tabla"
+    },
+    { 
+      href: "/admin/aidash", 
+      title: "AI Dashboard", 
+      description: "AI insights i analytics",
+      badge: "NEW"
+    },
+    { 
+      href: "/admin/security", 
+      title: "Sigurnost", 
+      description: "Bezbednosne postavke"
+    },
+    { 
+      href: "/admin/security/activity-logs", 
+      title: "Activity Logs", 
+      description: "Logovi aktivnosti korisnika"
+    },
+    { 
+      href: "/admin/security/user-roles", 
+      title: "Korisničke uloge", 
+      description: "Upravljanje ulogama i pravima"
+    },
+    { 
+      href: "/admin/notifications", 
+      title: "Notifikacije", 
+      description: "Sistemske notifikacije"
+    },
+    { 
+      href: "/audit-logs", 
+      title: "Audit Logs", 
+      description: "Kompletan audit trail"
+    },
   ];
 
   return (
     <nav className="relative w-full flex items-center justify-between p-4 shadow-sm z-50">
       <div className="flex-grow">
         <div className="flex items-center gap-2">
-          <NavLink 
-            href="/humanitarian-orgs" 
-            isActive={isActivePath("/humanitarian-orgs")}
-          >
-            Humanitarci
-          </NavLink>
+          {/* Dashboard Home Icon */}
+          <IconNavButton
+            href="/dashboard"
+            icon={<Home className="h-4 w-4" />}
+            isActive={isActivePath("/dashboard")}
+            title="Dashboard"
+          />
 
-          <NavLink 
-            href="/providers" 
-            isActive={isActivePath("/providers")}
-            disabled={!permissions.providers}
-          >
-            {!permissions.providers && <Lock className="h-3 w-3 mr-1" />}
-            Provajderi
-          </NavLink>
+          {/* Operacije Dropdown */}
+          <CustomDropdown
+            trigger="Operacije"
+            items={operacijeItems}
+            isActive={isTriggerActive(operacijePaths)}
+          />
 
-          <NavLink 
-            href="/operators" 
-            isActive={isActivePath("/operators")}
-          >
-            Operateri
-          </NavLink>
+          {/* Servisi Dropdown */}
+          <CustomDropdown
+            trigger="Servisi"
+            items={servisiItems}
+            isActive={isTriggerActive(servisiPaths)}
+          />
 
-          <NavLink 
-            href="/bulk-services" 
-            isActive={isActivePath("/bulk-services")}
-          >
-            Bulk Servisi
-          </NavLink>
+          {/* Ugovori Dropdown */}
+          <CustomDropdown
+            trigger="Ugovori"
+            items={ugovoriItems}
+            isActive={isTriggerActive(ugovoriPaths)}
+          />
 
-          <NavLink 
-            href="/parking-services" 
-            isActive={isActivePath("/parking-services")}
-          >
-            Parking
-          </NavLink>
-
+          {/* Reklamacije Dropdown */}
           <CustomDropdown
             trigger="Reklamacije"
             items={reklamacijeItems}
             isActive={isTriggerActive(reklamacijePaths)}
           />
 
-          <NavLink 
-            href="/contracts" 
-            isActive={isActivePath("/contracts")}
-          >
-            Ugovori
-          </NavLink>
-
-          <NavLink 
-            href="/services" 
-            isActive={isActivePath("/services")}
-          >
-            Servisi
-          </NavLink>
-
+          {/* Analytics Dropdown */}
           <CustomDropdown
             trigger="Analytics"
             items={analyticsItems}
@@ -249,19 +521,55 @@ export const Navbar = () => {
             disabled={!permissions.analytics}
           />
 
-          <NavLink 
-            href="/reports" 
-            isActive={isActivePath("/reports")}
+          {/* Reports Dropdown */}
+          <CustomDropdown
+            trigger="Reports"
+            items={reportsItems}
+            isActive={isTriggerActive(reportsPaths)}
             disabled={!permissions.reports}
-          >
-            {!permissions.reports && <Lock className="h-3 w-3 mr-1" />}
-            Reports
-          </NavLink>
+          />
+
+          {/* Admin Dropdown */}
+          <CustomDropdown
+            trigger="Admin"
+            items={adminItems}
+            isActive={isTriggerActive(adminPaths)}
+            disabled={!permissions.admin}
+          />
         </div>
       </div>
 
+      {/* Right Side Actions */}
       <div className="ml-auto flex-shrink-0 flex items-center gap-2">
+        {/* Notifications */}
+        <IconNavButton
+          href="/notifications"
+          icon={<Bell className="h-4 w-4" />}
+          isActive={isActivePath("/notifications")}
+          title="Notifikacije"
+          badge={notificationCount}
+        />
+
+        {/* Help */}
+        <IconNavButton
+          href="/help/documentation"
+          icon={<HelpCircle className="h-4 w-4" />}
+          isActive={isActivePath("/help")}
+          title="Pomoć"
+        />
+
+        {/* Settings */}
+        <IconNavButton
+          href="/settings"
+          icon={<SettingsIcon className="h-4 w-4" />}
+          isActive={isActivePath("/settings")}
+          title="Podešavanja"
+        />
+
+        {/* Refresh Session */}
         <RefreshSessionButton />
+        
+        {/* User Button */}
         <ClientSideUserButton />
       </div>
     </nav>

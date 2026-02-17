@@ -1,12 +1,12 @@
 // app/(protected)/contracts/new/page.tsx
-
 import { ContractForm } from "@/components/contracts/ContractForm";
 import { Metadata } from "next";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { getHumanitarianOrgs } from "@/actions/organizations/get-humanitarian";
 import { getProviders } from "@/actions/providers/get-providers";
 import { getParkingServices } from "@/actions/services/get-parking-services";
 import { getAllOperators } from "@/actions/operators";
-import { unstable_cache } from 'next/cache';
 
 export const metadata: Metadata = {
   title: "Create New Contract | Management Dashboard",
@@ -16,50 +16,20 @@ export const metadata: Metadata = {
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-// Cache helper functions with proper revalidation
-const getCachedHumanitarianOrgs = unstable_cache(
-  async () => getHumanitarianOrgs(),
-  ['humanitarian-orgs-list'],
-  {
-    revalidate: 600, // 10 minutes
-    tags: ['humanitarian-orgs']
-  }
-);
-
-const getCachedProviders = unstable_cache(
-  async () => getProviders(),
-  ['providers-list'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['providers']
-  }
-);
-
-const getCachedParkingServices = unstable_cache(
-  async () => getParkingServices(),
-  ['parking-services-list'],
-  {
-    revalidate: 600, // 10 minutes
-    tags: ['parking-services']
-  }
-);
-
-const getCachedOperators = unstable_cache(
-  async () => getAllOperators(),
-  ['operators-list'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['operators']
-  }
-);
-
 export default async function NewContractPage() {
-  // Parallel fetching with cached data
+  // ✅ Auth provjera PRVO (van cache)
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    redirect('/login');
+  }
+
+  // ✅ Paralelno fetchovanje sa userId argumentom
   const [humanitarianOrgs, providers, parkingServices, operators] = await Promise.all([
-    getCachedHumanitarianOrgs(),
-    getCachedProviders(),
-    getCachedParkingServices(),
-    getCachedOperators(),
+    getHumanitarianOrgs(session.user.id),
+    getProviders(session.user.id),
+    getParkingServices(session.user.id),
+    getAllOperators(session.user.id),
   ]);
 
   return (

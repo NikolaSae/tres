@@ -32,13 +32,12 @@ export class PostpaidServiceProcessor {
   private serviceCache: Map<string, string> = new Map();
   private providerCache: Map<string, string> = new Map();
   private postpaidExcelProcessor: PostpaidExcelProcessor;
-  private parkingServiceId: string;
 
-  constructor(userId?: string, progressCallback?: VasServiceProgressCallback, parkingServiceId?: string) {
+  // ✅ UKLONJEN parkingServiceId
+  constructor(userId?: string, progressCallback?: VasServiceProgressCallback) {
     this.currentUserId = userId || 'system-user';
     this.progressCallback = progressCallback;
     this.postpaidExcelProcessor = new PostpaidExcelProcessor(userId, progressCallback);
-    this.parkingServiceId = parkingServiceId || '';
   }
 
   private log(message: string, type: 'info' | 'error' | 'success' = 'info', file?: string): void {
@@ -151,6 +150,43 @@ export class PostpaidServiceProcessor {
     }
   }
 
+  // ✅ DODAJ funkciju za kreiranje ili pronalaženje Service-a
+  async getOrCreateService(productName: string): Promise<string> {
+    const cacheKey = `service_${productName}`;
+
+    if (this.serviceCache.has(cacheKey)) {
+      return this.serviceCache.get(cacheKey)!;
+    }
+
+    try {
+      let service = await prisma.service.findFirst({
+        where: {
+          name: productName,
+          type: 'VAS'
+        }
+      });
+
+      if (!service) {
+        service = await prisma.service.create({
+          data: {
+            name: productName,
+            type: 'VAS',
+            isActive: true,
+            createdById: this.currentUserId
+          }
+        });
+
+        this.log(`Created new VAS service: ${productName}`, 'success');
+      }
+
+      this.serviceCache.set(cacheKey, service.id);
+      return service.id;
+    } catch (error) {
+      this.log(`Error getting/creating service ${productName}: ${error}`, 'error');
+      throw error;
+    }
+  }
+
   async saveVasServiceRecordsToDatabase(
     records: VasServiceRecord[],
     fileName: string,
@@ -183,7 +219,10 @@ export class PostpaidServiceProcessor {
 
       for (const record of batch) {
         try {
-          // Check if record already exists by matching product name, month, and provider
+          // ✅ Kreiraj ili pronađi Service za ovaj proizvod
+          const serviceId = await this.getOrCreateService(record.proizvod);
+
+          // Check if record already exists
           const existingRecord = await prisma.vasService.findFirst({
             where: {
               proizvod: record.proizvod,
@@ -197,7 +236,7 @@ export class PostpaidServiceProcessor {
             continue;
           }
 
-          // Create new VasService record
+          // ✅ Create new VasService record sa serviceId
           await prisma.vasService.create({
             data: {
               proizvod: record.proizvod,
@@ -214,7 +253,7 @@ export class PostpaidServiceProcessor {
               otkazan_iznos: record.otkazan_iznos,
               kumulativ_otkazanih_iznosa: record.kumulativ_otkazanih_iznosa,
               iznos_za_prenos_sredstava: record.iznos_za_prenos_sredstava,
-              serviceId: record.serviceId,
+              serviceId: serviceId, // ✅ Koristi kreiran serviceId
               provajderId: providerId,
             }
           });
@@ -238,11 +277,8 @@ export class PostpaidServiceProcessor {
     this.updateFileStatus(fileName, 'processing');
 
     try {
-      // Process Excel file using the PostpaidExcelProcessor
-      const excelResult = await this.postpaidExcelProcessor.processPostpaidExcelFile(
-        filePath,
-        this.parkingServiceId
-      );
+      // ✅ Process Excel file BEZ parkingServiceId
+      const excelResult = await this.postpaidExcelProcessor.processPostpaidExcelFile(filePath);
 
       if (!excelResult.records || excelResult.records.length === 0) {
         throw new Error('No valid VAS service records found in file');

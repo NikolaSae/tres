@@ -1,12 +1,12 @@
+// actions/organizations/get-humanitarian.ts
 "use server";
 
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
-export async function getHumanitarianOrgs() {
+// ✅ Prima userId kao argument
+export async function getHumanitarianOrgs(userId: string) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    if (!userId) {
       throw new Error("Unauthorized access");
     }
 

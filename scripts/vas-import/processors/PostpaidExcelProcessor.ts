@@ -5,24 +5,24 @@ import path from 'path';
 
 interface VasServiceRecord {
   // Mapiranje na VasService model
-  proizvod: string;                          // proizvod
-  mesec_pruzanja_usluge: Date;              // mesec_pruzanja_usluge (DateTime)
-  jedinicna_cena: number;                   // jedinicna_cena
-  broj_transakcija: number;                 // broj_transakcija
-  fakturisan_iznos: number;                 // fakturisan_iznos
-  fakturisan_korigovan_iznos: number;       // fakturisan_korigovan_iznos
-  naplacen_iznos: number;                   // naplacen_iznos
-  kumulativ_naplacenih_iznosa: number;      // kumulativ_naplacenih_iznosa
-  nenaplacen_iznos: number;                 // nenaplacen_iznos
-  nenaplacen_korigovan_iznos: number;       // nenaplacen_korigovan_iznos
-  storniran_iznos: number;                  // storniran_iznos
-  otkazan_iznos: number;                    // otkazan_iznos
-  kumulativ_otkazanih_iznosa: number;       // kumulativ_otkazanih_iznosa
-  iznos_za_prenos_sredstava: number;        // iznos_za_prenos_sredstava
+  proizvod: string;
+  mesec_pruzanja_usluge: Date;
+  jedinicna_cena: number;
+  broj_transakcija: number;
+  fakturisan_iznos: number;
+  fakturisan_korigovan_iznos: number;
+  naplacen_iznos: number;
+  kumulativ_naplacenih_iznosa: number;
+  nenaplacen_iznos: number;
+  nenaplacen_korigovan_iznos: number;
+  storniran_iznos: number;
+  otkazan_iznos: number;
+  kumulativ_otkazanih_iznosa: number;
+  iznos_za_prenos_sredstava: number;
   
   // Relations - će biti povezani tokom upisa u bazu
-  serviceId: string;                        // Foreign key za Service
-  provajderId: string;                      // Foreign key za Provider
+  serviceId: string;
+  provajderId: string;
 }
 
 interface ProcessedVasServiceSheet {
@@ -40,7 +40,6 @@ interface ProcessedVasServiceSheet {
 
 interface VasServiceFileProcessResult {
   records: VasServiceRecord[];
-  parkingServiceId: string;
   providerName: string;
   contractInfo: string;
   reportPeriod: string;
@@ -86,22 +85,21 @@ export class PostpaidExcelProcessor {
     }
   ];
 
-  // Column mapping za VAS Service reports - mapiranje na srpske nazive kolona
   private readonly VAS_SERVICE_COLUMNS = {
-    SERVICE: 0,           // Proizvod
-    MONTH: 1,             // Mesec pružanja usluge
-    UNIT_PRICE: 2,        // Jedinična cena
-    TRANSACTION_COUNT: 3, // Broj transakcija
-    INVOICED_AMOUNT: 4,   // Fakturisan iznos
-    INVOICED_CORRECTED: 5, // Fakturisan korigovan iznos
-    COLLECTED_AMOUNT: 6,  // Naplaćen iznos
-    CUMULATIVE_COLLECTED: 7, // Kumulativ naplaćenih iznosa
-    UNCOLLECTED_AMOUNT: 8, // Nenaplaćen iznos
-    UNCOLLECTED_CORRECTED: 9, // Nenaplaćen korigovan iznos
-    REVERSED_AMOUNT: 10,  // Storniran iznos u tekućem mesecu
-    CANCELED_AMOUNT: 11,  // Otkazan iznos
-    CUMULATIVE_CANCELED: 12, // Kumulativ otkazanih iznosa
-    TRANSFER_AMOUNT: 13   // Iznos za prenos sredstava
+    SERVICE: 0,
+    MONTH: 1,
+    UNIT_PRICE: 2,
+    TRANSACTION_COUNT: 3,
+    INVOICED_AMOUNT: 4,
+    INVOICED_CORRECTED: 5,
+    COLLECTED_AMOUNT: 6,
+    CUMULATIVE_COLLECTED: 7,
+    UNCOLLECTED_AMOUNT: 8,
+    UNCOLLECTED_CORRECTED: 9,
+    REVERSED_AMOUNT: 10,
+    CANCELED_AMOUNT: 11,
+    CUMULATIVE_CANCELED: 12,
+    TRANSFER_AMOUNT: 13
   };
 
   constructor(userId?: string, progressCallback?: VasServiceProgressCallback) {
@@ -180,8 +178,8 @@ export class PostpaidExcelProcessor {
     if (typeof val === 'string') {
       let cleaned = val.trim()
         .replace(/[^\d,.-]/g, '')
-        .replace(/(\d)\.(\d{3})/g, '$1$2') // Remove thousands separators
-        .replace(/,/g, '.'); // Convert comma to decimal point
+        .replace(/(\d)\.(\d{3})/g, '$1$2')
+        .replace(/,/g, '.');
       
       if (/\(.*\)/.test(val)) cleaned = '-' + cleaned.replace(/[()]/g, '');
       
@@ -192,17 +190,16 @@ export class PostpaidExcelProcessor {
     return Number(val) || 0;
   }
 
-  // Konvertuje string u datum (MM.YYYY format)
   private parseServiceMonth(monthString: string): Date {
     if (!monthString || typeof monthString !== 'string') {
-      return new Date(); // Fallback na trenutni datum
+      return new Date();
     }
     
     const match = monthString.trim().match(/^(\d{2})\.(\d{4})$/);
     if (match) {
-      const month = parseInt(match[1], 10) - 1; // JavaScript months are 0-based
+      const month = parseInt(match[1], 10) - 1;
       const year = parseInt(match[2], 10);
-      return new Date(year, month, 1); // Prvi dan meseca
+      return new Date(year, month, 1);
     }
     
     this.log(`Invalid month format: ${monthString}, using current date`, 'error');
@@ -210,15 +207,11 @@ export class PostpaidExcelProcessor {
   }
 
   private extractContractInfo(rows: any[][]): { provider: string; contract: string; reportPeriod: string } {
-    // Look for header row containing contract info
-    // Format: "Ponuđač: SynapseTech (SynapseTech) Ugovor: - (8) Izveštaj za naplaćen postpaid saobraćaj..."
-    
     for (let i = 0; i < Math.min(10, rows.length); i++) {
       const row = rows[i];
       if (row && row[0]) {
         const headerText = row[0].toString();
         
-        // Extract provider
         const providerMatch = headerText.match(/Ponuđač:\s*([^()]+)\s*\(/);
         const contractMatch = headerText.match(/Ugovor:\s*([^()]*)\s*\(([^)]+)\)/);
         const periodMatch = headerText.match(/(\d+)\.\s*mesecu\s*(\d{4})/);
@@ -241,9 +234,6 @@ export class PostpaidExcelProcessor {
   }
 
   private findHeaderRow(rows: any[][]): number {
-    // Look for the row containing column headers
-    // Expected headers: "Proizvod", "Mesec pružanja usluge", "Jedinična cena", etc.
-    
     for (let i = 0; i < Math.min(20, rows.length); i++) {
       const row = rows[i];
       if (row && row.length > 5) {
@@ -268,9 +258,8 @@ export class PostpaidExcelProcessor {
     const firstCell = row[0]?.toString().trim() || '';
     const monthCell = row[1]?.toString().trim() || '';
     
-    // Check if it's a service row (starts with S_ and has month format)
     return (
-      firstCell.startsWith('S_') && 
+      firstCell.length > 0 && // Has service name
       /^\d{2}\.\d{4}$/.test(monthCell) && // MM.YYYY format
       !isNaN(parseFloat(row[2])) && // Has numeric unit price
       !isNaN(parseFloat(row[3]))    // Has numeric transaction count
@@ -284,45 +273,41 @@ export class PostpaidExcelProcessor {
     return firstCell.includes('ukupno za mesec');
   }
 
+  // ✅ UKLONJEN parkingServiceId parametar
   async processVasServiceSheet(
-  worksheet: any, 
-  sheetName: string, 
-  parkingServiceId: string,
-  filename: string,
-  defaultServiceId: string = '',
-  defaultProviderId: string = ''
-): Promise<ProcessedVasServiceSheet> {
-  const warnings: string[] = [];
-  const records: VasServiceRecord[] = [];
-  const monthlyTotals: any[] = [];
+    worksheet: any, 
+    sheetName: string, 
+    filename: string,
+    defaultServiceId: string = '',
+    defaultProviderId: string = ''
+  ): Promise<ProcessedVasServiceSheet> {
+    const warnings: string[] = [];
+    const records: VasServiceRecord[] = [];
+    const monthlyTotals: any[] = [];
 
-  try {
-    // ✅ ISPRAVLJENA GREŠKA: Dodao eksplicitan tip za rows
-    const rows: any[][] = (XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      defval: null,
-      blankrows: false,
-      skipHidden: true
-    }) as any[][]).filter((row: any[]) => row.some((cell: any) => cell !== null));
+    try {
+      const rows: any[][] = (XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        defval: null,
+        blankrows: false,
+        skipHidden: true
+      }) as any[][]).filter((row: any[]) => row.some((cell: any) => cell !== null));
 
-    if (!rows.length) {
-      warnings.push(`Sheet ${sheetName} is empty`);
-      return { name: sheetName, records: [], warnings: [], monthlyTotals: [] };
-    }
+      if (!rows.length) {
+        warnings.push(`Sheet ${sheetName} is empty`);
+        return { name: sheetName, records: [], warnings: [], monthlyTotals: [] };
+      }
 
-    this.log(`Processing ${rows.length} rows in sheet ${sheetName}`, 'info');
+      this.log(`Processing ${rows.length} rows in sheet ${sheetName}`, 'info');
 
-    // Find header row and extract contract info
-    const headerRowIndex = this.findHeaderRow(rows);
-    let currentMonth = '';
+      const headerRowIndex = this.findHeaderRow(rows);
+      let currentMonth = '';
 
-    // Process each row
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i].map((x: any) => (x !== null ? String(x).trim() : ''));
-      
-      if (this.isServiceDataRow(row)) {
-        try {
-            // Mapiranje na VasService model strukture
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i].map((x: any) => (x !== null ? String(x).trim() : ''));
+        
+        if (this.isServiceDataRow(row)) {
+          try {
             const record: VasServiceRecord = {
               proizvod: row[this.VAS_SERVICE_COLUMNS.SERVICE] || '',
               mesec_pruzanja_usluge: this.parseServiceMonth(row[this.VAS_SERVICE_COLUMNS.MONTH] || ''),
@@ -339,12 +324,11 @@ export class PostpaidExcelProcessor {
               kumulativ_otkazanih_iznosa: this.convertToFloat(row[this.VAS_SERVICE_COLUMNS.CUMULATIVE_CANCELED]),
               iznos_za_prenos_sredstava: this.convertToFloat(row[this.VAS_SERVICE_COLUMNS.TRANSFER_AMOUNT]),
               
-              // Relations - će biti postavljen kod database operacija
+              // Relations - placeholder, biće postavljeni u database operacijama
               serviceId: defaultServiceId,
               provajderId: defaultProviderId
             };
 
-            // Validate essential data
             if (!record.proizvod) {
               warnings.push(`Row ${i + 1}: Missing service name (proizvod)`);
               continue;
@@ -361,7 +345,6 @@ export class PostpaidExcelProcessor {
           }
         } 
         else if (this.isMonthlyTotalRow(row)) {
-          // Process monthly total
           if (currentMonth) {
             const monthTotal = {
               month: currentMonth,
@@ -391,20 +374,14 @@ export class PostpaidExcelProcessor {
     }
   }
 
+  // ✅ UKLONJEN parkingServiceId parametar i validacija
   async processPostpaidExcelFile(
-    inputFile: string, 
-    parkingServiceId: string,
+    inputFile: string,
     outputDir?: string,
     outputFormat: 'json' | 'csv' | 'xlsx' = 'json'
   ): Promise<VasServiceFileProcessResult> {
     const filename = path.basename(inputFile);
     const warnings: string[] = [];
-    
-    if (!parkingServiceId || typeof parkingServiceId !== 'string') {
-      const errorMsg = `Invalid parkingServiceId: ${parkingServiceId}`;
-      this.log(errorMsg, 'error', filename);
-      throw new Error(errorMsg);
-    }
     
     try {
       this.log(`Processing VAS service file: ${filename}`, 'info', filename);
@@ -433,10 +410,10 @@ export class PostpaidExcelProcessor {
         
         this.log(`Processing VAS service sheet: ${sheetName}`, 'info');
         
+        // ✅ UKLONJEN parkingServiceId argument
         const sheetResult = await this.processVasServiceSheet(
           worksheet, 
           sheetName, 
-          parkingServiceId, 
           filename
         );
 
@@ -450,7 +427,6 @@ export class PostpaidExcelProcessor {
       
       const result: VasServiceFileProcessResult = {
         records: allRecords,
-        parkingServiceId,
         providerName: contractInfo.provider || this.extractPostpaidProvider(filename),
         contractInfo: contractInfo.contract,
         reportPeriod: contractInfo.reportPeriod,

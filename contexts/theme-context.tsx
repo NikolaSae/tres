@@ -37,36 +37,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const applyThemeToDOM = useCallback((theme: CustomTheme) => {
     const root = document.documentElement;
     
-    // Start transition
     setIsTransitioning(true);
     root.classList.add('theme-transitioning');
     
-    // Remove all theme classes
     root.classList.remove('light', 'dark', 'custom-theme');
     
     if (theme.id === 'light') {
       root.classList.add('light');
       root.style.colorScheme = 'light';
-      // Clear any custom CSS variables
       clearCustomThemeVariables(root);
     } else if (theme.id === 'dark') {
       root.classList.add('dark');
       root.style.colorScheme = 'dark';
-      // Clear any custom CSS variables
       clearCustomThemeVariables(root);
     } else {
-      // Custom theme
       root.classList.add('custom-theme');
       root.style.colorScheme = theme.isDark ? 'dark' : 'light';
       
-      // Apply custom theme variables
       Object.entries(theme.colors).forEach(([key, value]) => {
         const cssVarName = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
         root.style.setProperty(cssVarName, value);
       });
     }
     
-    // End transition after animation completes
     setTimeout(() => {
       root.classList.remove('theme-transitioning');
       setIsTransitioning(false);
@@ -74,7 +67,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearCustomThemeVariables = (root: HTMLElement) => {
-    // List of all CSS variables that might be set by custom themes
     const customVars = [
       '--background', '--foreground', '--card', '--card-foreground',
       '--popover', '--popover-foreground', '--primary', '--primary-foreground',
@@ -89,7 +81,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Load theme after component mounts (client-side only)
+  // ✅ FIXED: Dodaj prazan dependency array da se izvršava SAMO JEDNOM
   useEffect(() => {
     const loadTheme = () => {
       try {
@@ -103,7 +95,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         
         setCurrentTheme(theme);
         
-        // Apply theme if it wasn't already applied by the script
         if (!document.documentElement.className.includes(theme.id === 'light' ? 'light' : theme.id === 'dark' ? 'dark' : 'custom-theme')) {
           applyThemeToDOM(theme);
         }
@@ -116,9 +107,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(loadTheme);
-  }, [applyThemeToDOM]);
+  }, []); // ✅ PRAZAN dependency array - izvršava se SAMO na mount!
 
   const setTheme = useCallback((themeId: string) => {
     const theme = themes.find(t => t.id === themeId);
@@ -149,7 +139,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     );
     setCustomThemes(newCustomThemes);
     
-    // If this is the current theme, apply the changes
     if (currentTheme.id === updatedTheme.id) {
       setCurrentTheme(updatedTheme);
       applyThemeToDOM(updatedTheme);
@@ -172,7 +161,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to remove custom theme:', error);
     }
     
-    // If removing the current theme, switch to light
     if (currentTheme.id === themeId) {
       setTheme('light');
     }

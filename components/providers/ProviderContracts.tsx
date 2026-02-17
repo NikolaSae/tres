@@ -29,7 +29,16 @@ const ProviderContracts: React.FC<ProviderContractsProps> = ({ providerId }) => 
         }
         
         const data = await response.json();
-        setContracts(data);
+        
+        // ✅ FIX: Proveri da li je data niz ili objekat sa items
+        if (Array.isArray(data)) {
+          setContracts(data);
+        } else if (data.items && Array.isArray(data.items)) {
+          setContracts(data.items);
+        } else {
+          console.error('Unexpected API response format:', data);
+          setContracts([]);
+        }
       } catch (err) {
         console.error('Error fetching contracts:', err);
         setError(err instanceof Error ? err.message : 'Failed to load contracts');

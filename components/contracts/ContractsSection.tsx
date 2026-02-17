@@ -1,8 +1,7 @@
-//Path/components/contracts//ContractsSection.tsx
+//Path/components/contracts/ContractsSection.tsx
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ContractFilters } from "./ContractFilters";
 import { ContractsList } from "./ContractList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Download, FileText } from "lucide-react";
 import { Contract } from "@/lib/types/contract-types";
+import Link from "next/link";
 
 interface ContractsSectionProps {
   initialContracts: Contract[];
@@ -26,109 +26,40 @@ export default function ContractsSection({
   initialCurrentPage,
   initialLimit
 }: ContractsSectionProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [contracts, setContracts] = useState(initialContracts);
-  const [totalCount, setTotalCount] = useState(initialTotalCount);
-  const [totalPages, setTotalPages] = useState(initialTotalPages);
-  const [currentPage, setCurrentPage] = useState(initialCurrentPage);
-  const [itemsPerPage, setItemsPerPage] = useState(initialLimit);
-  const [loading, setLoading] = useState(false);
-
-  const stableSearchParams = useMemo(() => ({
-    search: searchParams?.get("search") || "",
-    status: searchParams?.get("status") || "",
-    type: searchParams?.get("type") || "",
-    partner: searchParams?.get("partner") || "",
-  }), [searchParams]);
+  // ✅ JEDNOSTAVNO - direktno koristi initial props bez state-a
+  const contracts = initialContracts;
+  const totalCount = initialTotalCount;
+  const totalPages = initialTotalPages;
+  const currentPage = initialCurrentPage;
+  const itemsPerPage = initialLimit;
 
   const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
-  const fetchContracts = useCallback(async (page: number, limit: number) => {
-    // Cancel if component is unmounting or we've navigated away
-    if (!window.location.pathname.startsWith('/contracts')) {
-      return;
-    }
-
-    setLoading(true);
-
-    const params = new URLSearchParams({
-      ...stableSearchParams,
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-
-    try {
-      const res = await fetch(`/api/contracts?${params}`);
-      
-      // Double-check we're still on contracts page before updating state
-      if (!window.location.pathname.startsWith('/contracts')) {
-        return;
-      }
-
-      const data = await res.json();
-
-      setContracts(data.contracts);
-      setTotalCount(data.totalCount);
-      setTotalPages(Math.ceil(data.totalCount / limit));
-      setCurrentPage(page);
-      setItemsPerPage(limit);
-    } catch (error) {
-      console.error("Error fetching contracts:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [stableSearchParams]);
-
-  // Sync state with URL changes (when using browser back/forward)
-  useEffect(() => {
-    // Only run if we're still on the contracts page
-    if (!window.location.pathname.startsWith('/contracts')) {
-      return;
-    }
-
-    const page = parseInt(searchParams?.get("page") || "1");
-    const limit = parseInt(searchParams?.get("limit") || initialLimit.toString());
+  const buildUrl = (page: number, limit: number) => {
+    const params = new URLSearchParams();
     
-    if (page !== currentPage || limit !== itemsPerPage) {
-      fetchContracts(page, limit);
-    }
-  }, [searchParams, currentPage, itemsPerPage, initialLimit, fetchContracts]);
-
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages || loading) return;
+    const search = searchParams?.get("search");
+    const status = searchParams?.get("status");
+    const type = searchParams?.get("type");
+    const partner = searchParams?.get("partner");
     
-    const params = new URLSearchParams({
-      ...stableSearchParams,
-      page: page.toString(),
-      limit: itemsPerPage.toString()
-    });
+    if (search) params.set("search", search);
+    if (status) params.set("status", status);
+    if (type) params.set("type", type);
+    if (partner) params.set("partner", partner);
     
-    // Update URL and fetch data client-side
-    window.history.pushState(null, '', `/contracts?${params}`);
-    fetchContracts(page, itemsPerPage);
-  };
-
-  const handleItemsPerPageChange = (value: string) => {
-    if (loading) return;
+    params.set("page", page.toString());
+    params.set("limit", limit.toString());
     
-    const limit = parseInt(value);
-    const params = new URLSearchParams({
-      ...stableSearchParams,
-      page: "1",
-      limit: value
-    });
-    
-    // Update URL and fetch data client-side
-    window.history.pushState(null, '', `/contracts?${params}`);
-    fetchContracts(1, limit);
+    return `/contracts?${params.toString()}`;
   };
 
   const startItem = totalCount > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const endItem = Math.min(currentPage * itemsPerPage, totalCount);
 
-  const pageNumbers = useMemo(() => {
+  const pageNumbers = (() => {
     const maxVisiblePages = 5;
     const pages = [];
     if (totalPages <= maxVisiblePages) {
@@ -141,16 +72,9 @@ export default function ContractsSection({
       for (let i = start; i <= end; i++) pages.push(i);
     }
     return pages;
-  }, [currentPage, totalPages]);
+  })();
 
-  // Get current server time
   const serverTime = new Date().toISOString();
-
-  // ✅ FIXED: Handler koji prima filtered contracts i ažurira state
-  // Type assertion nije potreban ako Contract type ima ispravan provider field
-  const handleFilterChange = useCallback((filtered: Contract[]) => {
-    setContracts(filtered);
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -167,58 +91,67 @@ export default function ContractsSection({
           </div>
         </CardHeader>
         <CardContent>
-          {/* ✅ FIXED: Koristi callback funkciju umesto inline lambda */}
           <ContractFilters
             contracts={contracts}
-            onFilterChange={handleFilterChange}
+            onFilterChange={() => {}} // ✅ Filtriranje se dešava server-side
           />
 
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            </div>
-          ) : (
-            <ContractsList contracts={contracts} serverTime={serverTime} />
-          )}
+          <ContractsList contracts={contracts} serverTime={serverTime} />
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center space-x-2">
-                <Button 
-                  size="sm" 
-                  onClick={() => handlePageChange(currentPage - 1)} 
-                  disabled={currentPage <= 1 || loading}
-                >
-                  <ChevronLeft className="w-4 h-4" /> Prev
-                </Button>
+                {/* ✅ KORISTI Link umesto Button + onClick */}
+                {currentPage > 1 ? (
+                  <Button size="sm" asChild>
+                    <Link href={buildUrl(currentPage - 1, itemsPerPage)}>
+                      <ChevronLeft className="w-4 h-4" /> Prev
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button size="sm" disabled>
+                    <ChevronLeft className="w-4 h-4" /> Prev
+                  </Button>
+                )}
+
                 {pageNumbers.map((p) => (
                   <Button
                     key={p}
                     size="sm"
                     variant={p === currentPage ? "default" : "outline"}
-                    onClick={() => handlePageChange(p)}
-                    disabled={loading}
+                    asChild={p !== currentPage}
                   >
-                    {p}
+                    {p === currentPage ? (
+                      <span>{p}</span>
+                    ) : (
+                      <Link href={buildUrl(p, itemsPerPage)}>{p}</Link>
+                    )}
                   </Button>
                 ))}
-                <Button 
-                  size="sm" 
-                  onClick={() => handlePageChange(currentPage + 1)} 
-                  disabled={currentPage >= totalPages || loading}
-                >
-                  Next <ChevronRight className="w-4 h-4" />
-                </Button>
+
+                {currentPage < totalPages ? (
+                  <Button size="sm" asChild>
+                    <Link href={buildUrl(currentPage + 1, itemsPerPage)}>
+                      Next <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button size="sm" disabled>
+                    Next <ChevronRight className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
+
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-muted-foreground">
                   Showing {startItem}-{endItem} of {totalCount}
                 </span>
                 <span>Show:</span>
                 <Select 
-                  value={itemsPerPage.toString()} 
-                  onValueChange={handleItemsPerPageChange}
-                  disabled={loading}
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    window.location.href = buildUrl(1, parseInt(value));
+                  }}
                 >
                   <SelectTrigger className="w-[70px] h-8">
                     <SelectValue />
