@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Calendar, HardDrive, Mail, Copy, Check } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from "sonner";
 
 interface Report {
   path: string;

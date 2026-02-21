@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 
 interface Provider {

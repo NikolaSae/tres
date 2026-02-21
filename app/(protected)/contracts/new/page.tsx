@@ -6,30 +6,27 @@ import { redirect } from "next/navigation";
 import { getHumanitarianOrgs } from "@/actions/organizations/get-humanitarian";
 import { getProviders } from "@/actions/providers/get-providers";
 import { getParkingServices } from "@/actions/services/get-parking-services";
-import { getAllOperators } from "@/actions/operators";
+import { getAllOperators } from "@/actions/operators/getAllOperators";
 
 export const metadata: Metadata = {
   title: "Create New Contract | Management Dashboard",
   description: "Create a new contract in the system",
 };
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export default async function NewContractPage() {
-  // ✅ Auth provjera PRVO (van cache)
   const session = await auth();
   
   if (!session?.user?.id) {
     redirect('/login');
   }
 
-  // ✅ Paralelno fetchovanje sa userId argumentom
-  const [humanitarianOrgs, providers, parkingServices, operators] = await Promise.all([
+  const [providers, parkingServices, operators, humanitarianOrgs] = await Promise.all([
+    getProviders(),
+    getParkingServices(),
+    getAllOperators(),
     getHumanitarianOrgs(session.user.id),
-    getProviders(session.user.id),
-    getParkingServices(session.user.id),
-    getAllOperators(session.user.id),
   ]);
 
   return (

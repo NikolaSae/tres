@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Mail, Send, CheckCircle2, XCircle, Loader2, RefreshCw, FileText } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import ReportSelectorDialog from "./ReportSelectorDialog";
 
 interface ParkingService {

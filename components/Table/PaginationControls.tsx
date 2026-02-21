@@ -1,7 +1,6 @@
 // components/Table/PaginationControls.tsx
 "use client";
-
-import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const PaginationControls = ({
   currentPage,
@@ -30,11 +29,11 @@ export const PaginationControls = ({
           Sledeća
         </button>
       </div>
-      
+
       <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-gray-700">
-            Strana <span className="font-medium">{currentPage}</span> od 
+            Strana <span className="font-medium">{currentPage}</span> od{" "}
             <span className="font-medium">{totalPages}</span>
           </p>
         </div>
@@ -43,16 +42,16 @@ export const PaginationControls = ({
             <button
               disabled={currentPage === 1}
               onClick={() => onPageChange(currentPage - 1)}
-              className="relative inline-flex items-center px-2 py-2 rounded-l-md bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              className="relative inline-flex items-center px-2 py-2 rounded-l-md bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
-              <ArrowLeftIcon className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               disabled={currentPage === totalPages}
               onClick={() => onPageChange(currentPage + 1)}
-              className="relative inline-flex items-center px-2 py-2 rounded-r-md bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              className="relative inline-flex items-center px-2 py-2 rounded-r-md bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
-              <ArrowRightIcon className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5" />
             </button>
           </nav>
         </div>

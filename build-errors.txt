@@ -5,7 +5,7 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 279ms
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 285ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
@@ -24,36 +24,36 @@ Tip: Interested in query caching in just a few lines of code? Try Accelerate tod
   ⨯ webpackBuildWorker
 
   Creating an optimized production build ...
-✓ Compiled successfully in 23.8s
+✓ Compiled successfully in 20.4s
   Skipping validation of types
   Collecting page data using 5 workers ...
 Pusher not configured. Real-time notifications disabled.
-  Generating static pages using 5 workers (0/136) ...
-Successfully loaded: PROJECT_APP_CONTRACTS.md (15724 chars)
-Extracted 50 headings from markdown
-Pusher not configured. Real-time notifications disabled.
-  Generating static pages using 5 workers (34/136) 
+  Generating static pages using 5 workers (0/135) ...
 Successfully loaded: README.md (14567 chars)
 Extracted 139 headings from markdown
+Pusher not configured. Real-time notifications disabled.
+  Generating static pages using 5 workers (33/135) 
 Successfully loaded: PROJECT_API_DOCUMENTATION.md (6005 chars)
-Extracted 27 headings from markdown
-Successfully loaded: PROJECT_API_STRUCTURE.md (4444 chars)
 Extracted 27 headings from markdown
 Successfully loaded: PROJECT_STRUCTURE.md (4684 chars)
 Extracted 26 headings from markdown
+Successfully loaded: PROJECT_API_STRUCTURE.md (4444 chars)
+Extracted 27 headings from markdown
 Successfully loaded: PROJECT_DOCUMENTATION.md (7390 chars)
 Extracted 35 headings from markdown
+Successfully loaded: PROJECT_APP_CONTRACTS.md (15724 chars)
+Extracted 50 headings from markdown
 Successfully loaded: baza-podataka.md (12874 chars)
 Extracted 29 headings from markdown
 Successfully loaded: arhitektura.md (28999 chars)
 Extracted 56 headings from markdown
-  Generating static pages using 5 workers (68/136) 
-  Generating static pages using 5 workers (102/136) 
+  Generating static pages using 5 workers (67/135) 
+  Generating static pages using 5 workers (101/135) 
 Successfully fetched providers for form: 13 items
 Loaded providers: 13
 Loaded humanitarian orgs: 32
 Loaded parking services: 5
-✓ Generating static pages using 5 workers (136/136) in 771.1ms
+✓ Generating static pages using 5 workers (135/135) in 748.8ms
   Finalizing page optimization ...
 
 Route (app)

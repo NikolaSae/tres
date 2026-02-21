@@ -18,6 +18,7 @@ import { RefreshSessionButton } from "@/components/auth/refresh-session-button";
 import Link from "next/link";
 import { UserRole } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
+import { getUnreadNotificationCount } from "@/actions/notifications/get-unread-count"; // ✅ Dodaj ovo
 
 interface DropdownItem {
   href: string;
@@ -265,8 +266,8 @@ const IconNavButton: React.FC<IconNavButtonProps> = ({
       )}
     >
       {icon}
-      {badge && badge > 0 && (
-        <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full border-2 border-background">
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-background shadow-lg">
           {badge > 99 ? '99+' : badge}
         </span>
       )}
@@ -280,7 +281,21 @@ export const Navbar = () => {
   const userRole = session?.user?.role as UserRole;
   
   // TODO: Replace with actual notification count from API
-  const [notificationCount] = React.useState(3);
+  const [notificationCount, setNotificationCount] = React.useState(0);
+  
+  // Fetch notification count on mount and when pathname changes
+  React.useEffect(() => {
+    async function fetchNotificationCount() {
+      const count = await getUnreadNotificationCount();
+      if (typeof count === 'number') {
+        setNotificationCount(count);
+      }
+    }
+    
+    if (session?.user?.id) {
+      fetchNotificationCount();
+    }
+  }, [session?.user?.id, pathname]);
   
   // Definiši pristupna prava za svaki link
   const permissions = React.useMemo(() => ({
@@ -542,13 +557,13 @@ export const Navbar = () => {
       {/* Right Side Actions */}
       <div className="ml-auto flex-shrink-0 flex items-center gap-2">
         {/* Notifications */}
-        <IconNavButton
-          href="/notifications"
-          icon={<Bell className="h-4 w-4" />}
-          isActive={isActivePath("/notifications")}
-          title="Notifikacije"
-          badge={notificationCount}
-        />
+          <IconNavButton
+            href="/notifications"
+            icon={<Bell className="h-4 w-4" />}
+            isActive={isActivePath("/notifications")}
+            title={notificationCount > 0 ? `${notificationCount} nepročitanih notifikacija` : "Notifikacije"}
+            badge={notificationCount}
+          />
 
         {/* Help */}
         <IconNavButton

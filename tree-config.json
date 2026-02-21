@@ -1,0 +1,31 @@
+{
+  "maxLevel": 3,
+  "ignoreDirs": [
+    "node_modules",
+    ".next",
+    ".git",
+    "dist",
+    "build",
+    ".turbo",
+    "coverage",
+    "venv",
+    "__pycache__"
+  ],
+  "ignoreExtensions": [
+    ".xlsx",
+    ".xls",
+    ".pdf",
+    ".zip",
+    ".csv",
+    ".msg",
+    ".vbs",
+    ".pyc",
+    ".log"
+  ],
+  "ignoreFiles": [
+    ".env",
+    ".DS_Store",
+    "Thumbs.db",
+    "desktop.ini"
+  ]
+}
