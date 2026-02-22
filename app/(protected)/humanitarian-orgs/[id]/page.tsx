@@ -13,11 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import DetailSkeleton from "@/components/skeletons/DetailSkeleton";
 import { Banknote, FileText, ClipboardList, AlertCircle, TrendingUp } from 'lucide-react';
-import {
-  getHumanitarianOrgRevenue,
-  getHumanitarianOrgActiveContracts,
-  getHumanitarianOrgMonthlyStats,
-} from "@/actions/humanitarian-orgs/get-org-financial-stats";
+import { getHumanitarianOrgFinancialData } from "@/actions/humanitarian-orgs/get-org-financial-stats";
 import { formatCurrency } from "@/lib/formatters";
 
 interface HumanitarianOrgDetailsPageProps {
@@ -63,11 +59,9 @@ export async function generateMetadata({ params }: HumanitarianOrgDetailsPagePro
 export default async function HumanitarianOrgDetailsPage({ params }: HumanitarianOrgDetailsPageProps) {
   const { id: orgId } = await params;
 
-  const [organization, revenue, activeContracts, monthlyStats] = await Promise.all([
+  const [organization, { revenue, activeContracts, monthlyStats }] = await Promise.all([
     getHumanitarianOrgDetails(orgId),
-    getHumanitarianOrgRevenue(orgId),
-    getHumanitarianOrgActiveContracts(orgId),
-    getHumanitarianOrgMonthlyStats(orgId),
+    getHumanitarianOrgFinancialData(orgId),
   ]);
 
   if (!organization) notFound();
@@ -106,7 +100,7 @@ export default async function HumanitarianOrgDetailsPage({ params }: Humanitaria
         </div>
       </div>
 
-      {/* Info Bar — postojeći podaci o org */}
+      {/* Info Bar */}
       <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="flex flex-col">
           <span className="text-xs text-blue-600 font-medium">PIB</span>

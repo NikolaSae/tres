@@ -4,7 +4,7 @@
 import * as XLSX from 'xlsx';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-
+import { revalidateTag } from "next/cache";
 interface PrepaidRow {
   serviceName: string;
   price: number;
@@ -122,7 +122,9 @@ export async function importHumanitarianPrepaidTransactions(
         }
       }
     }
-
+    if (transactions.length > 0) {
+      revalidateTag(`humanitarian-org-${humanitarianOrgId}`, "server");
+    }
     return {
       success: true,
       imported: transactions.length,

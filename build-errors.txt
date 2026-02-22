@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 393ms
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 395ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
 ▲ Next.js 16.1.6 (Turbopack, Cache Components)
 - Environments: .env
@@ -19,7 +19,7 @@ Tip: Interested in query caching in just a few lines of code? Try Accelerate tod
   · serverActions
 
   Creating an optimized production build ...
-✓ Compiled successfully in 21.6s
+✓ Compiled successfully in 19.6s
   Skipping validation of types
   Collecting page data using 5 workers ...
 Pusher not configured. Real-time notifications disabled.
@@ -27,7 +27,7 @@ Pusher not configured. Real-time notifications disabled.
   Generating static pages using 5 workers (41/165) 
 Pusher not configured. Real-time notifications disabled.
 Rendering ExpiringContractsPage
-Server time for contracts: 2026-02-22T18:37:48.136Z
+Server time for contracts: 2026-02-22T21:00:09.643Z
 Contracts data to pass to EnhancedContractList: []
 Successfully loaded: intro.md (1895 chars)
 Extracted 5 headings from markdown
@@ -36,7 +36,7 @@ Extracted 17 headings from markdown
 Successfully loaded: architecture/api-routes.md (4931 chars)
 Extracted 17 headings from markdown
 Rendering ExpiringContractsPage
-Server time for contracts: 2026-02-22T18:37:48.317Z
+Server time for contracts: 2026-02-22T21:00:09.788Z
 Contracts data to pass to EnhancedContractList: []
 Rendering ExpiringContractsPage
 Successfully loaded: intro.md (1895 chars)
@@ -46,26 +46,32 @@ Extracted 17 headings from markdown
 Successfully loaded: architecture/api-routes.md (4931 chars)
 Extracted 17 headings from markdown
   Generating static pages using 5 workers (82/165) 
-Successfully loaded: architecture/folder-structure.md (3631 chars)
-Extracted 3 headings from markdown
 Successfully loaded: intro.md (1895 chars)
 Extracted 5 headings from markdown
 Successfully loaded: architecture/database.md (2852 chars)
 Extracted 16 headings from markdown
+Successfully loaded: architecture/folder-structure.md (3631 chars)
+Extracted 3 headings from markdown
 Successfully loaded: architecture/overview.md (2803 chars)
 Extracted 11 headings from markdown
 Successfully loaded: features/contracts.md (3403 chars)
 Extracted 17 headings from markdown
-Successfully loaded: architecture/folder-structure.md (3631 chars)
-Extracted 3 headings from markdown
 Successfully loaded: intro.md (1895 chars)
 Extracted 5 headings from markdown
 Successfully loaded: architecture/database.md (2852 chars)
 Extracted 16 headings from markdown
+Successfully loaded: architecture/folder-structure.md (3631 chars)
+Extracted 3 headings from markdown
 Successfully loaded: architecture/overview.md (2803 chars)
 Extracted 11 headings from markdown
 Successfully loaded: features/contracts.md (3403 chars)
 Extracted 17 headings from markdown
+[METADATA_ERROR] Error: During prerendering, `params` rejects when the prerender is complete. Typically these errors are handled by React but if you move `params` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. This occurred at route "/operators/[id]".
+    at new Promise (<anonymous>) {
+  route: '/operators/[id]',
+  expression: '`params`',
+  digest: 'HANGING_PROMISE_REJECTION'
+}
 [METADATA_ERROR] Error: During prerendering, `params` rejects when the prerender is complete. Typically these errors are handled by React but if you move `params` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. This occurred at route "/operators/[id]".
     at new Promise (<anonymous>) {
   route: '/operators/[id]',
@@ -73,18 +79,12 @@ Extracted 17 headings from markdown
   digest: 'HANGING_PROMISE_REJECTION'
 }
   Generating static pages using 5 workers (123/165) 
-[METADATA_ERROR] Error: During prerendering, `params` rejects when the prerender is complete. Typically these errors are handled by React but if you move `params` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. This occurred at route "/operators/[id]".
-    at new Promise (<anonymous>) {
-  route: '/operators/[id]',
-  expression: '`params`',
-  digest: 'HANGING_PROMISE_REJECTION'
-}
-Loaded providers: 13
-Loaded humanitarian orgs: 32
-Loaded parking services: 5
-Loaded providers: 13
-Loaded humanitarian orgs: 32
-Loaded parking services: 5
+Loaded providers: 3
+Loaded humanitarian orgs: 1
+Loaded parking services: 1
+Loaded providers: 3
+Loaded humanitarian orgs: 1
+Loaded parking services: 1
 [METADATA_ERROR] Error: During prerendering, `params` rejects when the prerender is complete. Typically these errors are handled by React but if you move `params` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. This occurred at route "/contracts/[id]".
     at new Promise (<anonymous>) {
   route: '/contracts/[id]',
@@ -97,7 +97,7 @@ Loaded parking services: 5
   expression: '`params`',
   digest: 'HANGING_PROMISE_REJECTION'
 }
-✓ Generating static pages using 5 workers (165/165) in 2.4s
+✓ Generating static pages using 5 workers (165/165) in 2.2s
   Finalizing page optimization ...
 
 Route (app)

@@ -642,13 +642,14 @@ async getOrCreateSystemUser(): Promise<string> {
 
   // UPDATED: Save original file and move after processing
   async processFileWithImport(inputFile: string): Promise<{
-    recordsProcessed: number;
-    imported: number;
-    updated: number;
-    errors: number;
-    warnings: string[];
-    originalFilePath?: string;
-  }> {
+  recordsProcessed: number;
+  imported: number;
+  updated: number;
+  errors: number;
+  duplicates: number;  // ← dodaj ovo
+  warnings: string[];
+  originalFilePath?: string;
+}> {
     const filename = path.basename(inputFile);
     
     try {
@@ -699,6 +700,7 @@ async getOrCreateSystemUser(): Promise<string> {
         imported: importStats.inserted,
         updated: importStats.updated,
         errors: importStats.errors,
+        duplicates: importStats.duplicates,
         warnings: result.warnings,
         originalFilePath
       };
@@ -714,6 +716,7 @@ async getOrCreateSystemUser(): Promise<string> {
         imported: 0,
         updated: 0,
         errors: 1,
+        duplicates: 0,
         warnings: [`Kritična greška: ${error instanceof Error ? error.message : String(error)}`]
       };
     }

@@ -13,7 +13,7 @@ type SseMessage =
   | { type: 'log'; message: string; logType: 'info' | 'error' | 'success'; file?: string }
   | { type: 'progress'; fileName: string; progress: number; message: string }
   | { type: 'fileStatus'; fileName: string; status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error' }
-  | { type: 'complete'; recordsProcessed: number; errors: number; duplicates: number; imported:number; updated:number; message: string }
+  | { type: 'complete'; recordsProcessed: number; errors: number; duplicates: number; imported: number; updated: number; warnings: number; message: string }
   | { type: 'error'; error: string; details?: string };
 
 export async function GET(request: Request) {
@@ -81,14 +81,15 @@ export async function GET(request: Request) {
       }
 
       sendMessage({
-        type: 'complete',
-        recordsProcessed: result.recordsProcessed,
-        imported: result.imported,
-        updated: result.updated,
-        errors: result.errors,
-        warnings: result.warnings.length,
-        message: 'Processing completed successfully!',
-      });
+  type: 'complete',
+  recordsProcessed: result.recordsProcessed,
+  imported: result.imported,
+  updated: result.updated,
+  errors: result.errors,
+  duplicates: result.duplicates ?? 0,
+  warnings: result.warnings.length,
+  message: 'Processing completed successfully!',
+});
     } catch (error: unknown) {
       console.error('Stream processing error:', error);
       sendMessage({
