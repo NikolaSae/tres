@@ -329,3 +329,160 @@ export async function getAllFinancialData(params: FinancialDataParams = {}) {
     parking: parkingData,
   };
 }
+// ── DODATI U actions.ts ──────────────────────────────────────────────────────
+
+export type HumanitarianFinancialMetrics = {
+  totalAmount: number;
+  totalTransactions: number;
+  prepaidAmount: number;
+  postpaidAmount: number;
+  revenueByMonth: {
+    month: string;
+    amount: number;
+    prepaid: number;
+    postpaid: number;
+  }[];
+  orgBreakdown: {
+    orgName: string;
+    amount: number;
+    percentage: number;
+    prepaid: number;
+    postpaid: number;
+  }[];
+  billingTypeBreakdown: {
+    type: string;
+    amount: number;
+    percentage: number;
+  }[];
+};
+
+export async function getHumanitarianFinancialData({
+  startDate,
+  endDate,
+}: FinancialDataParams = {}): Promise<HumanitarianFinancialMetrics> {
+  const hasPermission = await canViewFinancialData();
+  if (!hasPermission) {
+    throw new Error("You don't have permission to access financial data");
+  }
+
+  const defaultEndDate = new Date();
+  const defaultStartDate = new Date();
+  defaultStartDate.setFullYear(defaultStartDate.getFullYear() - 1);
+
+  const effectiveStartDate = startDate || defaultStartDate;
+  const effectiveEndDate = endDate || defaultEndDate;
+
+  const transactions = await db.humanitarianTransaction.findMany({
+    where: {
+      date: {
+        gte: effectiveStartDate,
+        lte: effectiveEndDate,
+      },
+    },
+    include: {
+      humanitarianOrg: {
+        select: { name: true },
+      },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  // Monthly aggregation
+  const monthlyData = transactions.reduce((acc, item) => {
+    const monthYear = item.date.toLocaleString('en-US', {
+      month: 'short',
+      year: '2-digit',
+    });
+
+    if (!acc[monthYear]) {
+      acc[monthYear] = { amount: 0, prepaid: 0, postpaid: 0 };
+    }
+
+    acc[monthYear].amount += item.amount || 0;
+    if (item.billingType === 'PREPAID') {
+      acc[monthYear].prepaid += item.amount || 0;
+    } else {
+      acc[monthYear].postpaid += item.amount || 0;
+    }
+
+    return acc;
+  }, {} as Record<string, { amount: number; prepaid: number; postpaid: number }>);
+
+  // Fill full month range
+  const fullMonthRangeData: typeof monthlyData = {};
+  let currentDate = new Date(effectiveStartDate);
+  while (currentDate <= effectiveEndDate) {
+    const monthYear = currentDate.toLocaleString('en-US', {
+      month: 'short',
+      year: '2-digit',
+    });
+    fullMonthRangeData[monthYear] = monthlyData[monthYear] || {
+      amount: 0,
+      prepaid: 0,
+      postpaid: 0,
+    };
+    currentDate.setMonth(currentDate.getMonth() + 1);
+  }
+
+  const revenueByMonth = Object.entries(fullMonthRangeData)
+    .map(([month, data]) => ({ month, ...data }))
+    .sort((a, b) => {
+      const [aMonth, aYear] = a.month.split(' ');
+      const [bMonth, bYear] = b.month.split(' ');
+      return new Date(`${aMonth} 01 20${aYear}`).getTime() -
+             new Date(`${bMonth} 01 20${bYear}`).getTime();
+    });
+
+  // Org breakdown
+  const orgData = transactions.reduce((acc, item) => {
+    const name = item.humanitarianOrg?.name || 'Unknown';
+    if (!acc[name]) {
+      acc[name] = { amount: 0, prepaid: 0, postpaid: 0 };
+    }
+    acc[name].amount += item.amount || 0;
+    if (item.billingType === 'PREPAID') {
+      acc[name].prepaid += item.amount || 0;
+    } else {
+      acc[name].postpaid += item.amount || 0;
+    }
+    return acc;
+  }, {} as Record<string, { amount: number; prepaid: number; postpaid: number }>);
+
+  const totalAmount = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const prepaidAmount = transactions
+    .filter(t => t.billingType === 'PREPAID')
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+  const postpaidAmount = totalAmount - prepaidAmount;
+
+  const orgBreakdown = Object.entries(orgData)
+    .map(([orgName, data]) => ({
+      orgName,
+      ...data,
+      percentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 15);
+
+  const billingTypeBreakdown = [
+    {
+      type: 'Prepaid',
+      amount: prepaidAmount,
+      percentage: totalAmount > 0 ? (prepaidAmount / totalAmount) * 100 : 0,
+    },
+    {
+      type: 'Postpaid',
+      amount: postpaidAmount,
+      percentage: totalAmount > 0 ? (postpaidAmount / totalAmount) * 100 : 0,
+    },
+  ];
+
+  return {
+    totalAmount,
+    totalTransactions: transactions.length,
+    prepaidAmount,
+    postpaidAmount,
+    revenueByMonth,
+    orgBreakdown,
+    billingTypeBreakdown,
+  };
+}

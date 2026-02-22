@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { DataFilters, DataFilterOptions } from "@/components/analytics/DataFilters";
 import CombinedFinancialView from "@/components/analytics/CombinedFinancialView";
 import { auth } from "@/auth";
-import { getVasFinancialData, getParkingFinancialData } from "./actions";
+import { getVasFinancialData, getParkingFinancialData, getHumanitarianFinancialData } from "./actions";
 import { db } from '@/lib/db';
 
 interface FinancialAnalyticsPageProps {
@@ -189,10 +189,11 @@ export default async function FinancialAnalyticsPage({
   };
 
   // Get financial data for both VAS and Parking
-  const [vasFinancialData, parkingFinancialData] = await Promise.all([
-    getVasFinancialData(vasDataParams),
-    getParkingFinancialData(parkingDataParams),
-  ]);
+const [vasFinancialData, parkingFinancialData, humanitarianFinancialData] = await Promise.all([
+  getVasFinancialData(vasDataParams),
+  getParkingFinancialData(parkingDataParams),
+  getHumanitarianFinancialData({ startDate: filters.dateRange?.from || undefined, endDate: filters.dateRange?.to || undefined }),
+]);
 
   // Fetch filter data
   const [providersData, parkingServicesData, serviceTypesData, productsData] = await Promise.all([
@@ -239,6 +240,7 @@ export default async function FinancialAnalyticsPage({
           <CombinedFinancialView 
             vasData={vasFinancialData} 
             parkingData={parkingFinancialData}
+            humanitarianData={humanitarianFinancialData}
           />
         </Suspense>
       </div>

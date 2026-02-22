@@ -218,7 +218,7 @@ async function getOriginalReportValue(
     const path = await import('path');
     
     const orgFolder = generateOrganizationFolderName(org.shortNumber || 'unknown', org.name);
-    
+    console.log(`🔴 getOriginalReportValue: org=${org.name}, paymentType=${paymentType}`);
     // ✅ Runtime path construction - sakriveno od Turbopack
     const basePath = await getOriginalReportsPath();
     const dirPath = await buildReportPath(
@@ -293,6 +293,7 @@ export async function generateHumanitarianTemplates(
   paymentType: PaymentType,
   templateType: TemplateType
 ): Promise<TemplateGenerationResult> {
+  console.log('🔴 generateHumanitarianTemplates CALLED:', { month, year, paymentType, templateType });
   const generatedFiles: TemplateGenerationResult['generatedFiles'] = [];
   const errors: string[] = [];
 

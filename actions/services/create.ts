@@ -31,12 +31,14 @@ export async function createService(formData: z.infer<typeof serviceSchema>) {
     });
     
     // Log activity - Fixed function call
-    await logActivity("CREATE", {
-      entityType: 'service',
-      entityId: service.id,
-      details: `Created service: ${service.name}`,
-      userId: session.user.id
-    });
+if (session.user.id) {
+  await logActivity("CREATE", {
+    entityType: 'service',
+    entityId: service.id,
+    details: `Created service: ${service.name}`,
+    userId: session.user.id
+  });
+}
     
     // Revalidate cache
     revalidatePath('/services');

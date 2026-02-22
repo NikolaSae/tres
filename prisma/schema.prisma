@@ -177,22 +177,27 @@ model HumanitarianOrg {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // New fields
-  pib         String?   @db.VarChar(9)       // Tax ID (8-9 digits)
-  registrationNumber String? @map("maticni_broj") @db.VarChar(13) // Registration number (8-13 chars)
-  bank        String?   @db.VarChar(100)     // Bank name
-  accountNumber String? @map("tekuci_racun") @db.VarChar(100) // Account number (18-100 chars)
-  shortNumber String?   @map("kratki_broj")  @db.VarChar(10) // Short code (up to 10 chars)
+  pib                String?   @db.VarChar(9)
+  registrationNumber String?   @map("maticni_broj") @db.VarChar(13)
+  bank               String?   @db.VarChar(100)
+  accountNumber      String?   @map("tekuci_racun") @db.VarChar(100)
+  shortNumber        String?   @map("kratki_broj") @db.VarChar(10)
+
+  // NOVO: direktna veza na Service (kratki broj servis)
+  serviceId   String?
+  service     Service?  @relation("HumanitarianOrgService", fields: [serviceId], references: [id], onDelete: SetNull)
 
   // Relations
   transactions HumanitarianTransaction[] @relation("HumanitarianOrgTransactions")
   contracts   Contract[]
   renewals    HumanitarianContractRenewal[]
   complaints  Complaint[]
-  reportFiles ReportFile[] // Add this line
+  reportFiles ReportFile[]
 
   @@index([name])
   @@index([pib])
+  @@index([shortNumber])
+  @@index([serviceId])
 }
 
 model VasTransaction {
@@ -621,6 +626,7 @@ model Service {
   complaints    Complaint[]
   transactions  ParkingTransaction[]
   vasTransactions VasTransaction[]
+  humanitarianOrgs HumanitarianOrg[] @relation("HumanitarianOrgService")
   @@index([type])
   @@index([name])
   @@index([createdById])
@@ -822,6 +828,11 @@ model Attachment {
 
   @@index([complaintId])
 }
+
+enum HumanitarianBillingType {
+  PREPAID
+  POSTPAID
+}
 model HumanitarianTransaction {
   id                    String           @id @default(cuid())
   
@@ -839,9 +850,7 @@ model HumanitarianTransaction {
   price                 Float
   quantity              Float
   amount                Float
-  
-  // Metadata
-  billingType           String           // "PREPAID" or "POSTPAID"
+  billingType           HumanitarianBillingType
   messageType           String?
   description           String?          @db.Text
   

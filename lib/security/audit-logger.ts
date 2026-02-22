@@ -31,7 +31,11 @@ export async function logActivity(action: string, options: LogOptions) {
     }
     userId = user.id;
   }
-
+    if (!userId) {
+    console.error("logActivity: userId is undefined, skipping log");
+    return;
+  }
+  
   const { entityType, entityId, details, severity = LogSeverity.INFO } = options;
 
   let detailsString: string | null = null;
