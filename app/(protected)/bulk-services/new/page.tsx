@@ -1,43 +1,23 @@
 // app/(protected)/bulk-services/new/page.tsx
-
+import { connection } from 'next/server';
 import { Metadata } from "next";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
 import { BulkServiceForm } from "@/components/bulk-services/BulkServiceForm";
 import { getAllServices } from "@/actions/services/getAllServices";
 import { getAllProviders } from "@/actions/providers/getAllProviders";
-import { unstable_cache } from 'next/cache';
 
 export const metadata: Metadata = {
   title: "Create Bulk Service",
   description: "Add a new bulk service to the system",
 };
 
-
-// Cache helper functions
-const getCachedServices = unstable_cache(
-  async () => getAllServices({ type: "BULK" }),
-  ['bulk-services-list'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['services', 'bulk-services']
-  }
-);
-
-const getCachedProviders = unstable_cache(
-  async () => getAllProviders({ isActive: true }),
-  ['active-providers-list'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['providers']
-  }
-);
-
 export default async function NewBulkServicePage() {
-  // Use parallel fetching with cached data
+  await connection();
+
   const [services, providers] = await Promise.all([
-    getCachedServices(),
-    getCachedProviders(),
+    getAllServices({ type: "BULK" }),
+    getAllProviders({ isActive: true }),
   ]);
 
   return (
@@ -49,10 +29,10 @@ export default async function NewBulkServicePage() {
         />
       </div>
       <Separator />
-      <BulkServiceForm 
-        services={services} 
-        providers={providers} 
-        initialData={null} 
+      <BulkServiceForm
+        services={services}
+        providers={providers}
+        initialData={null}
       />
     </div>
   );

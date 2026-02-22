@@ -1,10 +1,10 @@
 // /app/api/services/categories/route.ts
+import { connection } from 'next/server';
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { ServiceType } from "@prisma/client";
 
-// Define the type for service categories with optional complaint count
 type ServiceCategoryWithSamples = {
   type: ServiceType;
   count: number;
@@ -18,58 +18,36 @@ type ServiceCategoryWithSamples = {
 };
 
 export async function GET() {
+  await connection();
+
   try {
     const session = await auth();
-    
-    // Enhanced session validation
-    if (!session) {
-      console.error('No session found');
-      return new NextResponse("Unauthorized - No session", { status: 401 });
+
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 401 });
     }
-    
-    if (!session.user) {
-      console.error('Session found but no user object');
-      return new NextResponse("Unauthorized - No user", { status: 401 });
-    }
-    
-    // Use email as fallback identifier if ID is missing
+
     const userId = session.user.id || session.user.email;
-    
     if (!userId) {
-      console.error('User object exists but ID and email are missing:', session.user);
       return new NextResponse("Unauthorized - Missing identifier", { status: 401 });
     }
 
-    // Get all service categories (types)
     const serviceTypes = Object.values(ServiceType);
-    
-    // Get counts of services per category
+
     const servicesPerCategory = await Promise.all(
       serviceTypes.map(async (type) => {
         const count = await db.service.count({
-          where: {
-            type,
-            isActive: true,
-          },
+          where: { type, isActive: true },
         });
         return { type, count };
       })
     );
-    
-    // Get sample services for each category
+
     const servicesWithSamples: ServiceCategoryWithSamples[] = await Promise.all(
       serviceTypes.map(async (type) => {
         const services = await db.service.findMany({
-          where: {
-            type,
-            isActive: true,
-          },
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            type: true,
-          },
+          where: { type, isActive: true },
+          select: { id: true, name: true, description: true, type: true },
           take: 5,
         });
         return {
@@ -79,23 +57,17 @@ export async function GET() {
         };
       })
     );
-    
-    // Add complaint counts only for admins/managers
+
     if (session.user.role === "ADMIN" || session.user.role === "MANAGER") {
       const complaintCountsByServiceType = await Promise.all(
         serviceTypes.map(async (type) => {
-          const complaints = await db.complaint.count({
-            where: {
-              service: {
-                type,
-              },
-            },
+          const complaintCount = await db.complaint.count({
+            where: { service: { type } },
           });
-          return { type, complaintCount: complaints };
+          return { type, complaintCount };
         })
       );
-      
-      // Merge complaint counts
+
       servicesWithSamples.forEach(category => {
         category.complaintCount = complaintCountsByServiceType.find(
           c => c.type === category.type
@@ -103,11 +75,11 @@ export async function GET() {
       });
     }
 
-    // Return structured response
     return NextResponse.json({
       categories: serviceTypes,
       services: servicesWithSamples.flatMap(category => category.samples)
     });
+
   } catch (error) {
     console.error("[SERVICE_CATEGORIES_GET]", error);
     return new NextResponse("Internal error", { status: 500 });

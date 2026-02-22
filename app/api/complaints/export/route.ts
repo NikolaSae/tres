@@ -1,18 +1,19 @@
 // /app/api/complaints/export/route.ts
+import { connection } from 'next/server';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import * as XLSX from 'xlsx';
 
 export async function GET(req: NextRequest) {
+  await connection();
+
   try {
     const session = await auth();
-    // FIX: Dodaj proveru za session.user.id
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
     
-    // Check if user has permission to export data
     const user = await db.user.findUnique({
       where: { id: session.user.id },
     });
@@ -30,7 +31,6 @@ export async function GET(req: NextRequest) {
     const providerId = searchParams.get("providerId");
     const productId = searchParams.get("productId");
     
-    // Build filter conditions
     let whereClause: any = {};
     
     if (startDate && endDate) {
@@ -39,71 +39,32 @@ export async function GET(req: NextRequest) {
         lte: new Date(endDate),
       };
     }
-    
-    if (status) {
-      whereClause.status = status;
-    }
-    
-    if (serviceId) {
-      whereClause.serviceId = serviceId;
-    }
-    
-    if (providerId) {
-      whereClause.providerId = providerId;
-    }
-    
-    if (productId) {
-      whereClause.productId = productId;
-    }
+    if (status) whereClause.status = status;
+    if (serviceId) whereClause.serviceId = serviceId;
+    if (providerId) whereClause.providerId = providerId;
+    if (productId) whereClause.productId = productId;
 
-    // Fetch complaints with related data
     const complaints = await db.complaint.findMany({
       where: whereClause,
       include: {
-        service: {
-          select: {
-            name: true,
-          },
-        },
-        product: {
-          select: {
-            name: true,
-          },
-        },
-        provider: {
-          select: {
-            name: true,
-          },
-        },
-        submittedBy: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        assignedAgent: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+        service: { select: { name: true } },
+        product: { select: { name: true } },
+        provider: { select: { name: true } },
+        submittedBy: { select: { name: true, email: true } },
+        assignedAgent: { select: { name: true, email: true } },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
-    // Log the export activity - session.user.id is now guaranteed to be string
     await db.activityLog.create({
       data: {
         action: "EXPORT_COMPLAINTS",
         entityType: "complaint",
         details: `Exported ${complaints.length} complaints in ${format} format`,
-        userId: session.user.id, // ✅ Now type-safe
+        userId: session.user.id,
       },
     });
 
-    // Transform data for export
     const exportData = complaints.map(complaint => ({
       ID: complaint.id,
       Title: complaint.title,
@@ -127,14 +88,13 @@ export async function GET(req: NextRequest) {
 
     if (format === "json") {
       return NextResponse.json(exportData);
-    } else if (format === "csv") {
-      // Convert to CSV
+    }
+
+    if (format === "csv") {
       const headers = Object.keys(exportData[0] || {}).join(",") + "\n";
       const csv = exportData.reduce((str, row) => {
         return str + Object.values(row).map(value => 
-          typeof value === "string" && value.includes(",") 
-            ? `"${value}"`
-            : value
+          typeof value === "string" && value.includes(",") ? `"${value}"` : value
         ).join(",") + "\n";
       }, headers);
       
@@ -144,21 +104,20 @@ export async function GET(req: NextRequest) {
           "Content-Disposition": `attachment; filename="complaints_export_${new Date().toISOString().split("T")[0]}.csv"`,
         },
       });
-    } else {
-      // Default to XLSX format
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Complaints");
-      
-      const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-      
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "Content-Disposition": `attachment; filename="complaints_export_${new Date().toISOString().split("T")[0]}.xlsx"`,
-        },
-      });
     }
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Complaints");
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="complaints_export_${new Date().toISOString().split("T")[0]}.xlsx"`,
+      },
+    });
+
   } catch (error) {
     console.error("[EXPORT_GET]", error);
     return new NextResponse("Internal error", { status: 500 });

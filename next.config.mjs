@@ -11,12 +11,12 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  cacheComponents: true,
 
   // ============================================================
   // EXPERIMENTAL
   // ============================================================
   experimental: {
-    cacheComponents: true,
     serverActions: {
       bodySizeLimit: '10mb',
       allowedOrigins: [

@@ -10,9 +10,14 @@ import path from "path";
  */
 export function getMarkdown(fileName: string): string {
   try {
-    const filePath = path.join(process.cwd(), "docs", fileName);
+    // Pokušaj prvo u docs/docs-site/docs/
+    let filePath = path.join(process.cwd(), "docs", "docs-site", "docs", fileName);
     
-    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      // Fallback na stari docs/ folder
+      filePath = path.join(process.cwd(), "docs", fileName);
+    }
+    
     if (!fs.existsSync(filePath)) {
       console.error(`Markdown file not found: ${filePath}`);
       return '';
@@ -20,8 +25,8 @@ export function getMarkdown(fileName: string): string {
     
     const content = fs.readFileSync(filePath, "utf-8");
     console.log(`Successfully loaded: ${fileName} (${content.length} chars)`);
-    
     return content;
+
   } catch (error) {
     console.error(`Error reading markdown file ${fileName}:`, error);
     return '';

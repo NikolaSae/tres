@@ -1,5 +1,5 @@
 // app/(protected)/reports/scheduled/page.tsx
-
+import { connection } from 'next/server';
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -15,16 +15,17 @@ export const metadata: Metadata = {
   description: "Manage and schedule automatic report generation",
 };
 
-
 export default async function ScheduledReportsPage() {
+  await connection();
+
   const scheduledReports = await getScheduledReports();
-  
+
   const handleScheduleSubmit = async (data: any) => {
     "use server";
     console.log("Schedule submitted:", data);
     redirect("/reports/scheduled?tab=active");
   };
-  
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2 mb-2">
@@ -54,7 +55,7 @@ export default async function ScheduledReportsPage() {
           <TabsTrigger value="history">Run History</TabsTrigger>
           <TabsTrigger value="create">Create Schedule</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="active" className="space-y-4">
           {scheduledReports && scheduledReports.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -92,9 +93,14 @@ export default async function ScheduledReportsPage() {
                     </div>
                     <div className="mt-4 flex justify-end space-x-2">
                       <Button variant="outline" size="sm">Edit</Button>
-                      <Button variant="outline" size="sm" className={
-                        report.isActive ? 'text-red-500 hover:text-red-600' : 'text-green-500 hover:text-green-600'
-                      }>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={report.isActive
+                          ? 'text-red-500 hover:text-red-600'
+                          : 'text-green-500 hover:text-green-600'
+                        }
+                      >
                         {report.isActive ? 'Disable' : 'Enable'}
                       </Button>
                     </div>
@@ -117,14 +123,13 @@ export default async function ScheduledReportsPage() {
             </Card>
           )}
         </TabsContent>
-        
+
         <TabsContent value="history" className="space-y-4">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Report Generation History</h2>
-            {/* Report generation history would go here */}
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="create" className="space-y-4">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Create Scheduled Report</h2>

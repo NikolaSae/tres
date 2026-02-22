@@ -1,9 +1,11 @@
 // app/api/admin/mcp/search-humanitarian-orgs/route.ts
+import { connection } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { NextRequest } from 'next/server';
 
 export async function GET(req: NextRequest) {
+  await connection();
   try {
     const session = await auth();
     if (!session?.user) {
@@ -12,7 +14,7 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const query = url.searchParams.get('q')?.trim() || '';
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200); // Max 200
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
     const onlyWithShortNumbers = url.searchParams.get('shortNumbers') === 'true';
 
     const whereClause: any = {
@@ -33,31 +35,13 @@ export async function GET(req: NextRequest) {
       where: whereClause,
       take: limit,
       orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        shortNumber: true,
-        email: true,
-        phone: true,
-        contactName: true,
-        address: true,
-        mission: true,
-        createdAt: true
-      }
+      select: { id: true, name: true, shortNumber: true, email: true, phone: true, contactName: true, address: true, mission: true, createdAt: true }
     });
 
-    return Response.json({ 
-      results: orgs,
-      query,
-      totalFound: orgs.length,
-      limit
-    });
-    
+    return Response.json({ results: orgs, query, totalFound: orgs.length, limit });
+
   } catch (error) {
     console.error('Error fetching humanitarian orgs:', error);
-    return Response.json({ 
-      error: 'Internal server error',
-      results: []
-    }, { status: 500 });
+    return Response.json({ error: 'Internal server error', results: [] }, { status: 500 });
   }
 }

@@ -15,14 +15,14 @@ interface DocPageProps {
 
 // Mapa slug-ova na stvarne fajlove
 const slugToFile: Record<string, string> = {
-  'readme': 'README.md',
-  'api-docs': 'PROJECT_API_DOCUMENTATION.md',
-  'api-structure': 'PROJECT_API_STRUCTURE.md',
-  'app-structure': 'PROJECT_STRUCTURE.md',
-  'full-docs': 'PROJECT_DOCUMENTATION.md',
-  'database': 'baza-podataka.md',
-  'architecture': 'arhitektura.md',
-  'contracts-module': 'PROJECT_APP_CONTRACTS.md',
+  'readme': 'intro.md',
+  'api-docs': 'architecture/api-routes.md',
+  'api-structure': 'architecture/api-routes.md',
+  'app-structure': 'architecture/folder-structure.md',
+  'full-docs': 'intro.md',
+  'database': 'architecture/database.md',
+  'architecture': 'architecture/overview.md',
+  'contracts-module': 'features/contracts.md',
 };
 
 // Mapa naslova i opisa za svaki dokument

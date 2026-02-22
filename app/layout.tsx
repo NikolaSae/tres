@@ -1,16 +1,17 @@
-// app/layout.tsx - Optimizovana verzija
+// app/layout.tsx 
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import React from 'react';
+import React, { Suspense } from 'react';
 import { themeScript } from "@/utils/theme-script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/contexts/theme-context";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   weight: "100 900",
-  display: "swap", // ✅ Optimizacija za font loading
+  display: "swap",
   preload: true,
 });
 
@@ -25,10 +26,10 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: {
     default: "Fin-App-Hub",
-    template: "%s | Fin-App-Hub", // ✅ Template za sve stranice
+    template: "%s | Fin-App-Hub",
   },
   description: "Finansijski izveštaji, vaši servisi, reklamacije, parking i još mnogo toga.",
-  keywords: ["finansije", "izveštaji", "reklamacije", "parking"], // ✅ SEO
+  keywords: ["finansije", "izveštaji", "reklamacije", "parking"],
   authors: [{ name: "Fin-App-Hub Team" }],
   creator: "Fin-App-Hub",
   openGraph: {
@@ -55,7 +56,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
         suppressHydrationWarning
       >
-        {children}
+        <Suspense fallback={null}>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </Suspense>
         <Toaster />
       </body>
     </html>

@@ -1,67 +1,160 @@
 // app/(protected)/operators/[id]/page.tsx
-
-import { Metadata } from "next";
+import { connection } from 'next/server';
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { ContractDetails } from "@/components/contracts/ContractDetails";
+import { ContractStatusBadge } from "@/components/contracts/ContractStatusBadge";
+import { AttachmentList } from "@/components/contracts/AttachmentList";
+import { AttachmentUpload } from "@/components/contracts/AttachmentUpload";
+import { ExpiryWarning } from "@/components/contracts/ExpiryWarning";
+import { Metadata } from "next";
+import { db } from "@/lib/db";
+import { calculateContractRevenue } from "@/lib/contracts/revenue-calculator";
+import { RevenueBreakdown } from "@/components/contracts/RevenueBreakdown";
 
-import { getOperatorById } from "@/actions/operators";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import DashboardShell from "@/components/dashboard/DashboardShell";
-import { OperatorDetails } from "@/components/operators/OperatorDetails";
-import { OperatorContracts } from "@/components/operators/OperatorContracts";
-import { buttonVariants } from "@/components/ui/button";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { BackButton } from "@/components/BackButton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  try {
+    const { id } = await params;
+    const contract = await db.contract.findUnique({
+      where: { id },
+      select: { name: true, contractNumber: true }
+    });
 
-export const metadata: Metadata = {
-  title: "Operator Details",
-  description: "View operator details",
-};
+    if (!contract) {
+      return { title: "Contract Not Found", description: "The requested contract could not be found" };
+    }
 
-interface OperatorDetailsPageProps {
-  params: Promise<{
-    id: string;
-  }>;
+    return {
+      title: `${contract.name} | Contract Details`,
+      description: `View details for contract ${contract.contractNumber}`,
+    };
+  } catch (error) {
+    console.error("[METADATA_ERROR]", error);
+    return { title: "Error Loading Contract Metadata", description: "There was an error loading contract information" };
+  }
 }
 
-export default async function OperatorDetailsPage({ params }: OperatorDetailsPageProps) {
-  const { id } = await params;
-  const operator = await getOperatorById(id);
+interface ContractPageProps {
+  params: Promise<{ id: string }>;
+}
 
-  if (!operator) {
+async function getContract(id: string) {
+  try {
+    const contract = await db.contract.findUnique({
+      where: { id },
+      include: {
+        reminders: { orderBy: { reminderDate: 'asc' } },
+        provider: true,
+        humanitarianOrg: true,
+        parkingService: true,
+        operator: true,
+        services: { include: { service: true } },
+        attachments: { include: { uploadedBy: { select: { name: true } } } },
+        createdBy: { select: { name: true } },
+        lastModifiedBy: { select: { name: true } },
+      },
+    });
+
+    if (!contract) notFound();
+    return contract;
+  } catch (error) {
+    console.error(`[GET_CONTRACT_ERROR] Failed to fetch contract with ID ${id}:`, error);
     notFound();
   }
+}
+
+export default async function ContractPage({ params }: ContractPageProps) {
+  await connection();
+
+  const { id } = await params;
+  const contract = await getContract(id);
+
+  const calculatedRevenue = await calculateContractRevenue(
+    contract.id,
+    contract.startDate,
+    contract.endDate
+  );
+
+  const revenueData = calculatedRevenue ?? undefined;
+  const periodStart = contract.startDate ? new Date(contract.startDate) : undefined;
+  const periodEnd = contract.endDate ? new Date(contract.endDate) : undefined;
+  const isRevenueSharing = contract.isRevenueSharing ?? false;
+  const operatorRevenue = isRevenueSharing ? contract.operatorRevenue : null;
+
+  const transformedAttachments = contract.attachments?.map(attachment => ({
+    id: attachment.id,
+    name: attachment.name,
+    fileUrl: attachment.fileUrl,
+    fileType: attachment.fileType,
+    uploadedAt: attachment.uploadedAt,
+    uploadedBy: { name: attachment.uploadedBy.name || "Unknown User" }
+  })) || [];
+
+  const transformedContract = {
+    ...contract,
+    createdBy: { name: contract.createdBy.name || "Unknown User" },
+    lastModifiedBy: contract.lastModifiedBy ? { name: contract.lastModifiedBy.name || "Unknown User" } : null
+  };
 
   return (
-    <DashboardShell>
-      <DashboardHeader
-        heading={operator.name}
-        text={`Operator code: ${operator.code}`}
-      >
+    <div className="p-6 space-y-6">
+      <div>
         <div className="flex items-center gap-2">
-          <BackButton />
-          <Link
-            href={`/operators/${id}/edit`}
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            Edit Operator
-          </Link>
+          <h1 className="text-2xl font-bold tracking-tight">{contract.name}</h1>
+          <ContractStatusBadge status={contract.status} />
         </div>
-      </DashboardHeader>
+        <p className="text-gray-500">Contract #{contract.contractNumber}</p>
+      </div>
 
-      <Tabs defaultValue="details" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="contracts">Contracts</TabsTrigger>
-        </TabsList>
-        <TabsContent value="details">
-          <OperatorDetails operator={operator} />
-        </TabsContent>
-        <TabsContent value="contracts">
-          <OperatorContracts operatorId={id} />
-        </TabsContent>
-      </Tabs>
-    </DashboardShell>
+      <div className="flex items-center gap-4">
+        
+          <a href={`/contracts/${contract.id}/edit`}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/90 h-10 py-2 px-4"
+        >
+          Edit Contract
+        </a>
+      </div>
+
+      {contract.status === "ACTIVE" && (
+        <Suspense fallback={<div>Checking expiry...</div>}>
+          <ExpiryWarning contractId={contract.id} endDate={contract.endDate} />
+        </Suspense>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <RevenueBreakdown
+              contractId={contract.id}
+              contractType={contract.type}
+              revenuePercentage={contract.revenuePercentage}
+              isRevenueSharing={isRevenueSharing}
+              operatorRevenue={operatorRevenue}
+              revenueData={revenueData}
+              calculationStartDate={periodStart}
+              calculationEndDate={periodEnd}
+            />
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <ContractDetails contract={transformedContract} />
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-medium">Attachments</h2>
+              <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
+                {transformedAttachments.length} files
+              </span>
+            </div>
+            <AttachmentList contractId={contract.id} attachments={transformedAttachments} />
+            <div className="mt-6">
+              <AttachmentUpload contractId={contract.id} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 // app/(protected)/dashboard/page.tsx
+import { connection } from 'next/server';
 import { Metadata } from "next";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
@@ -16,6 +17,8 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
+  await connection();
+
   const session = await auth();
   
   if (!session) {
@@ -30,7 +33,6 @@ export default async function DashboardPage() {
     sessionRole: (session.user as any)?.role
   });
 
-  // Check if user has admin/manager permissions
   const hasAdminAccess = userRole === UserRole.ADMIN || userRole === UserRole.MANAGER;
 
   return (
@@ -41,7 +43,6 @@ export default async function DashboardPage() {
       />
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Complaints Card */}
         <Card>
           <CardHeader>
             <CardTitle>Complaints</CardTitle>
@@ -56,7 +57,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Contracts Card */}
         <Card>
           <CardHeader>
             <CardTitle>Contracts</CardTitle>
@@ -71,7 +71,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Operators Card */}
         <Card>
           <CardHeader>
             <CardTitle>Operators</CardTitle>
@@ -86,7 +85,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Admin Only Cards */}
         {hasAdminAccess && (
           <>
             <Card>
@@ -119,7 +117,6 @@ export default async function DashboardPage() {
           </>
         )}
 
-        {/* Settings Card */}
         <Card>
           <CardHeader>
             <CardTitle>Settings</CardTitle>
@@ -134,7 +131,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Debug Info (remove in production) */}
         {process.env.NODE_ENV === 'development' && (
           <Card className="col-span-full">
             <CardHeader>

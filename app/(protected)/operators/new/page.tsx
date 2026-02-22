@@ -1,5 +1,5 @@
 // app/(protected)/operators/new/page.tsx
-
+import { connection } from 'next/server';
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OperatorForm } from "@/components/operators/OperatorForm";
@@ -7,7 +7,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getUserRole, getCurrentUser, hasRequiredRole } from "@/lib/auth/auth-utils";
+import { hasRequiredRole } from "@/lib/auth/auth-utils";
 import { UserRole } from "@prisma/client";
 
 export const metadata: Metadata = {
@@ -15,16 +15,16 @@ export const metadata: Metadata = {
   description: "Create a new operator in the system.",
 };
 
-
-
 export default async function NewOperatorPage() {
+  await connection();
+
   try {
     const hasAccess = await hasRequiredRole([UserRole.ADMIN, UserRole.MANAGER]);
-    
+
     if (!hasAccess) {
       redirect("/operators");
     }
-    
+
     return (
       <DashboardShell>
         <DashboardHeader
@@ -40,10 +40,13 @@ export default async function NewOperatorPage() {
         </div>
       </DashboardShell>
     );
-    
-  } catch (error) {
+
+  } catch (error: any) {
+    // NEXT_REDIRECT je očekivano ponašanje, ne greška — propusti dalje
+    if (error?.digest?.startsWith('NEXT_REDIRECT')) throw error;
+
     console.error("[NEW_OPERATOR_PAGE] Error:", error);
-    
+
     return (
       <DashboardShell>
         <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
