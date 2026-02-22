@@ -3,68 +3,86 @@
 
 import * as z from "zod";
 import bcrypt from "bcryptjs";
-
-import { newPasswordSchema } from "@/schemas"; // Changed to lowercase
+import { headers } from "next/headers";
+import { newPasswordSchema } from "@/schemas";
 import { getPasswordResetTokenByToken } from "@/data/password-reset-token";
 import { getUserByEmail } from "@/data/user";
 import { db } from "@/lib/db";
+import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limiter";
+import { logActivity } from "@/lib/security/audit-logger";
+import { LogSeverity } from "@prisma/client";
+import { NextRequest } from "next/server";
 
 export const newPassword = async (
-  values: z.infer<typeof newPasswordSchema>, // Changed to lowercase
+  values: z.infer<typeof newPasswordSchema>,
   token?: string | null
 ) => {
-  if (!token) {
+  if (!token || typeof token !== "string" || token.length > 512) {
     return { error: "Missing token!" };
   }
 
-  const validatedFields = newPasswordSchema.safeParse(values); // Changed to lowercase
+  // ✅ Rate limiting — sprečava brute-force token guessing
+  const headersList = await headers();
+  const fakeReq = {
+    headers: { get: (key: string) => headersList.get(key) },
+  } as unknown as NextRequest;
 
+  const rl = await rateLimit(
+    fakeReq,
+    `newpassword:${token.slice(0, 16)}`,
+    RATE_LIMIT_CONFIGS.auth
+  );
+  if (!rl.success) {
+    return { error: "Previše pokušaja. Zatražite novi reset link." };
+  }
+
+  const validatedFields = newPasswordSchema.safeParse(values);
   if (!validatedFields.success) {
-    return {
-      error: "Invalid fields",
-    };
+    return { error: "Invalid fields" };
   }
 
   const { password } = validatedFields.data;
 
   const existingToken = await getPasswordResetTokenByToken(token);
-
   if (!existingToken) {
-    return {
-      error: "Invalid token!",
-    };
+    return { error: "Invalid token!" };
   }
 
   const hasExpired = new Date(existingToken.expires) < new Date();
-
   if (hasExpired) {
-    return {
-      error: "Token has expired!",
-    };
+    // ✅ Obriši istekli token iz baze
+    await db.passwordResetToken.delete({ where: { id: existingToken.id } }).catch(() => {});
+    return { error: "Token has expired!" };
   }
 
-  const existingUser = await getUserByEmail(existingToken.email); // Fixed typo: exitingUser -> existingUser
-
-  if (!existingUser) { // Fixed typo: exitingUser -> existingUser
-    return {
-      error: "User not found!",
-    };
+  const existingUser = await getUserByEmail(existingToken.email);
+  if (!existingUser) {
+    return { error: "User not found!" };
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  // ✅ Proveri da nova lozinka nije ista kao stara
+  if (existingUser.password) {
+    const isSamePassword = await bcrypt.compare(password, existingUser.password);
+    if (isSamePassword) {
+      return { error: "Nova lozinka mora biti različita od stare!" };
+    }
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12); // ✅ 12 rounds umesto 10
 
   await db.user.update({
-    where: { id: existingUser.id }, // Fixed typo: exitingUser -> existingUser
-    data: {
-      password: hashedPassword,
-    },
+    where: { id: existingUser.id },
+    data: { password: hashedPassword },
   });
 
-  await db.passwordResetToken.delete({
-    where: { id: existingToken.id },
-  });
+  // ✅ Obriši token nakon uspešne promene (single-use)
+  await db.passwordResetToken.delete({ where: { id: existingToken.id } });
 
-  return {
-    success: "Password updated!",
-  };
+  await logActivity("PASSWORD_RESET_COMPLETED", {
+    entityType: "auth",
+    entityId: existingUser.id,
+    severity: LogSeverity.INFO,
+  }).catch(() => {});
+
+  return { success: "Password updated!" };
 };

@@ -1,14 +1,12 @@
 // actions/bulk-services/import.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { ServerError } from "@/lib/exceptions";
 import { getCurrentUser } from "@/lib/session";
 import { parseBulkServiceCSV, processBulkServiceCsv } from "@/lib/bulk-services/csv-processor";
 import { ActivityLogService } from "@/lib/services/activity-log-service";
 import { LogSeverity, ServiceType, BillingType } from "@prisma/client";
-import { revalidatePath } from "next/cache";
-import { invalidateCache } from "@/lib/cache/memory-cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { BulkServiceImportResult } from "@/lib/types/bulk-service-types";
 
 export async function importBulkServicesFromCsv(
@@ -28,7 +26,6 @@ export async function importBulkServicesFromCsv(
 
   try {
     const currentUser = await getCurrentUser();
-    
     if (!currentUser?.id) {
       results.error = "Unauthorized";
       results.importErrors.push("Unauthorized");
@@ -37,29 +34,26 @@ export async function importBulkServicesFromCsv(
 
     const { data: parsedCsvData, errors: initialParseErrors } = await parseBulkServiceCSV(csvContent);
 
-    // Store error messages
     initialParseErrors.forEach(e => {
       results.importErrors.push(`Row ${e.rowIndex === -1 ? 'N/A' : e.rowIndex + 2}: ${e.errors.join('; ')}`);
     });
 
     results.totalRows = parsedCsvData.length;
 
-    // Parallel fetch of existing providers and services
     const [existingProviders, existingServices] = await Promise.all([
-      db.provider.findMany({ 
+      db.provider.findMany({
         select: { id: true, name: true },
-        where: { isActive: true }
+        where: { isActive: true },
       }),
-      db.service.findMany({ 
+      db.service.findMany({
         select: { id: true, name: true },
-        where: { type: ServiceType.BULK }
+        where: { type: ServiceType.BULK },
       }),
     ]);
 
     const providerMap = new Map(existingProviders.map(p => [p.name.toLowerCase(), p.id]));
     let serviceMap = new Map(existingServices.map(s => [s.name.toLowerCase(), s.id]));
 
-    // Collect unique composite services
     const uniqueCompositeServices = new Map<string, {
       originalProviderName: string;
       originalAgreementName: string;
@@ -81,7 +75,7 @@ export async function importBulkServicesFromCsv(
             originalServiceName: row.service_name,
             originalStepName: row.step_name,
             originalSenderName: row.sender_name,
-            compositeNamePreserveCase: composite
+            compositeNamePreserveCase: composite,
           });
         }
       }
@@ -89,15 +83,13 @@ export async function importBulkServicesFromCsv(
 
     const newlyCreatedServices: { id: string; name: string }[] = [];
 
-    // Create missing services in batch
     const servicesToCreate = Array.from(uniqueCompositeServices.entries())
       .filter(([compositeLower]) => !serviceMap.has(compositeLower));
 
     if (servicesToCreate.length > 0) {
       try {
-        // Use transaction for batch service creation
         const createdServices = await db.$transaction(
-          servicesToCreate.map(([, details]) => 
+          servicesToCreate.map(([, details]) =>
             db.service.create({
               data: {
                 name: details.compositeNamePreserveCase,
@@ -114,18 +106,16 @@ export async function importBulkServicesFromCsv(
           newlyCreatedServices.push({ id: service.id, name: service.name });
           serviceMap.set(service.name.toLowerCase(), service.id);
         });
-      } catch (err: any) {
-        // Handle race conditions by fetching again
+      } catch (_err: unknown) {
+        // Race condition — neki servis je kreiran između našeg čitanja i pisanja
         const existingAfterRace = await db.service.findMany({
-          where: { 
+          where: {
             type: ServiceType.BULK,
-            name: { 
-              in: servicesToCreate.map(([, d]) => d.compositeNamePreserveCase) 
-            }
+            name: { in: servicesToCreate.map(([, d]) => d.compositeNamePreserveCase) },
           },
-          select: { id: true, name: true }
+          select: { id: true, name: true },
         });
-        
+
         existingAfterRace.forEach(service => {
           serviceMap.set(service.name.toLowerCase(), service.id);
         });
@@ -145,7 +135,6 @@ export async function importBulkServicesFromCsv(
       return results;
     }
 
-    // Check for existing records
     const existingRecords = await db.bulkService.findMany({
       where: { datumNaplate: importDate },
       select: {
@@ -174,7 +163,6 @@ export async function importBulkServicesFromCsv(
       return existingKeys.has(key);
     });
 
-    // Use single transaction for all creates
     const created = await db.$transaction(
       recordsToCreate.map(r =>
         db.bulkService.create({
@@ -196,9 +184,8 @@ export async function importBulkServicesFromCsv(
       )
     );
 
-    // Batch update existing records
     let updatedCount = 0;
-    
+
     if (recordsToUpdate.length > 0) {
       const updateResults = await db.$transaction(
         recordsToUpdate.map(r =>
@@ -221,7 +208,7 @@ export async function importBulkServicesFromCsv(
           })
         )
       );
-      
+
       updatedCount = updateResults.reduce((sum, result) => sum + result.count, 0);
     }
 
@@ -237,12 +224,9 @@ export async function importBulkServicesFromCsv(
       userId: currentUser.id!,
     });
 
-    // Invalidate all relevant caches
-    invalidateCache("bulk-services:*");
-    invalidateCache("bulk-service:*");
-    invalidateCache("services:*");
-    invalidateCache("provider-*-bulk-services");
-    
+    // Invalidate sve pogođene tagove
+    updateTag("bulk-services");
+    updateTag("services");
     revalidatePath("/bulk-services");
     revalidatePath("/services");
 

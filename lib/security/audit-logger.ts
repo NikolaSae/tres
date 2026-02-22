@@ -6,7 +6,7 @@ import { getCurrentUser } from "./auth-helpers";
 interface LogOptions {
   entityType: string;
   entityId?: string;
-  details?: string | Record<string, any>;  // ← dozvoljeno i string i objekat
+  details?: string | Record<string, unknown>;
   severity?: LogSeverity;
   userId?: string;
 }
@@ -16,22 +16,13 @@ interface ActivityLogParams {
   action: string;
   resource: string;
   resourceId?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   severity?: LogSeverity;
 }
 
-/**
- * Loguje aktivnost u bazi – koristi se za praćenje akcija korisnika
- * @param action - Naziv akcije (npr. "DELETE", "CREATE", "UPDATE")
- * @param options - Dodatni parametri
- */
-export async function logActivity(
-  action: string,
-  options: LogOptions
-) {
+export async function logActivity(action: string, options: LogOptions) {
   let userId = options.userId;
 
-  // Ako nije prosleđen userId, pokušaj da dohvatiš trenutnog korisnika
   if (!userId) {
     const user = await getCurrentUser();
     if (!user?.id) {
@@ -43,10 +34,9 @@ export async function logActivity(
 
   const { entityType, entityId, details, severity = LogSeverity.INFO } = options;
 
-  // Pripremi details – ako je objekat, pretvori u JSON string
   let detailsString: string | null = null;
   if (details) {
-    if (typeof details === 'string') {
+    if (typeof details === "string") {
       detailsString = details;
     } else {
       try {
@@ -63,16 +53,13 @@ export async function logActivity(
       action,
       entityType,
       entityId,
-      details: detailsString,      // ← sada je string | null
+      details: detailsString,
       severity,
       userId,
     },
   });
 }
 
-/**
- * Alternativna funkcija za logovanje sa više detalja
- */
 export async function createActivityLog({
   userId,
   action,

@@ -1,266 +1,235 @@
 
-> next-auth-template@0.1.0 build
+> fin-app-hub@0.1.0 build
 > prisma generate && next build
 
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 285ms
+✔ Generated Prisma Client (v6.16.2) to .\node_modules\@prisma\client in 293ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
-⚠ `eslint` configuration in next.config.mjs is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
-⚠ Invalid next.config.mjs options detected: 
-⚠     Unrecognized key(s) in object: 'eslint'
-⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
-▲ Next.js 16.1.6 (Turbopack)
+⚠ `experimental.cacheComponents` has been moved to `cacheComponents`. Please update your next.config.mjs file accordingly.
+▲ Next.js 16.1.6 (Turbopack, Cache Components)
 - Environments: .env
 - Experiments (use with caution):
+  ✓ cacheComponents
   ✓ optimizeCss
   · optimizePackageImports
   · serverActions
-  ⨯ webpackBuildWorker
 
   Creating an optimized production build ...
-✓ Compiled successfully in 20.4s
-  Skipping validation of types
-  Collecting page data using 5 workers ...
-Pusher not configured. Real-time notifications disabled.
-  Generating static pages using 5 workers (0/135) ...
-Successfully loaded: README.md (14567 chars)
-Extracted 139 headings from markdown
-Pusher not configured. Real-time notifications disabled.
-  Generating static pages using 5 workers (33/135) 
-Successfully loaded: PROJECT_API_DOCUMENTATION.md (6005 chars)
-Extracted 27 headings from markdown
-Successfully loaded: PROJECT_STRUCTURE.md (4684 chars)
-Extracted 26 headings from markdown
-Successfully loaded: PROJECT_API_STRUCTURE.md (4444 chars)
-Extracted 27 headings from markdown
-Successfully loaded: PROJECT_DOCUMENTATION.md (7390 chars)
-Extracted 35 headings from markdown
-Successfully loaded: PROJECT_APP_CONTRACTS.md (15724 chars)
-Extracted 50 headings from markdown
-Successfully loaded: baza-podataka.md (12874 chars)
-Extracted 29 headings from markdown
-Successfully loaded: arhitektura.md (28999 chars)
-Extracted 56 headings from markdown
-  Generating static pages using 5 workers (67/135) 
-  Generating static pages using 5 workers (101/135) 
-Successfully fetched providers for form: 13 items
-Loaded providers: 13
-Loaded humanitarian orgs: 32
-Loaded parking services: 5
-✓ Generating static pages using 5 workers (135/135) in 748.8ms
-  Finalizing page optimization ...
 
-Route (app)
-┌ ƒ /
-├ ○ /_not-found
-├ ○ /403
-├ ƒ /403-1
-├ ƒ /404
-├ ƒ /admin
-├ ƒ /admin/aidash
-├ ƒ /admin/complaints
-├ ƒ /admin/complaints/reports
-├ ƒ /admin/complaints/statistics
-├ ƒ /admin/notifications
-├ ƒ /admin/security
-├ ƒ /admin/security/activity-logs
-├ ƒ /admin/security/performance
-├ ƒ /admin/security/user-roles
-├ ƒ /analytics
-├ ƒ /analytics/complaints
-├ ƒ /analytics/financials
-├ ƒ /analytics/providers
-├ ƒ /analytics/sales
-├ ƒ /api/admin
-├ ƒ /api/admin/mcp/logs
-├ ƒ /api/admin/mcp/my-logs
-├ ƒ /api/admin/mcp/refresh
-├ ƒ /api/admin/mcp/search-humanitarian-orgs
-├ ƒ /api/admin/mcp/stats
-├ ƒ /api/admin/mcp/system-health
-├ ƒ /api/admin/mcp/tools-usage
-├ ƒ /api/admin/mcp/users
-├ ƒ /api/admin/mcp/users/[userId]/logs
-├ ƒ /api/admin/mcp/users/list
-├ ƒ /api/analytics/financials
-├ ƒ /api/analytics/sales
-├ ƒ /api/auth/[...nextauth]
-├ ƒ /api/blacklist
-├ ƒ /api/bulk-services
-├ ƒ /api/bulk-services/[id]
-├ ƒ /api/bulk-services/export
-├ ƒ /api/bulk-services/import
-├ ƒ /api/chat
-├ ƒ /api/chat/context
-├ ƒ /api/chat/database
-├ ƒ /api/chat/database-simple
-├ ƒ /api/complaints
-├ ƒ /api/complaints/[id]
-├ ƒ /api/complaints/[id]/attachments
-├ ƒ /api/complaints/[id]/comments
-├ ƒ /api/complaints/[id]/status
-├ ƒ /api/complaints/export
-├ ƒ /api/complaints/statistics
-├ ƒ /api/contracts
-├ ƒ /api/contracts/[id]
-├ ƒ /api/contracts/[id]/attachments
-├ ƒ /api/contracts/[id]/edit
-├ ƒ /api/contracts/[id]/reminders
-├ ƒ /api/contracts/[id]/renewal
-├ ƒ /api/contracts/[id]/renewal/attachments
-├ ƒ /api/contracts/[id]/renewal/attachments/[attachmentId]
-├ ƒ /api/contracts/[id]/renewal/status
-├ ƒ /api/contracts/[id]/services
-├ ƒ /api/contracts/[id]/status
-├ ƒ /api/contracts/expiring
-├ ƒ /api/contracts/export
-├ ƒ /api/contracts/statistics/expiry
-├ ƒ /api/contracts/timeline/expiry
-├ ƒ /api/cron/check-expiring
-├ ƒ /api/emails/upload
-├ ƒ /api/humanitarian-orgs
-├ ƒ /api/humanitarian-orgs/[id]
-├ ƒ /api/humanitarian-orgs/[id]/contracts
-├ ƒ /api/humanitarian-orgs/[id]/services
-├ ƒ /api/humanitarian-renewals
-├ ƒ /api/humanitarian-renewals/[id]
-├ ƒ /api/humanitarian-renewals/statistics
-├ ƒ /api/notifications
-├ ƒ /api/notifications/email
-├ ƒ /api/notifications/push
-├ ƒ /api/operators
-├ ƒ /api/operators/[id]
-├ ƒ /api/operators/[id]/contracts
-├ ƒ /api/operators/contracts
-├ ƒ /api/organizations/by-kratki-broj/[kratkiBroj]
-├ ƒ /api/outlook/open-draft
-├ ƒ /api/parking-services
-├ ƒ /api/parking-services/[id]
-├ ƒ /api/parking-services/[id]/contracts
-├ ƒ /api/parking-services/[id]/reports
-├ ƒ /api/parking-services/[id]/services
-├ ƒ /api/parking-services/activity
-├ ƒ /api/parking-services/parking-import
-├ ƒ /api/parking-services/rename-file
-├ ƒ /api/parking-services/reports/available
-├ ƒ /api/parking-services/reports/send
-├ ƒ /api/parking-services/typescript-import
-├ ƒ /api/parking-services/typescript-import-stream
-├ ƒ /api/parking-services/upload
-├ ƒ /api/products/[id]
-├ ƒ /api/providers
-├ ƒ /api/providers/[id]
-├ ƒ /api/providers/[id]/bulk-services
-├ ƒ /api/providers/[id]/contracts
-├ ƒ /api/providers/[id]/edit
-├ ƒ /api/providers/[id]/renwe-contract
-├ ƒ /api/providers/[id]/status
-├ ƒ /api/providers/[id]/vas-services
-├ ƒ /api/providers/by-name/[name]
-├ ƒ /api/providers/upload
-├ ƒ /api/providers/vas-import
-├ ƒ /api/reports/generate
-├ ƒ /api/reports/scan-unified
-├ ƒ /api/reports/upload-humanitarian
-├ ƒ /api/reports/upload-parking
-├ ƒ /api/reports/upload-provider
-├ ƒ /api/reports/validate-system
-├ ƒ /api/security/logs
-├ ƒ /api/security/performance
-├ ƒ /api/security/performance/summary
-├ ƒ /api/security/permissions
-├ ƒ /api/sender-blacklist
-├ ƒ /api/services
-├ ƒ /api/services/[id]
-├ ƒ /api/services/bulk/[bulkId]
-├ ƒ /api/services/categories
-├ ƒ /api/services/humanitarian/[orgId]
-├ ƒ /api/services/import
-├ ƒ /api/services/parking/[parkingId]
-├ ƒ /api/test
-├ ƒ /api/users
-├ ƒ /api/users/[id]
-├ ƒ /api/vas-services/postpaid-import-stream
-├ ƒ /api/vas-services/upload
-├ ƒ /audit-logs
-├ ○ /auth/error
-├ ○ /auth/login
-├ ○ /auth/new-password
-├ ○ /auth/new-verification
-├ ○ /auth/register
-├ ○ /auth/reset
-├ ƒ /bulk-services
-├ ƒ /bulk-services/[id]
-├ ƒ /bulk-services/[id]/edit
-├ ƒ /bulk-services/import
-├ ƒ /bulk-services/new
-├ ƒ /chat
-├ ƒ /client
-├ ƒ /complaints
-├ ƒ /complaints/[id]
-├ ƒ /complaints/[id]/edit
-├ ƒ /complaints/new
-├ ƒ /contracts
-├ ƒ /contracts/[id]
-├ ƒ /contracts/[id]/edit
-├ ƒ /contracts/expiring
-├ ƒ /contracts/new
-├ ƒ /contracts/providers
-├ ƒ /dashboard
-├ ƒ /help/documentation
-├ ƒ /help/documentation/[slug]
-├ ƒ /humanitarian-orgs
-├ ƒ /humanitarian-orgs/[id]
-├ ƒ /humanitarian-orgs/[id]/edit
-├ ƒ /humanitarian-orgs/new
-├ ƒ /humanitarian-renewals
-├ ○ /icon.png
-├ ƒ /notifications
-├ ƒ /notifications/settings
-├ ƒ /operators
-├ ƒ /operators/[id]
-├ ƒ /operators/[id]/edit
-├ ƒ /operators/new
-├ ƒ /parking-services
-├ ƒ /parking-services/[id]
-├ ƒ /parking-services/[id]/edit
-├ ƒ /parking-services/new
-├ ƒ /products
-├ ƒ /products/[id]
-├ ƒ /profile
-├ ƒ /providers
-├ ƒ /providers/[id]
-├ ƒ /providers/[id]/edit
-├ ƒ /providers/new
-├ ƒ /reports
-├ ƒ /reports/generate
-├ ƒ /reports/scheduled
-├ ƒ /server
-├ ƒ /services
-├ ƒ /services/[serviceType]
-├ ƒ /services/[serviceType]/[id]
-├ ƒ /services/[serviceType]/[id]/edit
-├ ƒ /services/import
-├ ƒ /services/new
-├ ƒ /settings
-├ ƒ /test-boxloader
-├ ƒ /test-buttons
-├ ƒ /test-cube-loader
-├ ƒ /test-CubeLoader
-├ ƒ /test-nested-spinner
-├ ƒ /test-span-loader
-├ ƒ /test-svg-loader
-└ ƒ /test/[testParam]
+> Build error occurred
+Error: Turbopack build failed with 11 errors:
+./app/(protected)/analytics/complaints/page.tsx:15:14
+Ecmascript file had an error
+[0m [90m 13 |[39m [36mimport[39m { getComplaintStats[33m,[39m [33mComplaintStatsParams[39m[33m,[39m [33mComplaintStats[39m } [36mfrom[39m [32m"@/actions/analytics/get-complaint-stats"[39m[33m;[39m
+ [90m 14 |[39m
+[31m[1m>[22m[39m[90m 15 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 16 |[39m
+ [90m 17 |[39m [90m// Update types to reflect that searchParams and params are Promises[39m
+ [90m 18 |[39m [36minterface[39m [33mComplaintAnalyticsPageProps[39m {[0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/analytics/complaints/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
 
 
-ƒ Proxy (Middleware)
+./app/(protected)/analytics/page.tsx:21:14
+Ecmascript file had an error
+[0m [90m 19 |[39m }[33m;[39m
+ [90m 20 |[39m
+[31m[1m>[22m[39m[90m 21 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 22 |[39m
+ [90m 23 |[39m [36minterface[39m [33mAnalyticsDashboardProps[39m {
+ [90m 24 |[39m   searchParams[33m:[39m [33mPromise[39m[33m<[39m{[0m
 
-○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
 
+Import trace:
+  App Route:
+    ./app/(protected)/analytics/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/bulk-services/[id]/edit/page.tsx:22:14
+Ecmascript file had an error
+[0m [90m 20 |[39m
+ [90m 21 |[39m [90m// Force dynamic rendering[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 23 |[39m
+ [90m 24 |[39m [90m// Cache helper functions[39m
+ [90m 25 |[39m [36mconst[39m getCachedServices [33m=[39m unstable_cache([0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/bulk-services/[id]/edit/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/bulk-services/new/page.tsx:17:14
+Ecmascript file had an error
+[0m [90m 15 |[39m
+ [90m 16 |[39m [90m// Force dynamic rendering[39m
+[31m[1m>[22m[39m[90m 17 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 18 |[39m
+ [90m 19 |[39m [90m// Cache helper functions[39m
+ [90m 20 |[39m [36mconst[39m getCachedServices [33m=[39m unstable_cache([0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/bulk-services/new/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/contracts/[id]/edit/page.tsx:11:14
+Ecmascript file had an error
+[0m [90m  9 |[39m
+ [90m 10 |[39m [90m// Force dynamic rendering[39m
+[31m[1m>[22m[39m[90m 11 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 12 |[39m
+ [90m 13 |[39m [36mexport[39m [36masync[39m [36mfunction[39m generateMetadata(props[33m:[39m { params[33m:[39m [33mPromise[39m[33m<[39m{ id[33m:[39m string }[33m>[39m })[33m:[39m [33mPromise[39m[33m<[39m[33mMetadata[39m[33m>[39m {
+ [90m 14 |[39m   [36mconst[39m params [33m=[39m [36mawait[39m props[33m.[39mparams[33m;[39m[0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/contracts/[id]/edit/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/contracts/new/page.tsx:16:14
+Ecmascript file had an error
+[0m [90m 14 |[39m }[33m;[39m
+ [90m 15 |[39m
+[31m[1m>[22m[39m[90m 16 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 17 |[39m
+ [90m 18 |[39m [36mexport[39m [36mdefault[39m [36masync[39m [36mfunction[39m [33mNewContractPage[39m() {
+ [90m 19 |[39m   [36mconst[39m session [33m=[39m [36mawait[39m auth()[33m;[39m[0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/contracts/new/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/contracts/page.tsx:5:14
+Ecmascript file had an error
+[0m [90m 3 |[39m [36mimport[39m { db } [36mfrom[39m [32m"@/lib/db"[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mContractStatus[39m[33m,[39m [33mContractType[39m [36mas[39m [33mPrismaContractType[39m } [36mfrom[39m [32m"@prisma/client"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 5 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m   |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 6 |[39m [36minterface[39m [33mPageProps[39m {
+ [90m 7 |[39m   searchParams[33m:[39m [33mPromise[39m[33m<[39m{ [key[33m:[39m string][33m:[39m string [33m|[39m undefined }[33m>[39m[33m;[39m
+ [90m 8 |[39m }[0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/contracts/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/operators/[id]/edit/page.tsx:21:14
+Ecmascript file had an error
+[0m [90m 19 |[39m
+ [90m 20 |[39m [90m// Force dynamic rendering (requires authentication)[39m
+[31m[1m>[22m[39m[90m 21 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 22 |[39m
+ [90m 23 |[39m [36minterface[39m [33mEditOperatorPageProps[39m {
+ [90m 24 |[39m   params[33m:[39m [33mPromise[39m[33m<[39m{[0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/operators/[id]/edit/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/operators/new/page.tsx:19:14
+Ecmascript file had an error
+[0m [90m 17 |[39m
+ [90m 18 |[39m [90m// Force dynamic rendering (requires authentication)[39m
+[31m[1m>[22m[39m[90m 19 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 20 |[39m
+ [90m 21 |[39m [36mexport[39m [36mdefault[39m [36masync[39m [36mfunction[39m [33mNewOperatorPage[39m() {
+ [90m 22 |[39m   [36mtry[39m {[0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/operators/new/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/reports/scheduled/page.tsx:19:14
+Ecmascript file had an error
+[0m [90m 17 |[39m
+ [90m 18 |[39m [90m// Force dynamic rendering[39m
+[31m[1m>[22m[39m[90m 19 |[39m [36mexport[39m [36mconst[39m dynamic [33m=[39m [32m'force-dynamic'[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 20 |[39m
+ [90m 21 |[39m [90m// Revalidate every 5 minutes for scheduled reports[39m
+ [90m 22 |[39m [36mexport[39m [36mconst[39m revalidate [33m=[39m [35m300[39m[33m;[39m[0m
+
+Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/reports/scheduled/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+./app/(protected)/reports/scheduled/page.tsx:22:14
+Ecmascript file had an error
+[0m [90m 20 |[39m
+ [90m 21 |[39m [90m// Revalidate every 5 minutes for scheduled reports[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mexport[39m [36mconst[39m revalidate [33m=[39m [35m300[39m[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 23 |[39m
+ [90m 24 |[39m [36mexport[39m [36mdefault[39m [36masync[39m [36mfunction[39m [33mScheduledReportsPage[39m() {
+ [90m 25 |[39m   [36mconst[39m scheduledReports [33m=[39m [36mawait[39m getScheduledReports()[33m;[39m[0m
+
+Route segment config "revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+
+Import trace:
+  App Route:
+    ./app/(protected)/reports/scheduled/page.tsx
+    ./app/api/contracts/[id]/renewal/attachments/[attachmentId]/route.ts
+
+
+    at <unknown> (./app/(protected)/analytics/complaints/page.tsx:15:14)
+    at <unknown> (./app/(protected)/analytics/page.tsx:21:14)
+    at <unknown> (./app/(protected)/bulk-services/[id]/edit/page.tsx:22:14)
+    at <unknown> (./app/(protected)/bulk-services/new/page.tsx:17:14)
+    at <unknown> (./app/(protected)/contracts/[id]/edit/page.tsx:11:14)
+    at <unknown> (./app/(protected)/contracts/new/page.tsx:16:14)
+    at <unknown> (./app/(protected)/contracts/page.tsx:5:14)
+    at <unknown> (./app/(protected)/operators/[id]/edit/page.tsx:21:14)
+    at <unknown> (./app/(protected)/operators/new/page.tsx:19:14)
+    at <unknown> (./app/(protected)/reports/scheduled/page.tsx:19:14)
+    at <unknown> (./app/(protected)/reports/scheduled/page.tsx:22:14)

@@ -13,21 +13,27 @@ interface Message {
 }
 
 export const FloatingChatButton = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Zdravo! Mogu da pretražujem vašu bazu podataka. Pitajte me bilo šta o ugovorima, provajderima, žalbama, servisima ili finansijskim podacima.',
-      timestamp: new Date()
-    }
-  ]);
+  // ✅ Prazna inicijalizacija — initial poruka se postavlja u useEffect
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // ✅ new Date() samo na klijentu
+  useEffect(() => {
+    setMessages([
+      {
+        role: 'assistant',
+        content: 'Zdravo! Mogu da pretražujem vašu bazu podataka. Pitajte me bilo šta o ugovorima, provajderima, žalbama, servisima ili finansijskim podacima.',
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -38,14 +44,12 @@ export const FloatingChatButton = () => {
   }, [messages]);
 
   useEffect(() => {
-    // Povećaj unread count kada assistant pošalje poruku a chat je zatvoren
     if (!isOpen && messages.length > 1 && messages[messages.length - 1]?.role === 'assistant') {
       setUnreadCount(prev => prev + 1);
     }
   }, [messages, isOpen]);
 
   useEffect(() => {
-    // Resetuj unread count kada se chat otvori
     if (isOpen) {
       setUnreadCount(0);
     }
@@ -57,7 +61,7 @@ export const FloatingChatButton = () => {
     const userMessage: Message = {
       role: 'user',
       content: input,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -68,12 +72,10 @@ export const FloatingChatButton = () => {
     try {
       const response = await fetch('/api/chat/database', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: input,
-          history: messages.slice(-5)
+          history: messages.slice(-5),
         }),
       });
 
@@ -82,28 +84,28 @@ export const FloatingChatButton = () => {
       }
 
       const data = await response.json();
-      
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: data.response,
-        sqlQuery: data.sqlQuery,
-        timestamp: new Date()
-      };
 
-      setMessages(prev => [...prev, assistantMessage]);
-
-    } catch (error) {
-      console.error('Error:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: data.response,
+          sqlQuery: data.sqlQuery,
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (err) {
+      console.error('Error:', err);
       setError('Greška prilikom komunikacije sa AI-jem. Pokušajte ponovo.');
-      
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: 'Izvinjavam se, došlo je do greške. Molim vas pokušajte ponovo.',
-        timestamp: new Date(),
-        isError: true
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Izvinjavam se, došlo je do greške. Molim vas pokušajte ponovo.',
+          timestamp: new Date(),
+          isError: true,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -116,10 +118,12 @@ export const FloatingChatButton = () => {
     }
   };
 
+  // ✅ Hydration-safe — ne izvršava se na serveru
   const formatTimestamp = (timestamp: Date) => {
-    return timestamp.toLocaleTimeString('sr-RS', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    if (typeof window === 'undefined') return '';
+    return timestamp.toLocaleTimeString('sr-RS', {
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -128,24 +132,11 @@ export const FloatingChatButton = () => {
     "Provajderi sa najviše žalbi",
     "Ugovori koji ističu uskoro",
     "Ukupan prihod ovog meseca",
-    "Neaktivne humanitarne organizacije"
+    "Neaktivne humanitarne organizacije",
   ];
-
-  const toggleChat = () => {
-    if (isOpen && !isMinimized) {
-      setIsMinimized(true);
-    } else {
-      setIsOpen(!isOpen);
-      setIsMinimized(false);
-    }
-  };
 
   const closeChat = () => {
     setIsOpen(false);
-    setIsMinimized(false);
-  };
-
-  const maximizeChat = () => {
     setIsMinimized(false);
   };
 
@@ -158,15 +149,13 @@ export const FloatingChatButton = () => {
           aria-label="Otvori AI Chat"
         >
           <MessageSquare className="w-6 h-6" />
-          
-          {/* Unread badge */}
+
           {unreadCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
-          
-          {/* Tooltip */}
+
           <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
             AI Database Chat
           </div>
@@ -177,14 +166,12 @@ export const FloatingChatButton = () => {
 
   return (
     <div className={`fixed z-50 transition-all duration-300 ${
-      isMinimized 
-        ? 'bottom-6 right-6 w-80 h-12' 
-        : 'bottom-6 right-6 w-96 h-[600px]'
+      isMinimized ? 'bottom-6 right-6 w-80 h-12' : 'bottom-6 right-6 w-96 h-[600px]'
     }`}>
       <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col h-full ${
         isMinimized ? 'overflow-hidden' : ''
       }`}>
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-t-lg">
           <div className="flex items-center gap-3">
@@ -196,9 +183,9 @@ export const FloatingChatButton = () => {
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-1">
-            {!isMinimized && (
+            {!isMinimized ? (
               <button
                 onClick={() => setIsMinimized(true)}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
@@ -206,18 +193,16 @@ export const FloatingChatButton = () => {
               >
                 <Minimize2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
-            )}
-            
-            {isMinimized && (
+            ) : (
               <button
-                onClick={maximizeChat}
+                onClick={() => setIsMinimized(false)}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                 aria-label="Povećaj"
               >
                 <Maximize2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             )}
-            
+
             <button
               onClick={closeChat}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
@@ -233,28 +218,36 @@ export const FloatingChatButton = () => {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-800/50">
               {messages.map((message, index) => (
-                <div key={index} className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  key={index}
+                  className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
                   <div className={`flex gap-2 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.role === 'user' 
-                        ? 'bg-blue-500 text-white' 
-                        : message.isError 
-                          ? 'bg-red-500 text-white' 
+                      message.role === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : message.isError
+                          ? 'bg-red-500 text-white'
                           : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                     }`}>
-                      {message.role === 'user' ? <User className="w-3 h-3" /> : 
-                       message.isError ? <AlertCircle className="w-3 h-3" /> : <Bot className="w-3 h-3" />}
+                      {message.role === 'user' ? (
+                        <User className="w-3 h-3" />
+                      ) : message.isError ? (
+                        <AlertCircle className="w-3 h-3" />
+                      ) : (
+                        <Bot className="w-3 h-3" />
+                      )}
                     </div>
-                    
+
                     <div className={`rounded-lg p-3 text-sm ${
-                      message.role === 'user' 
-                        ? 'bg-blue-500 text-white' 
+                      message.role === 'user'
+                        ? 'bg-blue-500 text-white'
                         : message.isError
                           ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
                           : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200'
                     }`}>
                       <div className="whitespace-pre-wrap">{message.content}</div>
-                      
+
                       {message.sqlQuery && (
                         <details className="mt-2 text-xs">
                           <summary className="cursor-pointer opacity-70 hover:opacity-100">
@@ -265,15 +258,16 @@ export const FloatingChatButton = () => {
                           </pre>
                         </details>
                       )}
-                      
-                      <div className="text-xs opacity-70 mt-1">
+
+                      {/* ✅ suppressHydrationWarning za timestamp */}
+                      <div className="text-xs opacity-70 mt-1" suppressHydrationWarning>
                         {formatTimestamp(message.timestamp)}
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
-              
+
               {isLoading && (
                 <div className="flex gap-2 justify-start">
                   <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center">
@@ -287,7 +281,7 @@ export const FloatingChatButton = () => {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -337,7 +331,11 @@ export const FloatingChatButton = () => {
                   disabled={!input.trim() || isLoading}
                   className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[40px]"
                 >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>

@@ -1,6 +1,6 @@
 // Path: app/api/parking-services/[id]/services/route.ts
-
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ServiceType } from "@prisma/client";
 
@@ -9,42 +9,47 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // ✅ Dodana auth provera — nedostajala
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: parkingId } = await params;
 
     if (!parkingId) {
       return new NextResponse("Parking service ID is required", { status: 400 });
     }
 
-    // Proveravamo da li parking servis postoji
     const parkingService = await db.parkingService.findUnique({
-      where: { id: parkingId }
+      where: { id: parkingId },
     });
 
     if (!parkingService) {
       return new NextResponse("Parking service not found", { status: 404 });
     }
 
-    // Tražimo servise povezane sa parking servisom kroz ugovore
     const contracts = await db.contract.findMany({
-      where: {
-        parkingServiceId: parkingId,
-        status: "ACTIVE" // Uzimamo samo aktivne ugovore
-      },
+      where: { parkingServiceId: parkingId, status: "ACTIVE" },
       include: {
         services: {
-          include: {
-            service: true
-          }
-        }
-      }
+          include: { service: true },
+        },
+      },
     });
 
-    // Izvlačimo servise iz ugovora i eliminišemo duplikate
-    const servicesMap = new Map();
-    
-    contracts.forEach(contract => {
-      contract.services.forEach(serviceContract => {
-        // Filtriramo samo parking servise
+    const servicesMap = new Map<string, {
+      id: string;
+      name: string;
+      description: string | null;
+      specificTerms: string | null;
+      contractId: string;
+      type: ServiceType;
+      isActive: boolean;
+    }>();
+
+    contracts.forEach((contract) => {
+      contract.services.forEach((serviceContract) => {
         if (serviceContract.service.type === ServiceType.PARKING) {
           servicesMap.set(serviceContract.serviceId, {
             id: serviceContract.serviceId,
@@ -53,16 +58,13 @@ export async function GET(
             specificTerms: serviceContract.specificTerms,
             contractId: contract.id,
             type: serviceContract.service.type,
-            isActive: serviceContract.service.isActive
+            isActive: serviceContract.service.isActive,
           });
         }
       });
     });
 
-    // Konvertujemo Map u niz
-    const services = Array.from(servicesMap.values());
-
-    return NextResponse.json(services);
+    return NextResponse.json(Array.from(servicesMap.values()));
   } catch (error) {
     console.error("[PARKING_OPTIONS]", error);
     return new NextResponse("Internal error", { status: 500 });

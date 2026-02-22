@@ -4,54 +4,50 @@ import { ParkingServiceProcessor } from '@/scripts/vas-import/ParkingServiceProc
 import { db } from '@/lib/db';
 import { promises as fs } from 'fs';
 
+// ✅ Uklonjeno: dynamic
 export const maxDuration = 300;
-export const dynamic = 'force-dynamic';
+
+// Tip za SSE poruke
+type SseMessage =
+  | { type: 'status'; status: string }
+  | { type: 'log'; message: string; logType: 'info' | 'error' | 'success'; file?: string }
+  | { type: 'progress'; fileName: string; progress: number; message: string }
+  | { type: 'fileStatus'; fileName: string; status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error' }
+  | { type: 'complete'; recordsProcessed: number; imported: number; updated: number; errors: number; warnings: number; message: string }
+  | { type: 'error'; error: string; details?: string };
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const filePath = searchParams.get('filePath');
   const userEmail = searchParams.get('userEmail');
 
-  // Validate inputs
   if (!filePath || !userEmail) {
-    return NextResponse.json(
-      { error: 'Missing filePath or userEmail' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Missing filePath or userEmail' }, { status: 400 });
   }
 
-  // Provera fajla
   try {
     await fs.access(filePath);
   } catch {
-    return NextResponse.json(
-      { error: 'File not found' },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
-  
-  // Create a transform stream for SSE
+
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
 
-  // Helper function to send SSE message
-  const sendMessage = (data: any) => {
+  const sendMessage = (data: SseMessage) => {
     writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
   };
 
-  // Immediate connection establishment
   sendMessage({ type: 'status', status: 'connected' });
 
-  // Process in the background
   (async () => {
     let processor: ParkingServiceProcessor | null = null;
-    
+
     try {
-      // Find user
       const user = await db.user.findUnique({
         where: { email: userEmail },
-        select: { id: true }
+        select: { id: true },
       });
 
       if (!user) {
@@ -62,71 +58,45 @@ export async function GET(request: Request) {
 
       sendMessage({ type: 'log', message: 'Initializing processor...', logType: 'info' });
 
-      // Create processor with progress callback
       processor = new ParkingServiceProcessor(user.id, {
         onProgress: (fileName: string, progress: number) => {
-          sendMessage({ 
-            type: 'progress', 
-            fileName, 
-            progress,
-            message: `Processing ${fileName}: ${progress}%`
-          });
+          sendMessage({ type: 'progress', fileName, progress, message: `Processing ${fileName}: ${progress}%` });
         },
         onLog: (message: string, logType: 'info' | 'error' | 'success', file?: string) => {
-          sendMessage({ 
-            type: 'log', 
-            message, 
-            logType, 
-            file 
-          });
+          sendMessage({ type: 'log', message, logType, file });
         },
         onFileStatus: (fileName: string, status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error') => {
-          sendMessage({ 
-            type: 'fileStatus', 
-            fileName, 
-            status 
-          });
-        }
+          sendMessage({ type: 'fileStatus', fileName, status });
+        },
       });
 
-      // ❌ OBRIŠI OVE DVE LINIJE (92-93):
-      // sendMessage({ type: 'log', message: 'Creating directories...', logType: 'info' });
-      // await processor.ensureDirectories();
-
       sendMessage({ type: 'log', message: 'Starting file processing...', logType: 'info' });
-      
-      // Main processing function - automatski kreira direktorijume
+
       const result = await processor.processFileWithImport(filePath);
-      
+
       if (!result) {
-        sendMessage({
-          type: 'error',
-          error: 'Processing did not return results'
-        });
+        sendMessage({ type: 'error', error: 'Processing did not return results' });
         writer.close();
         return;
       }
-      
-      // Send final results
+
       sendMessage({
         type: 'complete',
         recordsProcessed: result.recordsProcessed,
         imported: result.imported,
         updated: result.updated,
         errors: result.errors,
-        warnings: result.warnings,
-        message: `Processing completed successfully!`
+        warnings: result.warnings.length,
+        message: 'Processing completed successfully!',
       });
-
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Stream processing error:', error);
       sendMessage({
         type: 'error',
         error: 'Processing failed',
-        details: error.message
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
-      // Cleanup
       if (processor) {
         try {
           await processor.disconnect();
@@ -143,7 +113,7 @@ export async function GET(request: Request) {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    }
+      'Connection': 'keep-alive',
+    },
   });
 }

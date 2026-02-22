@@ -13,8 +13,6 @@ export const metadata: Metadata = {
   description: "Add a new bulk service to the system",
 };
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
 
 // Cache helper functions
 const getCachedServices = unstable_cache(

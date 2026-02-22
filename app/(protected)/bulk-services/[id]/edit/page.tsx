@@ -18,8 +18,6 @@ export const metadata: Metadata = {
   description: "Modify bulk service details",
 };
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
 
 // Cache helper functions
 const getCachedServices = unstable_cache(

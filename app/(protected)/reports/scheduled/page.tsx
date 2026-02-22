@@ -15,11 +15,6 @@ export const metadata: Metadata = {
   description: "Manage and schedule automatic report generation",
 };
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-
-// Revalidate every 5 minutes for scheduled reports
-export const revalidate = 300;
 
 export default async function ScheduledReportsPage() {
   const scheduledReports = await getScheduledReports();

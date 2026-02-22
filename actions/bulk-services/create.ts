@@ -6,17 +6,13 @@ import { bulkServiceSchema } from "@/schemas/bulk-service";
 import { getCurrentUser } from "@/lib/session";
 import { ActivityLogService } from "@/lib/services/activity-log-service";
 import { LogSeverity } from "@prisma/client";
-import { revalidatePath } from "next/cache";
-import { invalidateCache } from "@/lib/cache/memory-cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 export async function createBulkService(data: unknown) {
   try {
     const currentUser = await getCurrentUser();
-    
-    if (!currentUser?.id) {
-      throw new ServerError("Unauthorized – korisnik nije prijavljen");
-    }
-    
+    if (!currentUser?.id) throw new ServerError("Unauthorized – korisnik nije prijavljen");
+
     const validatedData = bulkServiceSchema.parse(data);
 
     const bulkService = await db.$transaction(async (tx) => {
@@ -28,12 +24,8 @@ export async function createBulkService(data: unknown) {
           datumNaplate: new Date(),
         },
         include: {
-          provider: {
-            select: { id: true, name: true }
-          },
-          service: {
-            select: { id: true, name: true }
-          },
+          provider: { select: { id: true, name: true } },
+          service: { select: { id: true, name: true } },
         },
       });
 
@@ -49,9 +41,7 @@ export async function createBulkService(data: unknown) {
       return newBulkService;
     });
 
-    // Invalidate cache
-    invalidateCache("bulk-services:*");
-    invalidateCache("bulk-service:*");
+    updateTag("bulk-services");
     revalidatePath("/bulk-services");
 
     return {
@@ -61,11 +51,7 @@ export async function createBulkService(data: unknown) {
     };
   } catch (error) {
     console.error("[CREATE_BULK_SERVICE]", error);
-    
-    if (error instanceof Error) {
-      throw new ServerError(`Neuspešno kreiranje bulk servisa: ${error.message}`);
-    }
-    
+    if (error instanceof Error) throw new ServerError(`Neuspešno kreiranje bulk servisa: ${error.message}`);
     throw new ServerError("Neočekivana greška prilikom kreiranja bulk servisa");
   }
 }

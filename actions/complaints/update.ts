@@ -7,13 +7,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ComplaintStatus, UserRole, LogSeverity } from "@prisma/client";
-// ✅ REMOVED: import { ComplaintImportData } from "@/lib/types/complaint-types";
 
 const updateComplaintSchema = z.object({
   id: z.string().min(1),
-  title: z.string().min(5, "Naslov mora imati najmanje 5 karaktera").max(100, "Naslov ne sme prelaziti 100 karaktera"),
-  description: z.string().min(10, "Opis mora imati najmanje 10 karaktera"),
-  
+  title: z.string().min(5).max(100),
+  description: z.string().min(10),
   entityType: z.string().optional(),
   serviceId: z.string().optional().nullable(),
   productId: z.string().optional().nullable(),
@@ -21,7 +19,6 @@ const updateComplaintSchema = z.object({
   humanitarianOrgId: z.string().optional().nullable(),
   parkingServiceId: z.string().optional().nullable(),
   bulkServiceId: z.string().optional().nullable(),
-
   priority: z.number().min(1).max(5),
   financialImpact: z.number().optional().nullable(),
   status: z.nativeEnum(ComplaintStatus).optional(),
@@ -29,6 +26,26 @@ const updateComplaintSchema = z.object({
 });
 
 export type UpdateComplaintFormData = z.infer<typeof updateComplaintSchema>;
+
+// ✅ Typed umesto any
+interface ComplaintUpdateData {
+  title: string;
+  description: string;
+  priority: number;
+  financialImpact?: number | null;
+  entityType?: string;
+  serviceId?: string | null;
+  productId?: string | null;
+  providerId?: string | null;
+  humanitarianOrgId?: string | null;
+  parkingServiceId?: string | null;
+  bulkServiceId?: string | null;
+  status?: ComplaintStatus;
+  assignedAgentId?: string | null;
+  assignedAt?: Date;
+  resolvedAt?: Date;
+  closedAt?: Date;
+}
 
 export async function updateComplaint(data: UpdateComplaintFormData) {
   try {
@@ -43,9 +60,7 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
       where: { id: validatedData.id },
     });
 
-    if (!existingComplaint) {
-      return { error: "Pritužba nije pronađena" };
-    }
+    if (!existingComplaint) return { error: "Pritužba nije pronađena" };
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },
@@ -54,32 +69,24 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
 
     const isSubmitter = existingComplaint.submittedById === session.user.id;
     const isAssigned = existingComplaint.assignedAgentId === session.user.id;
-
-    // Jedna čista i type-safe provera dozvola
     const isStaff =
       user?.role === UserRole.ADMIN ||
       user?.role === UserRole.MANAGER ||
       user?.role === UserRole.AGENT;
 
-    const canUpdate = isStaff || isSubmitter || isAssigned;
-
-    if (!canUpdate) {
+    if (!isStaff && !isSubmitter && !isAssigned) {
       return { error: "Nemate dozvolu da ažurirate ovu pritužbu" };
     }
 
-    let updateData: any = {};
+    const updateData: ComplaintUpdateData = {
+      title: validatedData.title,
+      description: validatedData.description,
+      priority: validatedData.priority,
+      financialImpact: validatedData.financialImpact,
+    };
 
-    // Polja koja svako može menjati
-    updateData.title = validatedData.title;
-    updateData.description = validatedData.description;
-    updateData.priority = validatedData.priority;
-    updateData.financialImpact = validatedData.financialImpact;
-
-    // Polja rezervisana za staff
     if (isStaff) {
       updateData.entityType = validatedData.entityType;
-
-      // Resetujemo sve povezane ID-eve
       updateData.serviceId = null;
       updateData.productId = null;
       updateData.providerId = null;
@@ -87,7 +94,6 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
       updateData.parkingServiceId = null;
       updateData.bulkServiceId = null;
 
-      // Postavljamo tačan ID na osnovu entityType (string)
       switch (validatedData.entityType) {
         case "PROVIDER":
           updateData.providerId = validatedData.providerId;
@@ -109,14 +115,12 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
           break;
       }
 
-      // Promena statusa
       if (validatedData.status && validatedData.status !== existingComplaint.status) {
         updateData.status = validatedData.status;
 
         if (validatedData.status === ComplaintStatus.RESOLVED && !existingComplaint.resolvedAt) {
           updateData.resolvedAt = new Date();
         }
-
         if (validatedData.status === ComplaintStatus.CLOSED && !existingComplaint.closedAt) {
           updateData.closedAt = new Date();
         }
@@ -131,7 +135,6 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
         });
       }
 
-      // Promena dodele agenta
       if (validatedData.assignedAgentId !== existingComplaint.assignedAgentId) {
         updateData.assignedAgentId = validatedData.assignedAgentId;
 
@@ -169,7 +172,6 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
       data: updateData,
     });
 
-    // Logovanje aktivnosti
     await db.activityLog.create({
       data: {
         action: "COMPLAINT_UPDATED",
@@ -181,7 +183,6 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
       },
     });
 
-    // Notifikacije za submittera
     if (existingComplaint.submittedById !== session.user.id) {
       await db.notification.create({
         data: {
@@ -195,7 +196,6 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
       });
     }
 
-    // Notifikacija za dodeljenog agenta (ako je ažuriranje relevantno)
     if (
       existingComplaint.assignedAgentId &&
       existingComplaint.assignedAgentId !== session.user.id &&
@@ -217,16 +217,9 @@ export async function updateComplaint(data: UpdateComplaintFormData) {
     redirect(`/complaints/${updatedComplaint.id}`);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return {
-        error: "Validacija neuspešna",
-        formErrors: error.format(),
-      };
+      return { error: "Validacija neuspešna", formErrors: error.format() };
     }
-
     console.error("[COMPLAINT_UPDATE_ERROR]", error);
-
-    return {
-      error: "Neuspešno ažuriranje pritužbe. Pokušajte ponovo.",
-    };
+    return { error: "Neuspešno ažuriranje pritužbe. Pokušajte ponovo." };
   }
 }

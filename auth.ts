@@ -92,34 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
 
-    // IMPORTANT: This runs in middleware too!
-    async authorized({ request, auth }: any) {
-      const { pathname } = request.nextUrl;
-      
-      // Allow all auth routes
-      if (pathname.startsWith('/auth/')) return true;
-      
-      // Check if user is logged in
-      const isLoggedIn = !!auth?.user?.id;
-      const isAdmin = auth?.user?.role === "ADMIN";
-      const isActive = auth?.user?.isActive !== false;
-      
-      // Public routes that don't need auth
-      const publicRoutes = ["/", "/api/auth"];
-      if (publicRoutes.some((route: string) => pathname.startsWith(route))) {
-        return true;
-      }
-      
-      // Protected routes need login
-      if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) {
-        if (!isLoggedIn || !isActive) return false;
-        
-        // Admin routes need ADMIN role
-        if (pathname.startsWith('/admin') && !isAdmin) return false;
-      }
-      
-      return true;
-    },
+   
 
     async signIn({ user, account }: any) {
       // Allow social sign-ins without email verification

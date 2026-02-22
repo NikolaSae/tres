@@ -18,7 +18,6 @@ export const metadata: Metadata = {
     description: "Overview of key performance indicators and metrics",
 };
 
-export const dynamic = 'force-dynamic';
 
 interface AnalyticsDashboardProps {
   searchParams: Promise<{

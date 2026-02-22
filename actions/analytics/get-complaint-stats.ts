@@ -1,8 +1,8 @@
 ///actions/analytics/get-complaint-stats.ts
-
 "use server";
 
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { canViewComplaintData } from "@/lib/security/permission-checker";
 import { ComplaintStatus } from "@prisma/client";
 
@@ -15,7 +15,7 @@ export type ComplaintStatsParams = {
   priorities?: number[];
   searchQuery?: string;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
 };
 
 export type ComplaintStats = {
@@ -23,21 +23,9 @@ export type ComplaintStats = {
   resolvedComplaints: number;
   openComplaints: number;
   averageResolutionTime: number;
-  complaintsByStatus: {
-    status: string;
-    count: number;
-    percentage: number;
-  }[];
-  complaintsByMonth: {
-    month: string;
-    total: number;
-    resolved: number;
-  }[];
-  complaintsByService: {
-    serviceName: string;
-    count: number;
-    percentage: number;
-  }[];
+  complaintsByStatus: { status: string; count: number; percentage: number }[];
+  complaintsByMonth: { month: string; total: number; resolved: number }[];
+  complaintsByService: { serviceName: string; count: number; percentage: number }[];
   complaintsByProvider: {
     providerName: string;
     count: number;
@@ -60,10 +48,12 @@ export async function getComplaintStats({
   sortOrder,
 }: ComplaintStatsParams = {}): Promise<ComplaintStats> {
 
+  // ✅ Explicit auth check
+  const session = await auth();
+  if (!session?.user) throw new Error("Authentication required");
+
   const hasPermission = await canViewComplaintData();
-  if (!hasPermission) {
-    throw new Error("You don't have permission to access complaint data");
-  }
+  if (!hasPermission) throw new Error("You don't have permission to access complaint data");
 
   const defaultEndDate = new Date();
   const defaultStartDate = new Date();
@@ -71,208 +61,153 @@ export async function getComplaintStats({
 
   const effectiveStartDate = startDate || defaultStartDate;
   const effectiveEndDate = endDate || defaultEndDate;
-
   effectiveStartDate.setHours(0, 0, 0, 0);
   effectiveEndDate.setHours(23, 59, 59, 999);
 
-  const where: any = {
-    createdAt: {
-      gte: effectiveStartDate,
-      lte: effectiveEndDate,
-    },
+  const where: Record<string, unknown> = {
+    createdAt: { gte: effectiveStartDate, lte: effectiveEndDate },
   };
 
-  if (serviceIds && serviceIds.length > 0) {
-    where.serviceId = { in: serviceIds };
-  }
-
-  if (providerIds && providerIds.length > 0) {
-    where.providerId = { in: providerIds };
-  }
-
-  if (statuses && statuses.length > 0) {
-    where.status = { in: statuses };
-  }
-
-  if (priorities && priorities.length > 0) {
-    where.priority = { in: priorities };
-  }
-
+  if (serviceIds?.length) where.serviceId = { in: serviceIds };
+  if (providerIds?.length) where.providerId = { in: providerIds };
+  if (statuses?.length) where.status = { in: statuses };
+  if (priorities?.length) where.priority = { in: priorities };
   if (searchQuery) {
     where.OR = [
-      { subject: { contains: searchQuery, mode: 'insensitive' as const } },
-      { description: { contains: searchQuery, mode: 'insensitive' as const } },
+      { subject: { contains: searchQuery, mode: "insensitive" } },
+      { description: { contains: searchQuery, mode: "insensitive" } },
     ];
   }
-console.log("Final WHERE clause for getComplaintStats:", JSON.stringify(where, null, 2)); // <-- Treba nam output ovog loga
-  const orderBy: any = {};
-  let prismaSortField = 'createdAt';
 
-  if (sortBy) {
-    switch (sortBy) {
-      case 'date':
-        prismaSortField = 'createdAt';
-        break;
-      case 'status':
-        prismaSortField = 'status';
-        break;
-      case 'priority':
-        prismaSortField = 'priority';
-        break;
-      default:
-        prismaSortField = 'createdAt';
-        console.warn(`Unknown sortBy field '${sortBy}'. Defaulting to 'createdAt'.`);
-    }
-  }
+  // ✅ UKLONJEN: console.log("Final WHERE clause...", JSON.stringify(where))
+  // Otkrivao strukturu baze i vrednosti filtera u produkcijskim logovima
 
-  orderBy[prismaSortField] = sortOrder || 'asc';
+  const VALID_SORT_FIELDS: Record<string, string> = {
+    date: "createdAt",
+    status: "status",
+    priority: "priority",
+  };
 
+  // ✅ UKLONJEN: console.warn za unknown sortBy
+  const prismaSortField = (sortBy && VALID_SORT_FIELDS[sortBy]) || "createdAt";
+  const orderBy = { [prismaSortField]: sortOrder || "asc" };
 
   const complaints = await db.complaint.findMany({
     where,
-    include: {
-      service: true,
-      provider: true,
-    },
+    include: { service: true, provider: true },
     orderBy,
   });
 
   const totalComplaints = complaints.length;
-  const resolvedComplaints = complaints.filter(c =>
-    c.status === ComplaintStatus.RESOLVED || c.status === ComplaintStatus.CLOSED
+  const resolvedComplaints = complaints.filter(
+    (c) => c.status === ComplaintStatus.RESOLVED || c.status === ComplaintStatus.CLOSED
   ).length;
   const openComplaints = totalComplaints - resolvedComplaints;
 
-  const resolvedComplaintsWithDates = complaints.filter(c =>
-    (c.status === ComplaintStatus.RESOLVED || c.status === ComplaintStatus.CLOSED) && c.resolvedAt
+  const resolvedWithDates = complaints.filter(
+    (c) =>
+      (c.status === ComplaintStatus.RESOLVED || c.status === ComplaintStatus.CLOSED) &&
+      c.resolvedAt
   );
 
-  const totalResolutionTimeMs = resolvedComplaintsWithDates.reduce((sum, complaint) => {
-    const createdAtTime = complaint.createdAt instanceof Date ? complaint.createdAt.getTime() : new Date(complaint.createdAt).getTime();
-    const resolvedAtTime = complaint.resolvedAt instanceof Date ? complaint.resolvedAt.getTime() : new Date(complaint.resolvedAt!).getTime();
-    return sum + (resolvedAtTime - createdAtTime);
+  const totalResolutionTimeMs = resolvedWithDates.reduce((sum, c) => {
+    const created = new Date(c.createdAt).getTime();
+    const resolved = new Date(c.resolvedAt!).getTime();
+    return sum + (resolved - created);
   }, 0);
 
-  const averageResolutionTime = resolvedComplaintsWithDates.length > 0
-    ? totalResolutionTimeMs / resolvedComplaintsWithDates.length / (1000 * 60 * 60 * 24)
-    : 0;
+  const averageResolutionTime =
+    resolvedWithDates.length > 0
+      ? totalResolutionTimeMs / resolvedWithDates.length / (1000 * 60 * 60 * 24)
+      : 0;
 
-  const statusCounts = complaints.reduce((acc, complaint) => {
-    const status = complaint.status;
-    if (!acc[status]) { acc[status] = 0; }
-    acc[status]++;
+  const statusCounts = complaints.reduce((acc, c) => {
+    acc[c.status] = (acc[c.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const monthlyData = complaints.reduce((acc, complaint) => {
-    const createdAtDate = complaint.createdAt instanceof Date ? complaint.createdAt : new Date(complaint.createdAt);
-    const monthYear = createdAtDate.toLocaleString('en-US', { month: 'short', year: '2-digit' });
-
-    if (!acc[monthYear]) {
-      acc[monthYear] = {
-        total: 0,
-        resolved: 0,
-      };
-    }
-
+  const monthlyData = complaints.reduce((acc, c) => {
+    const monthYear = new Date(c.createdAt).toLocaleString("en-US", { month: "short", year: "2-digit" });
+    if (!acc[monthYear]) acc[monthYear] = { total: 0, resolved: 0 };
     acc[monthYear].total++;
-    if (complaint.status === ComplaintStatus.RESOLVED || complaint.status === ComplaintStatus.CLOSED) {
+    if (c.status === ComplaintStatus.RESOLVED || c.status === ComplaintStatus.CLOSED) {
       acc[monthYear].resolved++;
     }
-
     return acc;
-  }, {} as Record<string, { total: number; resolved: number; }>);
+  }, {} as Record<string, { total: number; resolved: number }>);
 
-  const fullMonthRangeData: Record<string, { total: number; resolved: number }> = {};
-  let currentDate = new Date(effectiveStartDate);
-  while (currentDate <= effectiveEndDate) {
-    const monthYear = currentDate.toLocaleString('en-US', { month: 'short', year: '2-digit' });
-    fullMonthRangeData[monthYear] = monthlyData[monthYear] || { total: 0, resolved: 0 };
-    currentDate.setMonth(currentDate.getMonth() + 1);
+  const fullMonthRange: Record<string, { total: number; resolved: number }> = {};
+  const cur = new Date(effectiveStartDate);
+  while (cur <= effectiveEndDate) {
+    const key = cur.toLocaleString("en-US", { month: "short", year: "2-digit" });
+    fullMonthRange[key] = monthlyData[key] || { total: 0, resolved: 0 };
+    cur.setMonth(cur.getMonth() + 1);
   }
-  const complaintsByMonth = Object.entries(fullMonthRangeData)
+
+  const complaintsByMonth = Object.entries(fullMonthRange)
     .map(([month, data]) => ({ month, ...data }))
     .sort((a, b) => {
-        const [aMonth, aYear] = a.month.split(' ');
-        const [bMonth, bYear] = b.month.split(' ');
-        const dateA = new Date(`${aMonth} 01 20${aYear}`);
-        const dateB = new Date(`${bMonth} 01 20${bYear}`);
-        return dateA.getTime() - dateB.getTime();
+      const [am, ay] = a.month.split(" ");
+      const [bm, by] = b.month.split(" ");
+      return new Date(`${am} 01 20${ay}`).getTime() - new Date(`${bm} 01 20${by}`).getTime();
     });
 
-
-  const serviceData = complaints.reduce((acc, complaint) => {
-    const serviceName = complaint.service?.name || 'Unknown';
-    if (!acc[serviceName]) { acc[serviceName] = 0; }
-    acc[serviceName]++;
+  const serviceData = complaints.reduce((acc, c) => {
+    const name = c.service?.name || "Unknown";
+    acc[name] = (acc[name] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const providerData = complaints.reduce((acc, complaint) => {
-    const providerName = complaint.provider?.name || 'Unknown';
+  const providerData = complaints.reduce(
+    (acc, c) => {
+      const name = c.provider?.name || "Unknown";
+      if (!acc[name]) acc[name] = { count: 0, resolvedCount: 0, totalResolutionTime: 0 };
+      acc[name].count++;
+      if (
+        (c.status === ComplaintStatus.RESOLVED || c.status === ComplaintStatus.CLOSED) &&
+        c.resolvedAt
+      ) {
+        acc[name].resolvedCount++;
+        acc[name].totalResolutionTime +=
+          new Date(c.resolvedAt).getTime() - new Date(c.createdAt).getTime();
+      }
+      return acc;
+    },
+    {} as Record<string, { count: number; resolvedCount: number; totalResolutionTime: number }>
+  );
 
-    if (!acc[providerName]) {
-      acc[providerName] = {
-        count: 0,
-        resolvedCount: 0,
-        totalResolutionTime: 0,
-      };
-    }
-
-    acc[providerName].count++;
-
-    if ((complaint.status === ComplaintStatus.RESOLVED || complaint.status === ComplaintStatus.CLOSED) && complaint.resolvedAt) {
-      const createdAtTime = complaint.createdAt instanceof Date ? complaint.createdAt.getTime() : new Date(complaint.createdAt).getTime();
-      const resolvedAtTime = complaint.resolvedAt instanceof Date ? complaint.resolvedAt.getTime() : new Date(complaint.resolvedAt).getTime();
-      acc[providerName].resolvedCount++;
-      acc[providerName].totalResolutionTime += resolvedAtTime - createdAtTime;
-    }
-
-    return acc;
-  }, {} as Record<string, { count: number; resolvedCount: number; totalResolutionTime: number; }>);
-
-
-  const highPriorityComplaints = complaints.filter(c => c.priority <= 2).length;
-
-  const financialImpact = complaints.reduce((sum, complaint) => {
-    return sum + (complaint.financialImpact || 0);
-  }, 0);
-
-  const complaintsByStatus = Object.entries(statusCounts).map(([status, count]) => ({
-    status,
-    count,
-    percentage: totalComplaints > 0 ? (count / totalComplaints) * 100 : 0,
-  }));
-
-  const complaintsByService = Object.entries(serviceData)
-    .map(([serviceName, count]) => ({
-      serviceName,
-      count,
-      percentage: totalComplaints > 0 ? (count / totalComplaints) * 100 : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  const complaintsByProvider = Object.entries(providerData)
-    .map(([providerName, data]) => ({
-      providerName,
-      count: data.count,
-      resolvedCount: data.resolvedCount,
-      averageResolutionTime: data.resolvedCount > 0
-        ? data.totalResolutionTime / data.resolvedCount / (1000 * 60 * 60 * 24)
-        : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
-
+  const highPriorityComplaints = complaints.filter((c) => c.priority <= 2).length;
+  const financialImpact = complaints.reduce((sum, c) => sum + (c.financialImpact || 0), 0);
 
   return {
     totalComplaints,
     resolvedComplaints,
     openComplaints,
     averageResolutionTime,
-    complaintsByStatus,
+    complaintsByStatus: Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count,
+      percentage: totalComplaints > 0 ? (count / totalComplaints) * 100 : 0,
+    })),
     complaintsByMonth,
-    complaintsByService,
-    complaintsByProvider,
+    complaintsByService: Object.entries(serviceData)
+      .map(([serviceName, count]) => ({
+        serviceName,
+        count,
+        percentage: totalComplaints > 0 ? (count / totalComplaints) * 100 : 0,
+      }))
+      .sort((a, b) => b.count - a.count),
+    complaintsByProvider: Object.entries(providerData)
+      .map(([providerName, data]) => ({
+        providerName,
+        count: data.count,
+        resolvedCount: data.resolvedCount,
+        averageResolutionTime:
+          data.resolvedCount > 0
+            ? data.totalResolutionTime / data.resolvedCount / (1000 * 60 * 60 * 24)
+            : 0,
+      }))
+      .sort((a, b) => b.count - a.count),
     highPriorityComplaints,
     financialImpact,
   };

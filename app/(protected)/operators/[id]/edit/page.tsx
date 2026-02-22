@@ -17,8 +17,6 @@ export const metadata: Metadata = {
   description: "Edit operator details",
 };
 
-// Force dynamic rendering (requires authentication)
-export const dynamic = 'force-dynamic';
 
 interface EditOperatorPageProps {
   params: Promise<{

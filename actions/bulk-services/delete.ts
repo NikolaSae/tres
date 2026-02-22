@@ -5,30 +5,20 @@ import { ServerError } from "@/lib/exceptions";
 import { getCurrentUser } from "@/lib/session";
 import { ActivityLogService } from "@/lib/services/activity-log-service";
 import { LogSeverity } from "@prisma/client";
-import { revalidatePath } from "next/cache";
-import { invalidateCache } from "@/lib/cache/memory-cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 export async function deleteBulkService(id: string) {
   try {
     const currentUser = await getCurrentUser();
-    
-    if (!currentUser?.id) {
-      throw new ServerError("Unauthorized");
-    }
+    if (!currentUser?.id) throw new ServerError("Unauthorized");
 
     const result = await db.$transaction(async (tx) => {
       const bulkService = await tx.bulkService.findUnique({
         where: { id },
-        select: {
-          id: true,
-          service_name: true,
-          provider_name: true,
-        }
+        select: { id: true, service_name: true, provider_name: true },
       });
 
-      if (!bulkService) {
-        throw new ServerError("Bulk service not found");
-      }
+      if (!bulkService) throw new ServerError("Bulk service not found");
 
       await tx.logEntry.create({
         data: {
@@ -41,12 +31,10 @@ export async function deleteBulkService(id: string) {
           bulkServiceId: id,
           createdById: currentUser.id!,
           updatedById: currentUser.id!,
-        }
+        },
       });
 
-      await tx.bulkService.delete({
-        where: { id },
-      });
+      await tx.bulkService.delete({ where: { id } });
 
       await ActivityLogService.log({
         action: "DELETE_BULK_SERVICE",
@@ -60,18 +48,14 @@ export async function deleteBulkService(id: string) {
       return bulkService;
     });
 
-    // Invalidate cache
-    invalidateCache("bulk-services:*");
-    invalidateCache(`bulk-service:${id}`);
+    updateTag("bulk-services");
+    updateTag(`bulk-service:${id}`);
     revalidatePath("/bulk-services");
 
     return { success: true };
   } catch (error) {
     console.error("[DELETE_BULK_SERVICE]", error);
-    
-    if (error instanceof ServerError) {
-      throw error;
-    }
+    if (error instanceof ServerError) throw error;
     throw new ServerError("Failed to delete bulk service");
   }
 }

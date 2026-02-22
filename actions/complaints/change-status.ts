@@ -1,6 +1,5 @@
 // actions/complaints/change-status.ts
 "use server";
-
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { z } from "zod";
@@ -8,7 +7,6 @@ import { revalidatePath } from "next/cache";
 import { ComplaintStatus } from "@prisma/client";
 import { createNotification } from "@/utils/complaint-notification";
 
-// Schema za promenu statusa (već dobro)
 const statusChangeSchema = z.object({
   complaintId: z.string().min(1),
   status: z.nativeEnum(ComplaintStatus),
@@ -17,6 +15,14 @@ const statusChangeSchema = z.object({
 });
 
 export type StatusChangeFormData = z.infer<typeof statusChangeSchema>;
+
+interface ComplaintUpdateData {
+  status?: ComplaintStatus;
+  assignedAgentId?: string | null;
+  assignedAt?: Date | null;
+  resolvedAt?: Date;
+  closedAt?: Date;
+}
 
 export async function changeComplaintStatus(data: StatusChangeFormData) {
   try {
@@ -27,7 +33,6 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
 
     const validatedData = statusChangeSchema.parse(data);
 
-    // Dohvatanje pritužbe sa SVIM potrebnim datum poljima
     const complaint = await db.complaint.findUnique({
       where: { id: validatedData.complaintId },
       select: {
@@ -36,15 +41,13 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
         submittedById: true,
         assignedAgentId: true,
         title: true,
-        assignedAt: true,      // ← DODATO
-        resolvedAt: true,      // ← DODATO
-        closedAt: true,        // ← DODATO
+        assignedAt: true,
+        resolvedAt: true,
+        closedAt: true,
       },
     });
 
-    if (!complaint) {
-      return { error: "Complaint not found" };
-    }
+    if (!complaint) return { error: "Complaint not found" };
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },
@@ -69,7 +72,8 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
       return { info: "Status and assignment unchanged" };
     }
 
-    let updateData: any = {};
+    // ✅ FIX: typed updateData umesto any
+    const updateData: ComplaintUpdateData = {};
     let statusChanged = false;
 
     if (status !== previousStatus) {
@@ -85,10 +89,8 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
       }
     }
 
-    // Logika za dodelu agenta
     if (assignedAgentId !== undefined) {
       updateData.assignedAgentId = assignedAgentId;
-
       if (assignedAgentId !== null && !complaint.assignedAgentId) {
         updateData.assignedAt = new Date();
       } else if (assignedAgentId === null && complaint.assignedAgentId) {
@@ -103,7 +105,6 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
       return { info: "No changes to apply." };
     }
 
-    // Ažuriranje pritužbe
     const updatedComplaint = await db.complaint.update({
       where: { id: complaint.id },
       data: updateData,
@@ -113,7 +114,6 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
       },
     });
 
-    // Kreiranje istorije statusa (samo ako se status promenio)
     if (statusChanged) {
       await db.complaintStatusHistory.create({
         data: {
@@ -126,7 +126,6 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
       });
     }
 
-    // Activity log
     await db.activityLog.create({
       data: {
         action: statusChanged ? "COMPLAINT_STATUS_CHANGED" : "COMPLAINT_ASSIGNED",
@@ -140,8 +139,11 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
       },
     });
 
-    // Notifikacije
-    if (statusChanged && status !== ComplaintStatus.ASSIGNED && complaint.submittedById !== session.user.id) {
+    if (
+      statusChanged &&
+      status !== ComplaintStatus.ASSIGNED &&
+      complaint.submittedById !== session.user.id
+    ) {
       await createNotification({
         type: "COMPLAINT_UPDATED",
         title: "Ažuriran status pritužbe",
@@ -182,16 +184,9 @@ export async function changeComplaintStatus(data: StatusChangeFormData) {
     return { success: true, updatedComplaint };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return {
-        error: "Validacija neuspešna",
-        formErrors: error.format(),
-      };
+      return { error: "Validacija neuspešna", formErrors: error.format() };
     }
-
     console.error("[STATUS_CHANGE_ERROR]", error);
-
-    return {
-      error: "Neuspešno ažuriranje statusa. Pokušajte ponovo.",
-    };
+    return { error: "Neuspešno ažuriranje statusa. Pokušajte ponovo." };
   }
 }

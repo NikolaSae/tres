@@ -1,9 +1,8 @@
 // actions/blacklist/delete-blacklist-entry.ts
 "use server";
-
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { createAuditLog } from "@/lib/security/black-log";
 import { LogBlackType } from "@prisma/client";
 
@@ -14,16 +13,12 @@ export async function deleteBlacklistEntry(id: string) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // Get existing data for audit log
-    const oldData = await db.senderBlacklist.findUnique({
-      where: { id }
-    });
-
+    const oldData = await db.senderBlacklist.findUnique({ where: { id } });
     if (!oldData) {
       return { success: false, error: "Entry not found" };
     }
 
-    // Create audit log for deletion
+    // Audit log pre brisanja (dok entitet još postoji)
     await createAuditLog({
       action: LogBlackType.DELETE,
       entityId: id,
@@ -31,19 +26,17 @@ export async function deleteBlacklistEntry(id: string) {
       oldData
     });
 
-    // Delete the SenderBlacklist entry
-    // Related BlacklistLog entries will automatically have their entityId set to NULL
-    await db.senderBlacklist.delete({
-      where: { id }
-    });
+    await db.senderBlacklist.delete({ where: { id } });
 
+    updateTag('blacklist-logs');
     revalidatePath('/providers');
+
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting blacklist entry:", error);
-    return { 
-      success: false, 
-      error: error.message || "Failed to delete blacklist entry" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete blacklist entry"
     };
   }
 }

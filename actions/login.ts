@@ -1,8 +1,8 @@
-// actions/login.ts - Fixed version
+// actions/login.ts 
 "use server";
 
 import * as z from "zod";
-
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
 import { loginSchema } from "@/schemas/auth";
@@ -10,13 +10,13 @@ import { getUserByEmail } from "@/data/user";
 import { getTwoFactorTokenByEmail } from "@/data/two-factor-token";
 import { sendVerificationEmail, sendTwoFactorTokenEmail } from "@/lib/mail";
 import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
-import {
-  generateVerificationToken,
-  generateTwoFactorToken,
-} from "@/lib/tokens";
+import { generateVerificationToken, generateTwoFactorToken } from "@/lib/tokens";
 import { getTwoFactorConfoirmationByUserId } from "@/data/two-factor-confirmation";
+import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limiter";
+import { logActivity } from "@/lib/security/audit-logger";
+import { LogSeverity } from "@prisma/client";
+import { NextRequest } from "next/server";
 
-// Extended schema that includes optional code for 2FA
 const loginWithCodeSchema = loginSchema.extend({
   code: z.string().optional(),
 });
@@ -25,158 +25,133 @@ export const login = async (
   values: z.infer<typeof loginWithCodeSchema>,
   callbackUrl?: string | null
 ) => {
-  console.log("🔐 Login attempt:", { email: values.email, hasCode: !!values.code });
-
   const validatedFields = loginWithCodeSchema.safeParse(values);
-
   if (!validatedFields.success) {
-    console.log("❌ Validation failed:", validatedFields.error);
     return { error: "Invalid fields!" };
   }
 
   const { email, password, code } = validatedFields.data;
 
+  // ✅ Rate limiting — po email adresi, 5 pokušaja / 15 minuta
+  const headersList = await headers();
+  const ip =
+    headersList.get("x-forwarded-for")?.split(",")[0].trim() ||
+    headersList.get("x-real-ip") ||
+    "anonymous";
+
+  const fakeReq = {
+    headers: { get: (key: string) => headersList.get(key) },
+  } as unknown as NextRequest;
+
+  const rl = await rateLimit(fakeReq, `login:${email}`, RATE_LIMIT_CONFIGS.auth);
+  if (!rl.success) {
+    await logActivity("LOGIN_RATE_LIMITED", {
+      entityType: "auth",
+      details: { email, ip },
+      severity: LogSeverity.WARNING,
+    }).catch(() => {});
+    return { error: "Previše neuspešnih pokušaja. Pokušajte ponovo za 15 minuta." };
+  }
+
   const existingUser = await getUserByEmail(email);
 
   if (!existingUser || !existingUser.email || !existingUser.password) {
-    console.log("❌ User not found:", email);
-    return {
-      error: "Email does not exist!",
-    };
+    // ✅ Ne otkrivamo da li user postoji — isti odgovor kao za pogrešnu lozinku
+    await logActivity("LOGIN_FAILED", {
+      entityType: "auth",
+      details: { ip, reason: "user_not_found" },
+      severity: LogSeverity.WARNING,
+    }).catch(() => {});
+    return { error: "Invalid credentials!" };
   }
 
-  console.log("👤 User found:", { 
-    id: existingUser.id, 
-    email: existingUser.email, 
-    emailVerified: !!existingUser.emailVerified,
-    isActive: existingUser.isActive,
-    isTwoFactorEnabled: existingUser.isTwoFactorEnabled 
-  });
-
-  // Check if user is active
   if (existingUser.isActive === false) {
-    console.log("❌ User is inactive");
+    await logActivity("LOGIN_FAILED", {
+      entityType: "auth",
+      entityId: existingUser.id,
+      details: { ip, reason: "account_inactive" },
+      severity: LogSeverity.WARNING,
+    }).catch(() => {});
     return { error: "Account is deactivated!" };
   }
 
   if (!existingUser.emailVerified) {
-    console.log("📧 Email not verified, sending verification email");
-    const verificationToken = await generateVerificationToken(
-      existingUser.email
-    );
-
-    await sendVerificationEmail(
-      verificationToken.email,
-      verificationToken.token
-    );
-
-    return {
-      success: "Confirmation email sent!",
-    };
+    const verificationToken = await generateVerificationToken(existingUser.email);
+    await sendVerificationEmail(verificationToken.email, verificationToken.token);
+    return { success: "Confirmation email sent!" };
   }
 
   if (existingUser.isTwoFactorEnabled && existingUser.email) {
     if (code) {
-      console.log("🔢 Verifying 2FA code");
       const twoFactorToken = await getTwoFactorTokenByEmail(existingUser.email);
 
       if (!twoFactorToken || twoFactorToken.token !== code) {
-        console.log("❌ Invalid 2FA code");
+        await logActivity("LOGIN_FAILED", {
+          entityType: "auth",
+          entityId: existingUser.id,
+          details: { ip, reason: "invalid_2fa_code" },
+          severity: LogSeverity.WARNING,
+        }).catch(() => {});
         return { error: "Invalid code!" };
       }
 
       const hasExpired = new Date(twoFactorToken.expires) < new Date();
-
       if (hasExpired) {
-        console.log("❌ 2FA code expired");
         return { error: "Code expired!" };
       }
 
-      await db.twoFactorToken.delete({
-        where: { id: twoFactorToken.id },
-      });
+      await db.twoFactorToken.delete({ where: { id: twoFactorToken.id } });
 
-      const existingConfirmation = await getTwoFactorConfoirmationByUserId(
-        existingUser.id
-      );
-
+      const existingConfirmation = await getTwoFactorConfoirmationByUserId(existingUser.id);
       if (existingConfirmation) {
-        await db.twoFactorConfirmation.delete({
-          where: { id: existingUser.id },
-        });
+        await db.twoFactorConfirmation.delete({ where: { id: existingUser.id } });
       }
 
       await db.twoFactorConfirmation.create({
-        data: {
-          userId: existingUser.id,
-        },
+        data: { userId: existingUser.id },
       });
     } else {
-      console.log("📱 Generating 2FA token");
       const twoFactorToken = await generateTwoFactorToken(existingUser.email);
-
       await sendTwoFactorTokenEmail(twoFactorToken.email, twoFactorToken.token);
-
-      return {
-        twoFactor: true,
-      };
+      return { twoFactor: true };
     }
   }
 
   try {
-    console.log("🚀 Attempting signIn");
     await signIn("credentials", {
       email,
       password,
       redirectTo: callbackUrl || DEFAULT_LOGIN_REDIRECT,
     });
-    console.log("✅ SignIn successful");
+
+    // ✅ Loguj uspešan login
+    await logActivity("LOGIN_SUCCESS", {
+      entityType: "auth",
+      entityId: existingUser.id,
+      details: { ip },
+      severity: LogSeverity.INFO,
+    }).catch(() => {});
+
   } catch (error) {
-    console.error("❌ SignIn error:", error);
-    
-    // NextAuth v5 throws regular errors, check the error message instead
     if (error instanceof Error) {
-      // Check for specific error messages from NextAuth
-      if (error.message.includes("CredentialsSignin") || 
-          error.message.includes("Invalid credentials")) {
+      if (
+        error.message.includes("CredentialsSignin") ||
+        error.message.includes("Invalid credentials")
+      ) {
+        await logActivity("LOGIN_FAILED", {
+          entityType: "auth",
+          entityId: existingUser.id,
+          details: { ip, reason: "invalid_credentials" },
+          severity: LogSeverity.WARNING,
+        }).catch(() => {});
         return { error: "Invalid credentials!" };
       }
     }
-
-    // If it's a redirect (NEXT_REDIRECT), re-throw it
-    // NextAuth uses redirects for successful authentication
+    // NextAuth redirect — re-throw (ovo je normalan flow za uspešan login)
     throw error;
   }
 };
 
 export async function logoutAction() {
   await signOut({ redirectTo: "/auth/login" });
-}
-
-// Alternative simple login function
-export async function simpleLogin(email: string, password: string) {
-  try {
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirectTo: "/dashboard",
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Login error:", error);
-    
-    if (error instanceof Error && 
-        (error.message.includes("CredentialsSignin") || 
-         error.message.includes("Invalid credentials"))) {
-      return { 
-        success: false, 
-        error: "Invalid credentials" 
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: "Login failed" 
-    };
-  }
 }

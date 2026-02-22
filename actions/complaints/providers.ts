@@ -5,45 +5,27 @@ import { db } from "@/lib/db";
 interface ProviderData {
   id: string;
   name: string;
-  type: "VAS" | "BULK"; // ✅ Samo VAS ili BULK
+  type: "VAS" | "BULK";
 }
 
 export async function getProviders(): Promise<ProviderData[]> {
   try {
     const providers = await db.provider.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
-        vasServices: {
-          select: { id: true },
-          take: 1,
-        },
-        bulkServices: {
-          select: { id: true },
-          take: 1,
-        },
+        vasServices: { select: { id: true }, take: 1 },
+        bulkServices: { select: { id: true }, take: 1 },
       },
-      where: {
-        isActive: true,
-      },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
 
-    const providersWithType: ProviderData[] = providers.map(provider => {
-      const hasVasServices = provider.vasServices.length > 0;
-      const hasBulkServices = provider.bulkServices.length > 0;
-
-      // ✅ Ako ima VAS servise, prioritet je VAS
-      // Ako nema VAS ali ima BULK, onda BULK
-      return {
-        id: provider.id,
-        name: provider.name,
-        type: hasVasServices ? "VAS" : "BULK",
-      };
-    });
-
-    console.log("Successfully fetched providers for form:", providersWithType.length, "items");
-    return providersWithType;
+    return providers.map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+      type: provider.vasServices.length > 0 ? "VAS" : "BULK",
+    }));
   } catch (error) {
     console.error("Error fetching providers for form:", error);
     return [];

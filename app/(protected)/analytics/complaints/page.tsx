@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 
 import { getComplaintStats, ComplaintStatsParams, ComplaintStats } from "@/actions/analytics/get-complaint-stats";
 
-export const dynamic = 'force-dynamic';
 
 // Update types to reflect that searchParams and params are Promises
 interface ComplaintAnalyticsPageProps {
@@ -158,14 +157,13 @@ export default async function ComplaintAnalyticsPage(props: ComplaintAnalyticsPa
 
    // Dohvatanje podataka za analitiku na osnovu primenjenih filtera
    let complaintStats: ComplaintStats | null = null;
-   let fetchError: any = null;
-   try {
-        console.log("Parameters passed to getComplaintStats:", complaintStatsParams);
-        complaintStats = await getComplaintStats(complaintStatsParams);
-   } catch (error: any) {
-        console.error("Error fetching complaint stats:", error);
-        fetchError = error;
-   }
+   let fetchError: Error | null = null;
+try {
+  complaintStats = await getComplaintStats(complaintStatsParams);
+} catch (error: unknown) {
+  console.error("Error fetching complaint stats:", error);
+  fetchError = error instanceof Error ? error : new Error("Unknown error");
+}
 
 
 return (

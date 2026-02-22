@@ -7,8 +7,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { unstable_cache } from 'next/cache';
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
+
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const params = await props.params;
@@ -238,22 +237,20 @@ export default async function EditContractPage(props: EditContractPageProps) {
         </div>
       </div>
     );
-  } catch (error: any) {
-    if (error.message === "Forbidden") {
-      return (
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-red-600">Permission Denied</h1>
-          <p>You don't have permission to update this contract</p>
-        </div>
-      );
-    }
-
-    console.error("[EDIT_CONTRACT_PAGE_ERROR]", error);
+ } catch (error: unknown) {
+  if (error instanceof Error && error.message === "Forbidden") {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-red-600">Error Loading Contract</h1>
-        <p>There was an error loading the contract details. Please try again later.</p>
+        <h1 className="text-2xl font-bold text-red-600">Permission Denied</h1>
+        <p>You don't have permission to update this contract</p>
       </div>
     );
   }
+  console.error("[EDIT_CONTRACT_PAGE_ERROR]", error);
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-red-600">Error Loading Contract</h1>
+      <p>There was an error loading the contract details. Please try again later.</p>
+    </div>
+  );
 }

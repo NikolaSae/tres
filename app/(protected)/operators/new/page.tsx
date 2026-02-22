@@ -15,8 +15,7 @@ export const metadata: Metadata = {
   description: "Create a new operator in the system.",
 };
 
-// Force dynamic rendering (requires authentication)
-export const dynamic = 'force-dynamic';
+
 
 export default async function NewOperatorPage() {
   try {

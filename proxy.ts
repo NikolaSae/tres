@@ -1,93 +1,117 @@
 // proxy.ts
+// proxy.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/auth";
 
-// middleware.ts
-export default auth((req) => {
-  const { nextUrl } = req;
-  const pathname = nextUrl.pathname;
-  
-  console.log("🔍 Middleware called for:", pathname);
-  
-  const isLoggedIn = !!req.auth?.user?.id;
-  const userRole = req.auth?.user?.role;
-  const isActive = req.auth?.user?.isActive !== false;
-  
-  console.log("👤 Session data:", {
-    isLoggedIn,
-    userId: req.auth?.user?.id,
-    role: userRole,
-    isActive,
-  });
-  
-  const protectedPaths = [
-    "/admin", 
-    "/dashboard", 
-    "/operators", 
-    "/providers", 
-    "/complaints", 
-    "/parking-services", 
-    "/bulk-services", 
-    "/contracts", 
-    "/services", 
-    "/humanitarian-orgs", 
-    "/reports",
-    "/analytics"
-  ];
-  
-  const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
-  
-  // Redirect to login if not authenticated
-  if (isProtected && !isLoggedIn) {
-    console.log("❌ Redirecting to login: not logged in");
-    return NextResponse.redirect(new URL("/auth/login", nextUrl.origin));
+const PUBLIC_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/error",
+  "/auth/verify-email",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/new-password",
+  "/auth/new-verification",
+  "/auth/reset",
+  "/403",
+  "/404",
+];
+
+const PROTECTED_PATHS = [
+  "/admin",
+  "/dashboard",
+  "/operators",
+  "/providers",
+  "/complaints",
+  "/parking-services",
+  "/bulk-services",
+  "/contracts",
+  "/services",
+  "/humanitarian-orgs",
+  "/humanitarian-renewals",
+  "/reports",
+  "/analytics",
+  "/audit-logs",
+  "/notifications",
+  "/profile",
+  "/settings",
+  "/chat",
+  "/products",
+  "/help",
+];
+
+function validateCSRF(request: NextRequest): boolean {
+  if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return true;
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
   }
-  
-  // Check if user is inactive
-  if (isLoggedIn && !isActive) {
-    console.log("❌ Redirecting to login: user inactive");
-    return NextResponse.redirect(new URL("/auth/login", nextUrl.origin));
+}
+
+function isCronAuthorized(request: NextRequest): boolean {
+  return request.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
+}
+
+// ✅ ISPRAVKA: named export "proxy" umesto "middleware"
+export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Cron endpointi
+  if (pathname.startsWith("/api/cron")) {
+    if (!isCronAuthorized(request)) {
+      return NextResponse.json({ error: "Neovlašćen pristup" }, { status: 401 });
+    }
+    return NextResponse.next();
   }
-  
-  // Role-based access control
-  if (isLoggedIn) {
-    // Admin only paths
-    if (pathname.startsWith("/admin") && userRole !== "ADMIN") {
-      console.log("❌ Redirecting to 403: not admin");
-      return NextResponse.redirect(new URL("/403", nextUrl.origin));
+
+  // NextAuth rute — slobodne
+  if (pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
+
+  // CSRF zaštita za ostale API rute
+  if (pathname.startsWith("/api")) {
+    if (!validateCSRF(request)) {
+      return NextResponse.json({ error: "CSRF validacija nije prošla" }, { status: 403 });
     }
-    
-    // Analytics - ADMIN and MANAGER only
-    if (pathname.startsWith("/analytics")) {
-      if (userRole !== "ADMIN" && userRole !== "MANAGER") {
-        console.log("❌ Redirecting to 403: insufficient role for analytics");
-        return NextResponse.redirect(new URL("/403", nextUrl.origin));
-      }
-    }
-    // ✅ DODAJ - Providers - ADMIN and MANAGER only
-  if (pathname.startsWith("/providers")) {
-    if (userRole !== "ADMIN" && userRole !== "MANAGER") {
-      console.log("❌ Redirecting to 403: insufficient role for providers");
-      return NextResponse.redirect(new URL("/403", nextUrl.origin));
+    return NextResponse.next();
+  }
+
+  // Javne stranice
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Zaštićene stranice — proveri cookie
+  if (PROTECTED_PATHS.some((p) => pathname.startsWith(p))) {
+    const sessionCookie =
+      request.cookies.get("authjs.session-token") ||
+      request.cookies.get("__Secure-authjs.session-token") ||
+      request.cookies.get("next-auth.session-token");
+
+    if (!sessionCookie) {
+      const callbackUrl = encodeURIComponent(pathname + request.nextUrl.search);
+      return NextResponse.redirect(
+        new URL(`/auth/login?callbackUrl=${callbackUrl}`, request.url)
+      );
     }
   }
-    
-    // ✅ DODAJ OVO - Reports - ADMIN, MANAGER, and AGENT only
-    if (pathname.startsWith("/reports")) {
-      if (userRole !== "ADMIN" && userRole !== "MANAGER" && userRole !== "AGENT") {
-        console.log("❌ Redirecting to 403: insufficient role for reports");
-        return NextResponse.redirect(new URL("/403", nextUrl.origin));
-      }
-    }
-  }
-  
-  console.log("✅ Access granted to:", pathname);
-  return NextResponse.next();
-});
+
+  // Security headers
+  const response = NextResponse.next();
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+
+  return response;
+}
 
 export const config = {
   matcher: [
-    '/((?!api(?!/auth)|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)$).*)",
   ],
 };

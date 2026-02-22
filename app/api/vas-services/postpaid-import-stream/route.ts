@@ -1,57 +1,53 @@
 // app/api/vas-services/postpaid-import-stream/route.ts
 import { NextResponse } from 'next/server';
-import { PostpaidServiceProcessor } from '@/scripts/vas-import/PostpaidServiceProcessor';
+import { ParkingServiceProcessor } from '@/scripts/vas-import/ParkingServiceProcessor';
 import { db } from '@/lib/db';
 import { promises as fs } from 'fs';
 
+// ✅ Uklonjeno: dynamic
 export const maxDuration = 300;
-export const dynamic = 'force-dynamic';
+
+// Tip za SSE poruke
+type SseMessage =
+  | { type: 'status'; status: string }
+  | { type: 'log'; message: string; logType: 'info' | 'error' | 'success'; file?: string }
+  | { type: 'progress'; fileName: string; progress: number; message: string }
+  | { type: 'fileStatus'; fileName: string; status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error' }
+  | { type: 'complete'; recordsProcessed: number; errors: number; duplicates: number; imported:number; updated:number; message: string }
+  | { type: 'error'; error: string; details?: string };
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const filePath = searchParams.get('filePath');
   const userEmail = searchParams.get('userEmail');
 
-  // Validate inputs
   if (!filePath || !userEmail) {
-    return NextResponse.json(
-      { error: 'Missing filePath or userEmail' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Missing filePath or userEmail' }, { status: 400 });
   }
 
-  // Check file existence
   try {
     await fs.access(filePath);
   } catch {
-    return NextResponse.json(
-      { error: 'File not found' },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
-  // Create SSE transform stream
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
 
-  // Helper to send SSE messages
-  const sendMessage = (data: any) => {
+  const sendMessage = (data: SseMessage) => {
     writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
   };
 
-  // Send initial connection confirmation
   sendMessage({ type: 'status', status: 'connected' });
 
-  // Background processing
   (async () => {
-    let processor: PostpaidServiceProcessor | null = null;
-    
+    let processor: ParkingServiceProcessor | null = null;
+
     try {
-      // Find user
       const user = await db.user.findUnique({
         where: { email: userEmail },
-        select: { id: true }
+        select: { id: true },
       });
 
       if (!user) {
@@ -60,88 +56,53 @@ export async function GET(request: Request) {
         return;
       }
 
-      sendMessage({ type: 'log', message: 'Initializing VAS processor...', logType: 'info' });
+      sendMessage({ type: 'log', message: 'Initializing processor...', logType: 'info' });
 
-      // Create processor with callbacks
-      processor = new PostpaidServiceProcessor(user.id, {
+      processor = new ParkingServiceProcessor(user.id, {
         onProgress: (fileName: string, progress: number) => {
-          sendMessage({ 
-            type: 'progress', 
-            fileName, 
-            progress,
-            message: `Processing ${fileName}: ${progress}%`
-          });
+          sendMessage({ type: 'progress', fileName, progress, message: `Processing ${fileName}: ${progress}%` });
         },
         onLog: (message: string, logType: 'info' | 'error' | 'success', file?: string) => {
-          sendMessage({ 
-            type: 'log', 
-            message, 
-            logType, 
-            file 
-          });
+          sendMessage({ type: 'log', message, logType, file });
         },
         onFileStatus: (fileName: string, status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error') => {
-          sendMessage({ 
-            type: 'fileStatus', 
-            fileName, 
-            status 
-          });
-        }
+          sendMessage({ type: 'fileStatus', fileName, status });
+        },
       });
 
-      sendMessage({ type: 'log', message: 'Preparing directories...', logType: 'info' });
-      await processor.ensureDirectories();
+      sendMessage({ type: 'log', message: 'Starting file processing...', logType: 'info' });
 
-      sendMessage({ type: 'log', message: 'Starting VAS file processing...', logType: 'info' });
-      
-      // Process the file
-      const result = await processor.processVasServiceFiles(filePath);
-      
-      // Check if result exists and has data
-      if (!result || result.length === 0) {
-        sendMessage({
-          type: 'error',
-          error: 'VAS processing failed',
-          details: 'No results returned'
-        });
-      } else {
-        const firstResult = result[0] as any; // Use 'any' to access properties dynamically
-        
-        // Check for success/error in the actual result structure
-        const isSuccess = firstResult.success !== false && !firstResult.error;
-        
-        if (!isSuccess) {
-          sendMessage({
-            type: 'error',
-            error: 'VAS processing failed',
-            details: firstResult.error || firstResult.message || 'Unknown error'
-          });
-        } else {
-          sendMessage({
-            type: 'complete',
-            recordsProcessed: firstResult.processedRecords || firstResult.processed || 0,
-            errors: firstResult.errors || firstResult.errorCount || 0,
-            duplicates: firstResult.duplicates || firstResult.duplicateCount || 0,
-            message: `Processed ${firstResult.processedRecords || firstResult.processed || 0} VAS records successfully!`
-          });
-        }
+      const result = await processor.processFileWithImport(filePath);
+
+      if (!result) {
+        sendMessage({ type: 'error', error: 'Processing did not return results' });
+        writer.close();
+        return;
       }
 
-    } catch (error: any) {
-      console.error('VAS processing error:', error);
+      sendMessage({
+        type: 'complete',
+        recordsProcessed: result.recordsProcessed,
+        imported: result.imported,
+        updated: result.updated,
+        errors: result.errors,
+        warnings: result.warnings.length,
+        message: 'Processing completed successfully!',
+      });
+    } catch (error: unknown) {
+      console.error('Stream processing error:', error);
       sendMessage({
         type: 'error',
-        error: 'VAS processing failed',
-        details: error.message
+        error: 'Processing failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
-      // Cleanup resources
       if (processor) {
         try {
-          await processor.cleanup();
-          sendMessage({ type: 'log', message: 'Processor cleaned up', logType: 'info' });
-        } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
+          await processor.disconnect();
+          sendMessage({ type: 'log', message: 'Database connection closed', logType: 'info' });
+        } catch (disconnectError) {
+          console.error('Error disconnecting processor:', disconnectError);
         }
       }
       writer.close();
@@ -152,7 +113,7 @@ export async function GET(request: Request) {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    }
+      'Connection': 'keep-alive',
+    },
   });
 }

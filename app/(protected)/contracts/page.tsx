@@ -1,15 +1,17 @@
 // app/(protected)/contracts/page.tsx - KONAČNO ISPRAVLJEN
 import ContractsSection from "@/components/contracts/ContractsSection";
 import { db } from "@/lib/db";
-import { ContractStatus, ContractType as PrismaContractType } from "@prisma/client";
-export const dynamic = 'force-dynamic';
+import { ContractStatus, ContractType as PrismaContractType, Prisma } from "@prisma/client";
+
+
+
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }
 
 export default async function ContractsPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  
+
   const safeParams = {
     page: params.page || "1",
     limit: params.limit || "25",
@@ -22,7 +24,8 @@ export default async function ContractsPage({ searchParams }: PageProps) {
   const pageNumber = parseInt(safeParams.page);
   const limitNumber = parseInt(safeParams.limit);
 
-  const where: any = {};
+  // ✅ Prisma.ContractWhereInput umesto any
+  const where: Prisma.ContractWhereInput = {};
 
   if (safeParams.search) {
     where.OR = [
@@ -33,11 +36,11 @@ export default async function ContractsPage({ searchParams }: PageProps) {
   }
 
   if (safeParams.status && Object.values(ContractStatus).includes(safeParams.status as ContractStatus)) {
-    where.status = safeParams.status;
+    where.status = safeParams.status as ContractStatus;
   }
 
   if (safeParams.type && Object.values(PrismaContractType).includes(safeParams.type as PrismaContractType)) {
-    where.type = safeParams.type;
+    where.type = safeParams.type as PrismaContractType;
   }
 
   if (safeParams.partner) {
@@ -52,36 +55,11 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     db.contract.findMany({
       where,
       include: {
-        provider: { 
-          select: { 
-            id: true, 
-            name: true 
-          } 
-        },
-        humanitarianOrg: { 
-          select: { 
-            id: true, 
-            name: true 
-          } 
-        },
-        parkingService: { 
-          select: { 
-            id: true, 
-            name: true 
-          } 
-        },
-        services: {
-          include: {
-            service: true,
-          },
-        },
-        _count: { 
-          select: { 
-            services: true, 
-            attachments: true, 
-            reminders: true 
-          } 
-        },
+        provider: { select: { id: true, name: true } },
+        humanitarianOrg: { select: { id: true, name: true } },
+        parkingService: { select: { id: true, name: true } },
+        services: { include: { service: true } },
+        _count: { select: { services: true, attachments: true, reminders: true } },
       },
       skip: (pageNumber - 1) * limitNumber,
       take: limitNumber,
@@ -90,15 +68,14 @@ export default async function ContractsPage({ searchParams }: PageProps) {
     db.contract.count({ where }),
   ]);
 
-  // Transform contracts - specificTerms može biti null
-  const transformedContracts = contracts.map(contract => ({
+  const transformedContracts = contracts.map((contract) => ({
     ...contract,
-    services: contract.services.map(sc => ({
+    services: contract.services.map((sc) => ({
       ...sc.service,
       serviceContractId: sc.id,
       contractId: sc.contractId,
-      specificTerms: sc.specificTerms ?? undefined, // ✅ Convert null to undefined
-    }))
+      specificTerms: sc.specificTerms ?? undefined,
+    })),
   }));
 
   return (

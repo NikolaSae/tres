@@ -1,9 +1,8 @@
 // actions/blacklist/update-blacklist-entry.ts
 "use server";
-
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { createAuditLog } from "@/lib/security/black-log";
 import { LogBlackType } from "@prisma/client";
 
@@ -21,16 +20,11 @@ export async function updateBlacklistEntry(data: UpdateBlacklistEntryData) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // Get existing data for audit log
-    const oldData = await db.senderBlacklist.findUnique({
-      where: { id: data.id }
-    });
-
+    const oldData = await db.senderBlacklist.findUnique({ where: { id: data.id } });
     if (!oldData) {
       return { success: false, error: "Entry not found" };
     }
 
-    // Update entry
     const updatedEntry = await db.senderBlacklist.update({
       where: { id: data.id },
       data: {
@@ -41,20 +35,15 @@ export async function updateBlacklistEntry(data: UpdateBlacklistEntryData) {
       },
       include: {
         createdBy: {
-          select: {
-            id: true,
-            name: true
-          }
+          select: { id: true, name: true }
         }
       }
     });
 
-    // Determine action type for audit log
     const action = data.isActive !== undefined
       ? data.isActive ? LogBlackType.ACTIVATE : LogBlackType.DEACTIVATE
       : LogBlackType.UPDATE;
 
-    // Create audit log
     await createAuditLog({
       action,
       entityId: data.id,
@@ -63,13 +52,15 @@ export async function updateBlacklistEntry(data: UpdateBlacklistEntryData) {
       newData: updatedEntry
     });
 
+    updateTag('blacklist-logs');
     revalidatePath('/providers');
+
     return { success: true, data: updatedEntry };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating blacklist entry:", error);
-    return { 
-      success: false, 
-      error: error.message || "Failed to update blacklist entry" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update blacklist entry"
     };
   }
 }

@@ -13,8 +13,6 @@ export const metadata: Metadata = {
   description: "Create a new contract in the system",
 };
 
-export const dynamic = 'force-dynamic';
-
 export default async function NewContractPage() {
   const session = await auth();
   

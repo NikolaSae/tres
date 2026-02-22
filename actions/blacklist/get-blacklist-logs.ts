@@ -1,7 +1,5 @@
 // actions/blacklist/get-blacklist-logs.ts
 "use server";
-
-import { unstable_cache } from 'next/cache';
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -18,89 +16,73 @@ interface GetBlacklistLogsParams {
   };
 }
 
-const getCachedBlacklistLogs = unstable_cache(
-  async (
-    search: string | undefined,
-    action: string | undefined,
-    dateFrom: Date | undefined,
-    dateTo: Date | undefined,
-    page: number,
-    limit: number
-  ) => {
-    console.log('🔍 Fetching blacklist logs from database...');
+async function fetchBlacklistLogs(
+  search: string | undefined,
+  action: string | undefined,
+  dateFrom: Date | undefined,
+  dateTo: Date | undefined,
+  page: number,
+  limit: number
+) {
+  "use cache";
+  
+  console.log('🔍 Fetching blacklist logs from database...');
+  
+  const skip = (page - 1) * limit;
+  const where: any = {};
 
-    const skip = (page - 1) * limit;
-    const where: any = {};
+  if (search) {
+    where.OR = [
+      { user: { name: { contains: search, mode: 'insensitive' } } },
+      { user: { email: { contains: search, mode: 'insensitive' } } },
+      { blacklistEntry: { senderName: { contains: search, mode: 'insensitive' } } },
+    ];
+  }
 
-    if (search) {
-      where.OR = [
-        { user: { name: { contains: search, mode: 'insensitive' } } },
-        { user: { email: { contains: search, mode: 'insensitive' } } },
-        { blacklistEntry: { senderName: { contains: search, mode: 'insensitive' } } },
-      ];
+  if (action) where.action = action;
+
+  if (dateFrom || dateTo) {
+    where.timestamp = {};
+    if (dateFrom) where.timestamp.gte = dateFrom;
+    if (dateTo) {
+      const dateToEnd = new Date(dateTo);
+      dateToEnd.setHours(23, 59, 59, 999);
+      where.timestamp.lte = dateToEnd;
     }
+  }
 
-    if (action) {
-      where.action = action;
-    }
-
-    if (dateFrom || dateTo) {
-      where.timestamp = {};
-      if (dateFrom) where.timestamp.gte = dateFrom;
-      if (dateTo) {
-        const dateToEnd = new Date(dateTo);
-        dateToEnd.setHours(23, 59, 59, 999);
-        where.timestamp.lte = dateToEnd;
-      }
-    }
-
-    const [logs, total] = await db.$transaction([
-      db.blacklistLog.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          blacklistEntry: {
-            select: {
-              id: true,
-              senderName: true,
-            },
-          },
+  const [logs, total] = await db.$transaction([
+    db.blacklistLog.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
         },
-        orderBy: {
-          timestamp: "desc",
+        blacklistEntry: {
+          select: { id: true, senderName: true },
         },
-        skip,
-        take: limit,
-      }),
-      db.blacklistLog.count({ where }),
-    ]);
+      },
+      orderBy: { timestamp: "desc" },
+      skip,
+      take: limit,
+    }),
+    db.blacklistLog.count({ where }),
+  ]);
 
-    return { logs, total };
-  },
-  ['blacklist-logs'],
-  { revalidate: 30 }
-);
+  return { logs, total };
+}
 
 export async function getBlacklistLogs({ filters = {}, pagination }: GetBlacklistLogsParams) {
   try {
     const currentUser = await getCurrentUser();
-
     if (!currentUser) {
       return { success: false, error: "Unauthorized", data: { logs: [], total: 0 } };
     }
-
-    // Only admins can view audit logs
     if (currentUser.role !== "ADMIN") {
       return { success: false, error: "Forbidden", data: { logs: [], total: 0 } };
     }
 
-    const data = await getCachedBlacklistLogs(
+    const data = await fetchBlacklistLogs(
       filters.search,
       filters.action,
       filters.dateFrom,

@@ -1,9 +1,8 @@
 // actions/blacklist/create-blacklist-entry.ts
 "use server";
-
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { createAuditLog } from "@/lib/security/black-log";
 import { LogBlackType } from "@prisma/client";
 
@@ -21,19 +20,17 @@ export async function createBlacklistEntry(data: CreateBlacklistEntryData) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // Check for existing entry
     const existingEntry = await db.senderBlacklist.findFirst({
       where: { senderName: data.senderName }
     });
 
     if (existingEntry) {
-      return { 
-        success: false, 
-        error: `Blacklist entry already exists for sender: ${data.senderName}` 
+      return {
+        success: false,
+        error: `Blacklist entry already exists for sender: ${data.senderName}`
       };
     }
 
-    // Create entry
     const blacklistEntry = await db.senderBlacklist.create({
       data: {
         senderName: data.senderName,
@@ -49,7 +46,6 @@ export async function createBlacklistEntry(data: CreateBlacklistEntryData) {
       }
     });
 
-    // Create audit log
     await createAuditLog({
       action: LogBlackType.CREATE,
       entityId: blacklistEntry.id,
@@ -57,18 +53,20 @@ export async function createBlacklistEntry(data: CreateBlacklistEntryData) {
       newData: blacklistEntry
     });
 
+    // updateTag za instant read-your-writes, revalidatePath za širi page refresh
+    updateTag('blacklist-logs');
     revalidatePath('/providers');
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       data: blacklistEntry,
       message: `Blacklist entry created for sender: ${data.senderName}`
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating blacklist entry:", error);
-    return { 
-      success: false, 
-      error: error.message || "Failed to create blacklist entry" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create blacklist entry"
     };
   }
 }

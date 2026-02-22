@@ -1,10 +1,9 @@
 // actions/complaints/import.ts
 "use server";
-
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { ComplaintImportSchema } from "@/schemas/complaint"; // ← ispravno uvezeno
+import { ComplaintImportSchema } from "@/schemas/complaint";
 import { LogSeverity, ComplaintStatus } from "@prisma/client";
 
 export type ImportResult = {
@@ -17,34 +16,22 @@ export type ImportResult = {
 
 export async function importComplaints(formData: FormData): Promise<ImportResult> {
   const session = await auth();
-
   if (!session?.user?.id || !["ADMIN", "MANAGER"].includes(session.user.role)) {
-    return {
-      success: false,
-      message: "Unauthorized access",
-    };
+    return { success: false, message: "Unauthorized access" };
   }
 
   try {
     const file = formData.get("file") as File;
-    if (!file) {
-      return {
-        success: false,
-        message: "No file provided",
-      };
-    }
+    if (!file) return { success: false, message: "No file provided" };
 
     const csvText = await file.text();
-
     const rows = csvText.trim().split("\n");
+
     if (rows.length < 2) {
-      return {
-        success: false,
-        message: "CSV file is empty or missing data rows",
-      };
+      return { success: false, message: "CSV file is empty or missing data rows" };
     }
 
-    const headers = rows[0].split(",").map(h => h.trim());
+    const headers = rows[0].split(",").map((h) => h.trim());
     const dataRows = rows.slice(1);
 
     let importedCount = 0;
@@ -53,25 +40,23 @@ export async function importComplaints(formData: FormData): Promise<ImportResult
 
     for (const row of dataRows) {
       try {
-        const values = row.split(",").map(v => v.trim());
-        const rowData: Record<string, any> = {};
-
+        const values = row.split(",").map((v) => v.trim());
+        const rowData: Record<string, string> = {};
         headers.forEach((header, index) => {
-          rowData[header] = values[index];
+          rowData[header] = values[index] ?? "";
         });
 
-        // Koristimo ispravno uvezeno ime: ComplaintImportSchema
         const complaintData = ComplaintImportSchema.parse({
           title: rowData.title,
           description: rowData.description,
           priority: parseInt(rowData.priority) || 3,
           serviceId: rowData.serviceId || null,
-          // productId: rowData.productId || null,     // ako postoji u šemi
           providerId: rowData.providerId || null,
-          financialImpact: rowData.financialImpact ? parseFloat(rowData.financialImpact) : null,
+          financialImpact: rowData.financialImpact
+            ? parseFloat(rowData.financialImpact)
+            : null,
         });
 
-        // Kreiranje pritužbe
         const complaint = await db.complaint.create({
           data: {
             ...complaintData,
@@ -86,7 +71,6 @@ export async function importComplaints(formData: FormData): Promise<ImportResult
           },
         });
 
-        // Logovanje
         await db.activityLog.create({
           data: {
             action: "IMPORT_COMPLAINT",
@@ -99,9 +83,10 @@ export async function importComplaints(formData: FormData): Promise<ImportResult
         });
 
         importedCount++;
-      } catch (error: any) {
+      } catch (error: unknown) {
         failedCount++;
-        errors.push(`Red ${importedCount + failedCount}: ${error.message || "Nepoznata greška"}`);
+        const msg = error instanceof Error ? error.message : "Nepoznata greška";
+        errors.push(`Red ${importedCount + failedCount}: ${msg}`);
       }
     }
 
@@ -113,15 +98,16 @@ export async function importComplaints(formData: FormData): Promise<ImportResult
       importedCount,
       failedCount,
       errors: errors.length > 0 ? errors : undefined,
-      message: importedCount > 0
-        ? `Uspešno uvezeno ${importedCount} pritužbi${failedCount > 0 ? ` (${failedCount} neuspešnih)` : ""}`
-        : "Nijedna pritužba nije uvezena",
+      message:
+        importedCount > 0
+          ? `Uspešno uvezeno ${importedCount} pritužbi${failedCount > 0 ? ` (${failedCount} neuspešnih)` : ""}`
+          : "Nijedna pritužba nije uvezena",
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Greška pri importu pritužbi:", error);
     return {
       success: false,
-      message: `Greška pri importu: ${error.message || "Nepoznata greška"}`,
+      message: `Greška pri importu: ${error instanceof Error ? error.message : "Nepoznata greška"}`,
     };
   }
 }
