@@ -4,7 +4,6 @@
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { canViewSalesData } from "@/lib/security/permission-checker";
-import { ServiceType, Prisma } from "@prisma/client";
 
 export type SalesMetricsParams = {
   startDate?: Date;
@@ -47,62 +46,85 @@ export async function getSalesMetrics({
   const periodLengthMs = effectiveEndDate.getTime() - effectiveStartDate.getTime();
   const comparisonStartDate = new Date(effectiveStartDate.getTime() - periodLengthMs);
   const comparisonEndDate = new Date(effectiveStartDate.getTime() - 1);
-  comparisonStartDate.setHours(0, 0, 0, 0);
-  comparisonEndDate.setHours(23, 59, 59, 999);
 
-  // ✅ FIX: Typed where filter umesto spread — eliminise TypeScript grešku
-  const serviceTypeEnum = serviceType
-    ? Object.values(ServiceType).includes(serviceType as ServiceType)
-      ? (serviceType as ServiceType)
-      : undefined
-    : undefined;
+  const monthKey = (date: Date) =>
+    date.toLocaleString("en-US", { month: "short", year: "2-digit" });
 
-  const baseWhere: Prisma.VasServiceWhereInput = {
-    ...(serviceTypeEnum && { service: { type: serviceTypeEnum } }),
-    ...(providerId && { provajderId: providerId }),
-  };
+  // Trenutni period — sve tabele paralelno
+  const [vasData, parkingData, humanitarianData,
+         vasComp, parkingComp, humanitarianComp] = await Promise.all([
+    (!serviceType || serviceType === "VAS")
+      ? db.vasService.findMany({
+          where: {
+            mesec_pruzanja_usluge: { gte: effectiveStartDate, lte: effectiveEndDate },
+            ...(providerId && { provajderId: providerId }),
+          },
+          include: { provider: true },
+        })
+      : [],
 
-  const [vasData, comparisonData] = await Promise.all([
+    (!serviceType || serviceType === "PARKING")
+      ? db.parkingTransaction.findMany({
+          where: { date: { gte: effectiveStartDate, lte: effectiveEndDate } },
+          include: { parkingService: true },
+        })
+      : [],
+
+    (!serviceType || serviceType === "HUMANITARIAN")
+      ? db.humanitarianTransaction.findMany({
+          where: { date: { gte: effectiveStartDate, lte: effectiveEndDate } },
+          include: { humanitarianOrg: true },
+        })
+      : [],
+
+    // Comparison period
     db.vasService.findMany({
-      where: {
-        mesec_pruzanja_usluge: { gte: effectiveStartDate, lte: effectiveEndDate },
-        ...baseWhere,
-      },
-      include: { service: true, provider: true },
-      orderBy: { mesec_pruzanja_usluge: "asc" },
-    }),
-    db.vasService.findMany({
-      where: {
-        mesec_pruzanja_usluge: { gte: comparisonStartDate, lte: comparisonEndDate },
-        ...baseWhere,
-      },
+      where: { mesec_pruzanja_usluge: { gte: comparisonStartDate, lte: comparisonEndDate } },
       select: { broj_transakcija: true, fakturisan_iznos: true },
+    }),
+    db.parkingTransaction.findMany({
+      where: { date: { gte: comparisonStartDate, lte: comparisonEndDate } },
+      select: { quantity: true, amount: true },
+    }),
+    db.humanitarianTransaction.findMany({
+      where: { date: { gte: comparisonStartDate, lte: comparisonEndDate } },
+      select: { quantity: true, amount: true },
     }),
   ]);
 
-  const monthlyData = vasData.reduce(
-    (acc, item) => {
-      const key = item.mesec_pruzanja_usluge.toLocaleString("en-US", {
-        month: "short",
-        year: "2-digit",
-      });
-      if (!acc[key]) acc[key] = { transactions: 0, revenue: 0 };
-      acc[key].transactions += item.broj_transakcija || 0;
-      acc[key].revenue += item.fakturisan_iznos || 0;
-      return acc;
-    },
-    {} as Record<string, { transactions: number; revenue: number }>
-  );
+  // Mesečna agregacija
+  const monthlyMap = new Map<string, { transactions: number; revenue: number }>();
+  const ensureMonth = (key: string) => {
+    if (!monthlyMap.has(key)) monthlyMap.set(key, { transactions: 0, revenue: 0 });
+    return monthlyMap.get(key)!;
+  };
 
-  const fullMonthRange: Record<string, { transactions: number; revenue: number }> = {};
+  for (const item of vasData as any[]) {
+    const e = ensureMonth(monthKey(item.mesec_pruzanja_usluge));
+    e.transactions += item.broj_transakcija || 0;
+    e.revenue += item.fakturisan_iznos || 0;
+  }
+  for (const item of parkingData as any[]) {
+    const e = ensureMonth(monthKey(item.date));
+    e.transactions += item.quantity || 0;
+    e.revenue += item.amount || 0;
+  }
+  for (const item of humanitarianData as any[]) {
+    const e = ensureMonth(monthKey(item.date));
+    e.transactions += item.quantity || 0;
+    e.revenue += item.amount || 0;
+  }
+
+  // Popuni sve mesece
+  const fullMonthRange = new Map<string, { transactions: number; revenue: number }>();
   const cur = new Date(effectiveStartDate);
   while (cur <= effectiveEndDate) {
-    const key = cur.toLocaleString("en-US", { month: "short", year: "2-digit" });
-    fullMonthRange[key] = monthlyData[key] || { transactions: 0, revenue: 0 };
+    const key = monthKey(cur);
+    fullMonthRange.set(key, monthlyMap.get(key) || { transactions: 0, revenue: 0 });
     cur.setMonth(cur.getMonth() + 1);
   }
 
-  const transactionsByMonth = Object.entries(fullMonthRange)
+  const transactionsByMonth = Array.from(fullMonthRange.entries())
     .map(([month, data]) => ({ month, ...data }))
     .sort((a, b) => {
       const [am, ay] = a.month.split(" ");
@@ -110,51 +132,81 @@ export async function getSalesMetrics({
       return new Date(`${am} 01 20${ay}`).getTime() - new Date(`${bm} 01 20${by}`).getTime();
     });
 
-  // ✅ FIX: service i provider su include-ovani, TypeScript sada zna za ova polja
-  const serviceTypeData = vasData.reduce((acc, item) => {
-    const type = item.service.type.toString();
-    acc[type] = (acc[type] || 0) + (item.broj_transakcija || 0);
-    return acc;
-  }, {} as Record<string, number>);
+  // Service type breakdown
+  const serviceTypeMap: Record<string, number> = {};
+  for (const item of vasData as any[]) {
+    serviceTypeMap["VAS"] = (serviceTypeMap["VAS"] || 0) + (item.broj_transakcija || 0);
+  }
+  for (const item of parkingData as any[]) {
+    serviceTypeMap["PARKING"] = (serviceTypeMap["PARKING"] || 0) + (item.quantity || 0);
+  }
+  for (const item of humanitarianData as any[]) {
+    serviceTypeMap["HUMANITARIAN"] = (serviceTypeMap["HUMANITARIAN"] || 0) + (item.quantity || 0);
+  }
 
-  const providerData = vasData.reduce(
-    (acc, item) => {
-      const name = item.provider.name;
-      if (!acc[name]) acc[name] = { transactions: 0, revenue: 0 };
-      acc[name].transactions += item.broj_transakcija || 0;
-      acc[name].revenue += item.fakturisan_iznos || 0;
-      return acc;
-    },
-    {} as Record<string, { transactions: number; revenue: number }>
-  );
+  // Provider breakdown
+  const providerMap: Record<string, { transactions: number; revenue: number }> = {};
+  for (const item of vasData as any[]) {
+    const name = item.provider?.name ?? "Unknown";
+    if (!providerMap[name]) providerMap[name] = { transactions: 0, revenue: 0 };
+    providerMap[name].transactions += item.broj_transakcija || 0;
+    providerMap[name].revenue += item.fakturisan_iznos || 0;
+  }
+  for (const item of parkingData as any[]) {
+    const name = item.parkingService?.name ?? "Unknown";
+    if (!providerMap[name]) providerMap[name] = { transactions: 0, revenue: 0 };
+    providerMap[name].transactions += item.quantity || 0;
+    providerMap[name].revenue += item.amount || 0;
+  }
+  for (const item of humanitarianData as any[]) {
+    const name = item.humanitarianOrg?.name ?? "Unknown";
+    if (!providerMap[name]) providerMap[name] = { transactions: 0, revenue: 0 };
+    providerMap[name].transactions += item.quantity || 0;
+    providerMap[name].revenue += item.amount || 0;
+  }
 
-  const totalTransactions = vasData.reduce((sum, item) => sum + (item.broj_transakcija || 0), 0);
-  const totalRevenue = vasData.reduce((sum, item) => sum + (item.fakturisan_iznos || 0), 0);
-  const prevTotalTransactions = comparisonData.reduce((sum, item) => sum + (item.broj_transakcija || 0), 0);
-  const prevTotalRevenue = comparisonData.reduce((sum, item) => sum + (item.fakturisan_iznos || 0), 0);
+  const totalTransactions =
+    (vasData as any[]).reduce((s, i) => s + (i.broj_transakcija || 0), 0) +
+    (parkingData as any[]).reduce((s, i) => s + (i.quantity || 0), 0) +
+    (humanitarianData as any[]).reduce((s, i) => s + (i.quantity || 0), 0);
+
+  const totalRevenue =
+    (vasData as any[]).reduce((s, i) => s + (i.fakturisan_iznos || 0), 0) +
+    (parkingData as any[]).reduce((s, i) => s + (i.amount || 0), 0) +
+    (humanitarianData as any[]).reduce((s, i) => s + (i.amount || 0), 0);
+
+  const prevTransactions =
+    (vasComp as any[]).reduce((s, i) => s + (i.broj_transakcija || 0), 0) +
+    (parkingComp as any[]).reduce((s, i) => s + (i.quantity || 0), 0) +
+    (humanitarianComp as any[]).reduce((s, i) => s + (i.quantity || 0), 0);
+
+  const prevRevenue =
+    (vasComp as any[]).reduce((s, i) => s + (i.fakturisan_iznos || 0), 0) +
+    (parkingComp as any[]).reduce((s, i) => s + (i.amount || 0), 0) +
+    (humanitarianComp as any[]).reduce((s, i) => s + (i.amount || 0), 0);
 
   return {
     totalTransactions,
     totalRevenue,
     averageTransactionValue: totalTransactions > 0 ? totalRevenue / totalTransactions : 0,
     transactionsByMonth,
-    transactionsByServiceType: Object.entries(serviceTypeData).map(([st, transactions]) => ({
+    transactionsByServiceType: Object.entries(serviceTypeMap).map(([st, transactions]) => ({
       serviceType: st,
       transactions,
       percentage: totalTransactions > 0 ? (transactions / totalTransactions) * 100 : 0,
     })),
-    topProviders: Object.entries(providerData)
+    topProviders: Object.entries(providerMap)
       .map(([providerName, data]) => ({ providerName, ...data }))
       .sort((a, b) => b.transactions - a.transactions)
       .slice(0, 10),
     growthRate: {
       transactionsGrowth:
-        prevTotalTransactions > 0
-          ? ((totalTransactions - prevTotalTransactions) / prevTotalTransactions) * 100
+        prevTransactions > 0
+          ? ((totalTransactions - prevTransactions) / prevTransactions) * 100
           : totalTransactions > 0 ? 100 : 0,
       revenueGrowth:
-        prevTotalRevenue > 0
-          ? ((totalRevenue - prevTotalRevenue) / prevTotalRevenue) * 100
+        prevRevenue > 0
+          ? ((totalRevenue - prevRevenue) / prevRevenue) * 100
           : totalRevenue > 0 ? 100 : 0,
     },
   };

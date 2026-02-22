@@ -4,7 +4,6 @@
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { canViewFinancialData } from "@/lib/security/permission-checker";
-import { ServiceType } from "@prisma/client";
 
 export type FinancialDataParams = {
   startDate?: Date;
@@ -54,54 +53,106 @@ export async function getFinancialData({
 
   const effectiveStartDate = startDate || defaultStartDate;
   const effectiveEndDate = endDate || defaultEndDate;
+  effectiveStartDate.setHours(0, 0, 0, 0);
+  effectiveEndDate.setHours(23, 59, 59, 999);
 
-  // ✅ FIX: ServiceType enum umesto string, Prisma razume samo enum vrednosti
-  const serviceTypeEnum = serviceType
-    ? Object.values(ServiceType).includes(serviceType as ServiceType)
-      ? (serviceType as ServiceType)
-      : undefined
-    : undefined;
+  // Querujemo sve 4 tabele paralelno
+  const [vasData, parkingData, humanitarianData, bulkData] = await Promise.all([
+    // VAS — skip ako filtriramo po tipu koji nije VAS
+    (!serviceType || serviceType === "VAS")
+      ? db.vasService.findMany({
+          where: {
+            mesec_pruzanja_usluge: { gte: effectiveStartDate, lte: effectiveEndDate },
+            ...(providerId && { provajderId: providerId }),
+          },
+          include: { provider: true },
+        })
+      : [],
 
-  const vasData = await db.vasService.findMany({
-    where: {
-      mesec_pruzanja_usluge: {
-        gte: effectiveStartDate,
-        lte: effectiveEndDate,
-      },
-      ...(serviceTypeEnum && { service: { type: serviceTypeEnum } }),
-      ...(providerId && { provajderId: providerId }),
-    },
-    include: {
-      service: true,
-      provider: true,
-    },
-    orderBy: { mesec_pruzanja_usluge: "asc" },
-  });
+    // PARKING
+    (!serviceType || serviceType === "PARKING")
+      ? db.parkingTransaction.findMany({
+          where: {
+            date: { gte: effectiveStartDate, lte: effectiveEndDate },
+          },
+          include: { parkingService: true },
+        })
+      : [],
 
-  const monthlyData = vasData.reduce(
-    (acc, item) => {
-      const monthYear = item.mesec_pruzanja_usluge.toLocaleString("en-US", {
-        month: "short",
-        year: "2-digit",
-      });
-      if (!acc[monthYear]) acc[monthYear] = { revenue: 0, collected: 0, outstanding: 0 };
-      acc[monthYear].revenue += item.fakturisan_iznos || 0;
-      acc[monthYear].collected += item.naplacen_iznos || 0;
-      acc[monthYear].outstanding += item.nenaplacen_iznos || 0;
-      return acc;
-    },
-    {} as Record<string, { revenue: number; collected: number; outstanding: number }>
-  );
+    // HUMANITARIAN
+    (!serviceType || serviceType === "HUMANITARIAN")
+      ? db.humanitarianTransaction.findMany({
+          where: {
+            date: { gte: effectiveStartDate, lte: effectiveEndDate },
+          },
+          include: { humanitarianOrg: true },
+        })
+      : [],
 
-  const fullMonthRange: Record<string, { revenue: number; collected: number; outstanding: number }> = {};
+    // BULK — bulk nema amount, koristimo broj poruka kao proxy
+    (!serviceType || serviceType === "BULK")
+      ? db.bulkService.findMany({
+          where: {
+            datumNaplate: {
+              gte: effectiveStartDate,
+              lte: effectiveEndDate,
+              not: null,
+            },
+          },
+          include: { provider: true },
+        })
+      : [],
+  ]);
+
+  // Helper za ključ meseca
+  const monthKey = (date: Date) =>
+    date.toLocaleString("en-US", { month: "short", year: "2-digit" });
+
+  // Agregacija po mesecu
+  const monthlyMap = new Map<string, { revenue: number; collected: number; outstanding: number }>();
+
+  const ensureMonth = (key: string) => {
+    if (!monthlyMap.has(key)) {
+      monthlyMap.set(key, { revenue: 0, collected: 0, outstanding: 0 });
+    }
+    return monthlyMap.get(key)!;
+  };
+
+  // VAS
+  for (const item of vasData as any[]) {
+    const entry = ensureMonth(monthKey(item.mesec_pruzanja_usluge));
+    entry.revenue += item.fakturisan_iznos || 0;
+    entry.collected += item.naplacen_iznos || 0;
+    entry.outstanding += item.nenaplacen_iznos || 0;
+  }
+
+  // PARKING
+  for (const item of parkingData as any[]) {
+    const entry = ensureMonth(monthKey(item.date));
+    entry.revenue += item.amount || 0;
+    entry.collected += item.amount || 0; // parking se smatra naplaćenim
+  }
+
+  // HUMANITARIAN
+  for (const item of humanitarianData as any[]) {
+    const entry = ensureMonth(monthKey(item.date));
+    entry.revenue += item.amount || 0;
+    entry.collected += item.amount || 0;
+  }
+
+  // BULK — nema novčani iznos u shemi, preskačemo za revenue
+  // ali možemo pratiti po mesecu ako dodate price polje u budućnosti
+
+  // Popuni sve mesece u rangu
+  const fullMonthRange = new Map<string, { revenue: number; collected: number; outstanding: number }>();
   const cur = new Date(effectiveStartDate);
   while (cur <= effectiveEndDate) {
-    const key = cur.toLocaleString("en-US", { month: "short", year: "2-digit" });
-    fullMonthRange[key] = monthlyData[key] || { revenue: 0, collected: 0, outstanding: 0 };
+    const key = monthKey(cur);
+    fullMonthRange.set(key, monthlyMap.get(key) || { revenue: 0, collected: 0, outstanding: 0 });
     cur.setMonth(cur.getMonth() + 1);
   }
 
-  const revenueByMonth = Object.entries(fullMonthRange)
+  const revenueByMonth = Array.from(fullMonthRange.entries())
     .map(([month, data]) => ({ month, ...data }))
     .sort((a, b) => {
       const [am, ay] = a.month.split(" ");
@@ -109,37 +160,57 @@ export async function getFinancialData({
       return new Date(`${am} 01 20${ay}`).getTime() - new Date(`${bm} 01 20${by}`).getTime();
     });
 
-  // ✅ FIX: item.service.type je ServiceType enum — toString() za konzistentnost
-  const serviceTypeData = vasData.reduce((acc, item) => {
-    const type = item.service.type.toString();
-    acc[type] = (acc[type] || 0) + (item.fakturisan_iznos || 0);
-    return acc;
-  }, {} as Record<string, number>);
+  // Service type breakdown
+  const serviceTypeMap: Record<string, number> = {};
 
-  // ✅ FIX: item.provider.name — provider je include-ovan, TypeScript sada zna
-  const providerData = vasData.reduce((acc, item) => {
-    const name = item.provider.name;
-    acc[name] = (acc[name] || 0) + (item.fakturisan_iznos || 0);
-    return acc;
-  }, {} as Record<string, number>);
+  for (const item of vasData as any[]) {
+    serviceTypeMap["VAS"] = (serviceTypeMap["VAS"] || 0) + (item.fakturisan_iznos || 0);
+  }
+  for (const item of parkingData as any[]) {
+    serviceTypeMap["PARKING"] = (serviceTypeMap["PARKING"] || 0) + (item.amount || 0);
+  }
+  for (const item of humanitarianData as any[]) {
+    serviceTypeMap["HUMANITARIAN"] = (serviceTypeMap["HUMANITARIAN"] || 0) + (item.amount || 0);
+  }
 
-  const totalRevenue = vasData.reduce((sum, item) => sum + (item.fakturisan_iznos || 0), 0);
-  const collectedAmount = vasData.reduce((sum, item) => sum + (item.naplacen_iznos || 0), 0);
-  const outstandingAmount = vasData.reduce((sum, item) => sum + (item.nenaplacen_iznos || 0), 0);
-  const canceledAmount = vasData.reduce((sum, item) => sum + (item.otkazan_iznos || 0), 0);
+  // Provider breakdown
+  const providerMap: Record<string, number> = {};
+
+  for (const item of vasData as any[]) {
+    const name = item.provider?.name ?? "Unknown";
+    providerMap[name] = (providerMap[name] || 0) + (item.fakturisan_iznos || 0);
+  }
+  for (const item of parkingData as any[]) {
+    const name = item.parkingService?.name ?? "Unknown";
+    providerMap[name] = (providerMap[name] || 0) + (item.amount || 0);
+  }
+  for (const item of humanitarianData as any[]) {
+    const name = item.humanitarianOrg?.name ?? "Unknown";
+    providerMap[name] = (providerMap[name] || 0) + (item.amount || 0);
+  }
+
+  const totalRevenue = Object.values(serviceTypeMap).reduce((s, v) => s + v, 0);
+  const totalCollected =
+    (vasData as any[]).reduce((s, i) => s + (i.naplacen_iznos || 0), 0) +
+    (parkingData as any[]).reduce((s, i) => s + (i.amount || 0), 0) +
+    (humanitarianData as any[]).reduce((s, i) => s + (i.amount || 0), 0);
+  const totalOutstanding =
+    (vasData as any[]).reduce((s, i) => s + (i.nenaplacen_iznos || 0), 0);
+  const totalCanceled =
+    (vasData as any[]).reduce((s, i) => s + (i.otkazan_iznos || 0), 0);
 
   return {
     totalRevenue,
-    outstandingAmount,
-    collectedAmount,
-    canceledAmount,
+    outstandingAmount: totalOutstanding,
+    collectedAmount: totalCollected,
+    canceledAmount: totalCanceled,
     revenueByMonth,
-    serviceTypeBreakdown: Object.entries(serviceTypeData).map(([st, revenue]) => ({
+    serviceTypeBreakdown: Object.entries(serviceTypeMap).map(([st, revenue]) => ({
       serviceType: st,
       revenue,
       percentage: totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0,
     })),
-    providerBreakdown: Object.entries(providerData)
+    providerBreakdown: Object.entries(providerMap)
       .map(([providerName, revenue]) => ({
         providerName,
         revenue,
